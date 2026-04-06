@@ -1,0 +1,45 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 9 9" width="32" height="32">
+  <!-- Z-shaped snake logo — matches src/utils/logo.js grid -->
+  <!-- Row 0: tongue upper fork tip -->
+  <rect x="0" y="0" width="1" height="1" fill="#e74c3c"/>
+  <!-- Row 1: tongue curves in -->
+  <rect x="1" y="1" width="1" height="1" fill="#e74c3c"/>
+  <!-- Row 2: tongue meets head + top bar -->
+  <rect x="2" y="2" width="1" height="1" fill="#e74c3c"/>
+  <rect x="3" y="2" width="1" height="1" fill="#80f0ff"/>
+  <rect x="4" y="2" width="1" height="1" fill="#16162a"/>
+  <rect x="5" y="2" width="1" height="1" fill="#80f0ff"/>
+  <rect x="6" y="2" width="1" height="1" fill="#00e5ff"/>
+  <rect x="7" y="2" width="1" height="1" fill="#00e5ff"/>
+  <rect x="8" y="2" width="1" height="1" fill="#00e5ff"/>
+  <!-- Row 3: tongue lower fork + top bar -->
+  <rect x="1" y="3" width="1" height="1" fill="#e74c3c"/>
+  <rect x="3" y="3" width="1" height="1" fill="#80f0ff"/>
+  <rect x="4" y="3" width="1" height="1" fill="#00e5ff"/>
+  <rect x="5" y="3" width="1" height="1" fill="#00e5ff"/>
+  <rect x="6" y="3" width="1" height="1" fill="#00e5ff"/>
+  <rect x="7" y="3" width="1" height="1" fill="#00e5ff"/>
+  <rect x="8" y="3" width="1" height="1" fill="#00e5ff"/>
+  <!-- Row 4: tongue lower tip + diagonal -->
+  <rect x="0" y="4" width="1" height="1" fill="#e74c3c"/>
+  <rect x="7" y="4" width="1" height="1" fill="#00e5ff"/>
+  <rect x="8" y="4" width="1" height="1" fill="#00e5ff"/>
+  <!-- Row 5: diagonal -->
+  <rect x="6" y="5" width="1" height="1" fill="#00e5ff"/>
+  <rect x="7" y="5" width="1" height="1" fill="#00e5ff"/>
+  <!-- Row 6: diagonal -->
+  <rect x="5" y="6" width="1" height="1" fill="#00e5ff"/>
+  <rect x="6" y="6" width="1" height="1" fill="#00e5ff"/>
+  <!-- Row 7: bottom bar -->
+  <rect x="4" y="7" width="1" height="1" fill="#00e5ff"/>
+  <rect x="5" y="7" width="1" height="1" fill="#00e5ff"/>
+  <rect x="6" y="7" width="1" height="1" fill="#00e5ff"/>
+  <rect x="7" y="7" width="1" height="1" fill="#00e5ff"/>
+  <rect x="8" y="7" width="1" height="1" fill="#00e5ff"/>
+  <!-- Row 8: bottom bar + tail -->
+  <rect x="4" y="8" width="1" height="1" fill="#00e5ff"/>
+  <rect x="5" y="8" width="1" height="1" fill="#00e5ff"/>
+  <rect x="6" y="8" width="1" height="1" fill="#00e5ff"/>
+  <rect x="7" y="8" width="1" height="1" fill="#00e5ff"/>
+  <rect x="8" y="8" width="1" height="1" fill="#00b8d4"/>
+</svg>

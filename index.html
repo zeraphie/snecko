@@ -1,0 +1,125 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Snecko</title>
+    <link rel="icon" type="image/svg+xml" href="logo.svg" />
+    <style>
+      body {
+        margin: 0;
+        background: #0f0f23;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        gap: 16px;
+      }
+      canvas {
+        image-rendering: pixelated;
+      }
+
+      /* --- Pixel-art logo (CSS box-shadow) --- */
+      .snecko-header {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 8px;
+      }
+      .snecko-title {
+        font-family: monospace;
+        font-size: 18px;
+        letter-spacing: 6px;
+        color: #cbdbfc;
+      }
+      .snecko-logo {
+        --px: 5px;
+        position: relative;
+        width: calc(var(--px) * 9);
+        height: calc(var(--px) * 9);
+        animation: breathe 3s ease-in-out infinite;
+        transition: transform 0.4s ease-in;
+      }
+      .snecko-logo::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: var(--px);
+        height: var(--px);
+        box-shadow:
+          /* Row 0: tongue upper fork tip */
+          calc(var(--px) * 0) calc(var(--px) * 0) 0 0 #e74c3c,
+          /* Row 1: tongue curves in */ calc(var(--px) * 1) calc(var(--px) * 1) 0 0 #e74c3c,
+          /* Row 2: tongue meets head + top bar */ calc(var(--px) * 2) calc(var(--px) * 2) 0 0
+            #e74c3c,
+          calc(var(--px) * 3) calc(var(--px) * 2) 0 0 #80f0ff,
+          calc(var(--px) * 4) calc(var(--px) * 2) 0 0 #16162a,
+          calc(var(--px) * 5) calc(var(--px) * 2) 0 0 #80f0ff,
+          calc(var(--px) * 6) calc(var(--px) * 2) 0 0 #00e5ff,
+          calc(var(--px) * 7) calc(var(--px) * 2) 0 0 #00e5ff,
+          calc(var(--px) * 8) calc(var(--px) * 2) 0 0 #00e5ff,
+          /* Row 3: tongue lower fork + top bar */ calc(var(--px) * 1) calc(var(--px) * 3) 0 0
+            #e74c3c,
+          calc(var(--px) * 3) calc(var(--px) * 3) 0 0 #80f0ff,
+          calc(var(--px) * 4) calc(var(--px) * 3) 0 0 #00e5ff,
+          calc(var(--px) * 5) calc(var(--px) * 3) 0 0 #00e5ff,
+          calc(var(--px) * 6) calc(var(--px) * 3) 0 0 #00e5ff,
+          calc(var(--px) * 7) calc(var(--px) * 3) 0 0 #00e5ff,
+          calc(var(--px) * 8) calc(var(--px) * 3) 0 0 #00e5ff,
+          /* Row 4: tongue lower tip + diagonal */ calc(var(--px) * 0) calc(var(--px) * 4) 0 0
+            #e74c3c,
+          calc(var(--px) * 7) calc(var(--px) * 4) 0 0 #00e5ff,
+          calc(var(--px) * 8) calc(var(--px) * 4) 0 0 #00e5ff,
+          /* Row 5: diagonal */ calc(var(--px) * 6) calc(var(--px) * 5) 0 0 #00e5ff,
+          calc(var(--px) * 7) calc(var(--px) * 5) 0 0 #00e5ff,
+          /* Row 6: diagonal */ calc(var(--px) * 5) calc(var(--px) * 6) 0 0 #00e5ff,
+          calc(var(--px) * 6) calc(var(--px) * 6) 0 0 #00e5ff,
+          /* Row 7: bottom bar */ calc(var(--px) * 4) calc(var(--px) * 7) 0 0 #00e5ff,
+          calc(var(--px) * 5) calc(var(--px) * 7) 0 0 #00e5ff,
+          calc(var(--px) * 6) calc(var(--px) * 7) 0 0 #00e5ff,
+          calc(var(--px) * 7) calc(var(--px) * 7) 0 0 #00e5ff,
+          calc(var(--px) * 8) calc(var(--px) * 7) 0 0 #00e5ff,
+          /* Row 8: bottom bar + tail */ calc(var(--px) * 4) calc(var(--px) * 8) 0 0 #00e5ff,
+          calc(var(--px) * 5) calc(var(--px) * 8) 0 0 #00e5ff,
+          calc(var(--px) * 6) calc(var(--px) * 8) 0 0 #00e5ff,
+          calc(var(--px) * 7) calc(var(--px) * 8) 0 0 #00e5ff,
+          calc(var(--px) * 8) calc(var(--px) * 8) 0 0 #00b8d4;
+      }
+      .snecko-logo.excited {
+        animation: excited 0.15s ease-in-out 4;
+      }
+      .snecko-logo.dead {
+        animation: none;
+        transform: rotate(-90deg) translateY(4px);
+      }
+
+      @keyframes breathe {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-3px);
+        }
+      }
+      @keyframes excited {
+        0%,
+        100% {
+          transform: translateY(0);
+        }
+        50% {
+          transform: translateY(-6px);
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="snecko-header">
+      <div class="snecko-logo" id="logo"></div>
+      <div class="snecko-title">SNECKO</div>
+    </div>
+    <canvas id="game"></canvas>
+    <script type="module" src="src/main.browser.js"></script>
+  </body>
+</html>

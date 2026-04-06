@@ -1,0 +1,7 @@
+node_modules/
+coverage/
+.claude/
+CLAUDE.md
+PLAN*.md
+**/PLAN*.md
+.DS_Store
