@@ -96,9 +96,15 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - uses: actions/download-artifact@v4
+        with:
+          name: node-modules-${{ github.sha }}
+      - run: tar --zstd -xf node_modules.tar.zst
+      - run: bun run upload:build
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: .
+          path: ./dist
       - id: deployment
         uses: actions/deploy-pages@v4

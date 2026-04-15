@@ -13,7 +13,10 @@
     "format": "prettier --write \"**/*.{js,json,html,md}\"",
     "format:check": "prettier --check \"**/*.{js,json,html,md}\"",
     "check": "npm run format:check && npm run lint && npm run test",
-    "play": "node src/main.terminal.js"
+    "play": "node src/main.terminal.js",
+    "serve": "npx --yes serve .",
+    "upload:build": "bun build ./index.html --outdir ./dist --production --minify",
+    "upload:serve": "npx --yes serve ./dist"
   },
   "devDependencies": {
     "eslint": "^9.0.0",

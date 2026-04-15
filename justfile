@@ -41,4 +41,4 @@ play:
 
 # Serve for browser (needed for ESM <script type="module">)
 serve:
-  npx --yes serve .
+  bun run serve
