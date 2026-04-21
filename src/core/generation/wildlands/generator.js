@@ -1,9 +1,9 @@
 // generator.js — Wildlands terrain generation using FBM noise
 
-import { createPermTable, fbm2 } from "./noise.js";
-import { bfsReachable } from "../common/solvability.js";
-import { TERRAIN_NONE, TERRAIN_LOW, TERRAIN_HIGH, TERRAIN_CURRENT } from "../../board/constants.js";
-import { initCurrents, advanceCurrents } from "../../mechanics/currents.js";
+import { createPermTable, fbm2 } from './noise.js';
+import { bfsReachable } from '../common/solvability.js';
+import { TERRAIN_NONE, TERRAIN_LOW, TERRAIN_HIGH, TERRAIN_CURRENT } from '../../board/constants.js';
+import { initCurrents, advanceCurrents } from '../../mechanics/currents.js';
 
 const SPAWN_CLEAR_RADIUS = 4;
 const LOW_THRESHOLD = 0.15; // fbm > this → low wall
@@ -13,14 +13,19 @@ const LACUNARITY = 2.0;
 const PERSISTENCE = 0.5;
 const SCALE = 0.18; // controls feature size relative to board
 
+/**
+ * Generates a wildlands board using FBM noise terrain with low/high walls.
+ *
+ * @param {import('../../game/index.js').Game} game
+ */
 export function generateWildlandsBoard(game) {
   const board = game.board;
   const w = board.width;
   const h = board.height;
 
-  board.clearMasks("wall");
-  board.clearMasks("snake");
-  board.clearMasks("reserved");
+  board.clearMasks('wall');
+  board.clearMasks('snake');
+  board.clearMasks('reserved');
   board.terrain.fill(TERRAIN_NONE);
 
   const seed = Date.now() ^ (game.boardIndex * 7919);
@@ -40,10 +45,10 @@ export function generateWildlandsBoard(game) {
       const n = fbm2(x * SCALE, y * SCALE, OCTAVES, LACUNARITY, PERSISTENCE, perm);
 
       if (n > HIGH_THRESHOLD) {
-        board.setCell("wall", x, y);
+        board.setCell('wall', x, y);
         board.terrain[y * w + x] = TERRAIN_HIGH;
       } else if (n > LOW_THRESHOLD) {
-        board.setCell("wall", x, y);
+        board.setCell('wall', x, y);
         board.terrain[y * w + x] = TERRAIN_LOW;
       }
     }
@@ -60,6 +65,11 @@ export function generateWildlandsBoard(game) {
   initCurrents(game);
 }
 
+/**
+ * Advances the wildlands board (currents phase + food placement).
+ *
+ * @param {import('../../game/index.js').Game} game
+ */
 export function advanceWildlandsBoard(game) {
   // Advance currents phase
   advanceCurrents(game);

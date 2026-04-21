@@ -3,7 +3,9 @@
 // BASE_SHAPES is generated from crystals.shapes by: just gen-shapes
 // Do not edit BASE_SHAPES by hand.
 
-import { TERRAIN_TELEGRAPH, TERRAIN_NONE } from "../../board/constants.js";
+import { TERRAIN_TELEGRAPH, TERRAIN_NONE } from '../../board/constants.js';
+
+// ── Shape data ────────────────────────────────────────────────────
 
 // prettier-ignore
 const BASE_SHAPES = [
@@ -39,11 +41,13 @@ const BASE_SHAPES = [
   ] },
 ];
 
+// ── Rotation / comparison ─────────────────────────────────────────
+
 function rotateStage90(stage) {
   const w = stage.height;
   const h = stage.width;
-  const solidRows = new Array(h).fill(0);
-  const telegraphRows = new Array(h).fill(0);
+  const solidRows = Array.from({ length: h }, () => 0);
+  const telegraphRows = Array.from({ length: h }, () => 0);
 
   for (let sy = 0; sy < stage.height; sy++) {
     for (let sx = 0; sx < stage.width; sx++) {
@@ -62,16 +66,29 @@ function rotateStage90(stage) {
 }
 
 function stagesEqual(a, b) {
-  if (a.width !== b.width || a.height !== b.height) return false;
+  if (a.width !== b.width || a.height !== b.height) {
+    return false;
+  }
   for (let i = 0; i < a.solidRows.length; i++) {
-    if (a.solidRows[i] !== b.solidRows[i]) return false;
+    if (a.solidRows[i] !== b.solidRows[i]) {
+      return false;
+    }
   }
   for (let i = 0; i < a.telegraphRows.length; i++) {
-    if (a.telegraphRows[i] !== b.telegraphRows[i]) return false;
+    if (a.telegraphRows[i] !== b.telegraphRows[i]) {
+      return false;
+    }
   }
   return true;
 }
 
+// ── Public API ────────────────────────────────────────────────────
+
+/**
+ * Builds all crystal definitions with precomputed rotations for each stage.
+ *
+ * @returns {Array<{ name: string, stages: Array<{ rotations: object[] }> }>}
+ */
 export function buildCrystals() {
   const crystals = [];
 
@@ -105,10 +122,21 @@ export function buildCrystals() {
   return crystals;
 }
 
+/**
+ * Tests whether a crystal stage can be placed at the given position without overlap.
+ *
+ * @param {import('../../board/index.js').Board} board
+ * @param {object} stage — rotation with solidRows/telegraphRows/width/height
+ * @param {number} x
+ * @param {number} y
+ * @returns {boolean}
+ */
 export function canPlaceStage(board, stage, x, y) {
   for (let row = 0; row < stage.height; row++) {
     const by = y + row;
-    if (by < 0 || by >= board.height) return false;
+    if (by < 0 || by >= board.height) {
+      return false;
+    }
 
     const solidMask = stage.solidRows[row];
     const telegraphMask = stage.telegraphRows[row];
@@ -117,26 +145,50 @@ export function canPlaceStage(board, stage, x, y) {
     for (let col = 0; col < stage.width; col++) {
       if (!(combined & (1 << col))) continue;
       const bx = x + col;
-      if (bx < 0 || bx >= board.width) return false;
-      if (board.isWallCell(bx, by)) return false;
-      if (board.isSnakeCell(bx, by)) return false;
-      if (board.isReservedCell(bx, by)) return false;
+      if (bx < 0 || bx >= board.width) {
+        return false;
+      }
+      if (board.isWallCell(bx, by)) {
+        return false;
+      }
+      if (board.isSnakeCell(bx, by)) {
+        return false;
+      }
+      if (board.isReservedCell(bx, by)) {
+        return false;
+      }
     }
   }
   return true;
 }
 
+/**
+ * Writes solid cells from a crystal stage into the board's wall layer.
+ *
+ * @param {import('../../board/index.js').Board} board
+ * @param {object} stage
+ * @param {number} x
+ * @param {number} y
+ */
 export function placeStage(board, stage, x, y) {
   for (let row = 0; row < stage.height; row++) {
     const by = y + row;
     const solidMask = stage.solidRows[row];
     for (let col = 0; col < stage.width; col++) {
       if (!(solidMask & (1 << col))) continue;
-      board.setCell("wall", x + col, by);
+      board.setCell('wall', x + col, by);
     }
   }
 }
 
+/**
+ * Marks telegraph cells in the terrain array for the next crystal growth stage.
+ *
+ * @param {import('../../board/index.js').Board} board
+ * @param {object} stage
+ * @param {number} x
+ * @param {number} y
+ */
 export function placeTelegraph(board, stage, x, y) {
   const w = board.width;
   for (let row = 0; row < stage.height; row++) {
@@ -152,6 +204,11 @@ export function placeTelegraph(board, stage, x, y) {
   }
 }
 
+/**
+ * Resets all telegraph terrain cells back to TERRAIN_NONE.
+ *
+ * @param {import('../../board/index.js').Board} board
+ */
 export function clearTelegraph(board) {
   const terrain = board.terrain;
   for (let i = 0; i < terrain.length; i++) {

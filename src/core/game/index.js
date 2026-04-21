@@ -1,14 +1,14 @@
 // game.js — Game class: state machine, orchestrates tick/draft/render
 
-import { Board } from "../board/index.js";
-import { Snake } from "../snake/index.js";
-import { UpgradeState } from "../upgrades/state.js";
-import { moveCursor, confirmBomb } from "../upgrades/consumables/bomb.js";
-import { moveWormholeCursor, confirmWormholePlacement } from "../upgrades/consumables/wormhole.js";
+import { Board } from '../board/index.js';
+import { Snake } from '../snake/index.js';
+import { UpgradeState } from '../upgrades/state.js';
+import { moveCursor, confirmBomb } from '../upgrades/consumables/bomb.js';
+import { moveWormholeCursor, confirmWormholePlacement } from '../upgrades/consumables/wormhole.js';
 import {
   generateBoard as crystallineGenerate,
   advanceBoard as crystallineAdvance,
-} from "../generation/index.js";
+} from '../generation/index.js';
 import {
   STATE_START,
   STATE_PLAYING,
@@ -22,14 +22,19 @@ import {
   BASE_TICK_MS,
   FOOD_REQUIRED_BASE,
   FOOD_REQUIRED_PER_LEVEL,
-} from "./constants.js";
+} from './constants.js';
 
 // Method imports — attached to prototype below
-import { tick, _handleFoodEaten, _peekNextCell, _recalcTickMs, _placeRandomFood } from "./tick.js";
-import { selectDraft, toggleMutation, _applyUpgrade, confirmDraft } from "./draft.js";
-import { cycleConsumable, useConsumable, cancelTargeting } from "./consumables.js";
-import { _drawBoard, renderFrame } from "./render.js";
+import { tick, _handleFoodEaten, _peekNextCell, _recalcTickMs, _placeRandomFood } from './tick.js';
+import { selectDraft, toggleMutation, _applyUpgrade, confirmDraft } from './draft.js';
+import { cycleConsumable, useConsumable, cancelTargeting } from './consumables.js';
+import { _drawBoard, renderFrame } from './render.js';
 
+// ── Game class ────────────────────────────────────────────────────
+
+/**
+ * Game state machine: orchestrates tick loop, draft, rendering, and input dispatch.
+ */
 export class Game {
   constructor() {
     this.state = STATE_START;
@@ -61,6 +66,7 @@ export class Game {
     this.advanceBoard = null;
   }
 
+  /** Resets all state and begins a new run from level 1. */
   startRun() {
     this.state = STATE_PLAYING;
     this.score = 0;
@@ -92,10 +98,11 @@ export class Game {
     }
   }
 
+  /** Fallback board reset when no generator is assigned. */
   _resetBoardSimple() {
-    this.board.clearMasks("wall");
-    this.board.clearMasks("snake");
-    this.board.clearMasks("reserved");
+    this.board.clearMasks('wall');
+    this.board.clearMasks('snake');
+    this.board.clearMasks('reserved');
     this.board.terrain.fill(0);
 
     const cx = Math.floor(BOARD_W / 2);
@@ -105,6 +112,12 @@ export class Game {
     this._placeRandomFood();
   }
 
+  /**
+   * Dispatches directional input to the appropriate handler based on game state.
+   *
+   * @param {number} dx
+   * @param {number} dy
+   */
   onInput(dx, dy) {
     if (this.state === STATE_PLAYING) {
       this.snake.setNextDirection(dx, dy);
@@ -115,6 +128,7 @@ export class Game {
     }
   }
 
+  /** Handles confirm action (start game, restart, confirm bomb/wormhole). */
   confirm() {
     if (this.state === STATE_START || this.state === STATE_DEAD) {
       this.startRun();
@@ -125,14 +139,21 @@ export class Game {
     }
   }
 
+  /**
+   * Formats seconds as MM:SS.
+   *
+   * @param {number} secs
+   * @returns {string}
+   */
   static formatTime(secs) {
-    const m = String(Math.floor(secs / 60)).padStart(2, "0");
-    const s = String(Math.floor(secs % 60)).padStart(2, "0");
-    return m + ":" + s;
+    const m = String(Math.floor(secs / 60)).padStart(2, '0');
+    const s = String(Math.floor(secs % 60)).padStart(2, '0');
+    return m + ':' + s;
   }
 }
 
-// Attach methods from split files
+// ── Prototype methods ─────────────────────────────────────────────
+
 Game.prototype.tick = tick;
 Game.prototype._handleFoodEaten = _handleFoodEaten;
 Game.prototype._peekNextCell = _peekNextCell;
@@ -148,7 +169,8 @@ Game.prototype.cancelTargeting = cancelTargeting;
 Game.prototype._drawBoard = _drawBoard;
 Game.prototype.renderFrame = renderFrame;
 
-// Static constants
+// ── Static constants ──────────────────────────────────────────────
+
 Game.BOARD_W = BOARD_W;
 Game.BOARD_H = BOARD_H;
 Game.INITIAL_SNAKE_LENGTH = INITIAL_SNAKE_LENGTH;

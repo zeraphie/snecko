@@ -7,11 +7,19 @@ import {
   TERRAIN_HIGH,
   TERRAIN_TELEGRAPH,
   TERRAIN_CURRENT,
-} from "./constants.js";
-import { _getMask, isCellSet, setCell, clearCell, clearMasks } from "./layers.js";
-import { isInBounds, isWallCell, isSnakeCell, isReservedCell, isBlockedCell } from "./queries.js";
+} from './constants.js';
+import { _getMask, isCellSet, setCell, clearCell, clearMasks } from './layers.js';
+import { isInBounds, isWallCell, isSnakeCell, isReservedCell, isBlockedCell } from './queries.js';
 
+/**
+ * Bitmask board with chunk-based row storage for walls, snake, and reserved cells.
+ * Terrain data is stored in a parallel Uint8Array.
+ */
 export class Board {
+  /**
+   * @param {number} width — board width in cells
+   * @param {number} height — board height in cells
+   */
   constructor(width, height) {
     const chunksPerRow = Math.ceil(width / CHUNK_BITS);
     const totalChunks = height * chunksPerRow;

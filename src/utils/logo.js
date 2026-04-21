@@ -4,11 +4,11 @@
 // Grid is read top-to-bottom, left-to-right.
 
 export const LOGO_COLORS = {
-  B: "#00e5ff", // body — snake cyan
-  H: "#80f0ff", // head — lighter cyan
-  E: "#16162a", // eye  — dark
-  T: "#e74c3c", // tongue — red
-  t: "#00b8d4", // tail — slightly darker cyan
+  B: '#00e5ff', // body — snake cyan
+  H: '#80f0ff', // head — lighter cyan
+  E: '#16162a', // eye  — dark
+  T: '#e74c3c', // tongue — red
+  t: '#00b8d4', // tail — slightly darker cyan
 };
 
 //  The Z-shape IS the snake. 2px thick.
@@ -27,15 +27,15 @@ export const LOGO_COLORS = {
 //  . . . . B B B B t
 //
 const GRID_ROWS = [
-  "T........", // 0   tongue upper fork tip
-  ".T.......", // 1   tongue curves in
-  "..THEHBBB", // 2   tongue meets head + top bar (eye at col 4)
-  ".T.HBBBBB", // 3   tongue lower fork + top bar
-  "T......BB", // 4   tongue lower tip + diagonal
-  "......BB.", // 5   diagonal
-  ".....BB..", // 6   diagonal
-  "....BBBBB", // 7   bottom bar
-  "....BBBBt", // 8   bottom bar + tail taper
+  'T........', // 0   tongue upper fork tip
+  '.T.......', // 1   tongue curves in
+  '..THEHBBB', // 2   tongue meets head + top bar (eye at col 4)
+  '.T.HBBBBB', // 3   tongue lower fork + top bar
+  'T......BB', // 4   tongue lower tip + diagonal
+  '......BB.', // 5   diagonal
+  '.....BB..', // 6   diagonal
+  '....BBBBB', // 7   bottom bar
+  '....BBBBt', // 8   bottom bar + tail taper
 ];
 
 export const LOGO_HEIGHT = GRID_ROWS.length;
@@ -46,7 +46,7 @@ export const LOGO_PIXELS = [];
 for (let y = 0; y < LOGO_HEIGHT; y++) {
   for (let x = 0; x < LOGO_WIDTH; x++) {
     const ch = GRID_ROWS[y][x];
-    if (ch !== ".") {
+    if (ch !== '.') {
       LOGO_PIXELS.push({ x, y, color: ch });
     }
   }

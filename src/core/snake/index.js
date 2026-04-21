@@ -1,8 +1,14 @@
 // snake.js — Ring-buffer snake with movement and collision
 
-import { MAX_CELLS } from "./constants.js";
-import { setNextDirection, step } from "./movement.js";
+import { MAX_CELLS } from './constants.js';
+import { setNextDirection, step } from './movement.js';
 
+// ── Snake class ────────────────────────────────────────
+
+/**
+ * Ring-buffer snake with fixed-size Int16Array storage.
+ * Movement and growth are handled via prototype methods from movement.js.
+ */
 export class Snake {
   constructor() {
     this.snakeX = new Int16Array(MAX_CELLS);
@@ -19,6 +25,16 @@ export class Snake {
     this.deathCause = null;
   }
 
+  /**
+   * Places the snake on the board at the given spawn point.
+   *
+   * @param {import('../board/index.js').Board} board
+   * @param {number} spawnX
+   * @param {number} spawnY
+   * @param {number} length — initial body length
+   * @param {number} dx — initial direction X
+   * @param {number} dy — initial direction Y
+   */
   init(board, spawnX, spawnY, length, dx, dy) {
     this.dirX = dx;
     this.dirY = dy;
@@ -37,12 +53,12 @@ export class Snake {
       const y = spawnY - dy * (length - 1 - i);
       this.snakeX[i] = x;
       this.snakeY[i] = y;
-      board.setCell("snake", x, y);
+      board.setCell('snake', x, y);
     }
   }
 }
 
-// Attach methods from split files
+// ── Prototype methods ──────────────────────────────────
 Snake.prototype.setNextDirection = setNextDirection;
 Snake.prototype.step = step;
 

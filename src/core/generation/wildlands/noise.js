@@ -1,6 +1,13 @@
 // noise.js — Zero-dep 2D Perlin noise + fractal Brownian motion
 
-// Attempt: seeded permutation table (Fisher-Yates with splitmix32 PRNG)
+// ── Permutation table ──────────────────────────────────
+
+/**
+ * Creates a deterministic 512-entry permutation table from a seed (splitmix32 + Fisher-Yates).
+ *
+ * @param {number} seed
+ * @returns {Uint8Array}
+ */
 export function createPermTable(seed) {
   const perm = new Uint8Array(512);
 
@@ -32,7 +39,7 @@ export function createPermTable(seed) {
   return perm;
 }
 
-// 2D gradient vectors (12 directions, classic Perlin set)
+// ── Gradient helpers ───────────────────────────────────
 const GRAD_X = [1, -1, 1, -1, 1, -1, 1, -1, 0, 0, 0, 0];
 const GRAD_Y = [0, 0, 0, 0, 1, 1, -1, -1, 1, -1, 1, -1];
 
@@ -49,7 +56,16 @@ function grad(hash, x, y) {
   return GRAD_X[h] * x + GRAD_Y[h] * y;
 }
 
-// Classic 2D Perlin noise, returns approximately [-1, 1]
+// ── Perlin noise ───────────────────────────────────────
+
+/**
+ * Classic 2D Perlin noise, returns approximately [-1, 1].
+ *
+ * @param {number} x
+ * @param {number} y
+ * @param {Uint8Array} perm — 512-entry permutation table
+ * @returns {number}
+ */
 export function perlin2(x, y, perm) {
   const xi = Math.floor(x) & 255;
   const yi = Math.floor(y) & 255;
@@ -71,7 +87,19 @@ export function perlin2(x, y, perm) {
   );
 }
 
-// Fractal Brownian motion — layered Perlin octaves
+// ── Fractal Brownian motion ────────────────────────────
+
+/**
+ * Layered Perlin octaves, normalised to approximately [-1, 1].
+ *
+ * @param {number} x
+ * @param {number} y
+ * @param {number} octaves
+ * @param {number} lacunarity
+ * @param {number} persistence
+ * @param {Uint8Array} perm
+ * @returns {number}
+ */
 export function fbm2(x, y, octaves, lacunarity, persistence, perm) {
   let value = 0;
   let amplitude = 1;

@@ -1,10 +1,10 @@
 // tick.js — Tick loop, food handling, tick speed calculation
 
-import { generateDraftPool } from "../upgrades/draft.js";
-import { applySlowTime } from "../upgrades/passives/slow-time.js";
-import { applyIronJaw } from "../upgrades/passives/iron-jaw.js";
-import { applyWormholeTeleport } from "../upgrades/consumables/wormhole.js";
-import { applyCurrentDrift } from "../mechanics/currents.js";
+import { generateDraftPool } from '../upgrades/draft.js';
+import { applySlowTime } from '../upgrades/passives/slow-time.js';
+import { applyIronJaw } from '../upgrades/passives/iron-jaw.js';
+import { applyWormholeTeleport } from '../upgrades/consumables/wormhole.js';
+import { applyCurrentDrift } from '../mechanics/currents.js';
 import {
   STATE_PLAYING,
   STATE_DRAFT,
@@ -12,13 +12,18 @@ import {
   BASE_TICK_MS,
   MIN_TICK_MS,
   TICK_DECREASE_PER_BOARD,
-} from "./constants.js";
+} from './constants.js';
 
+/** Runs one game tick if enough time has elapsed. Handles movement, food, drift, and death. */
 export function tick() {
-  if (this.state !== STATE_PLAYING) return;
+  if (this.state !== STATE_PLAYING) {
+    return;
+  }
 
   const now = Date.now();
-  if (now - this.lastTickTime < this.tickMs) return;
+  if (now - this.lastTickTime < this.tickMs) {
+    return;
+  }
   this.lastTickTime = now;
   this.runTime = (now - this.startTime) / 1000;
 
@@ -26,11 +31,11 @@ export function tick() {
 
   const result = this.snake.step(this.board);
 
-  if (result === "food") {
+  if (result === 'food') {
     applyWormholeTeleport(this);
     this._handleFoodEaten();
     applyCurrentDrift(this);
-  } else if (result === "ok") {
+  } else if (result === 'ok') {
     applyWormholeTeleport(this);
     applyCurrentDrift(this);
   } else {
@@ -38,6 +43,7 @@ export function tick() {
   }
 }
 
+/** Increments score, ticks passives, and transitions to draft or advances the board. */
 export function _handleFoodEaten() {
   this.score++;
   this.foodEaten++;
@@ -53,15 +59,18 @@ export function _handleFoodEaten() {
     this._draftSelection = 0;
     this._draftMutationAccepted = false;
     this.state = STATE_DRAFT;
+  } else if (this.advanceBoard) {
+    this.advanceBoard(this);
   } else {
-    if (this.advanceBoard) {
-      this.advanceBoard(this);
-    } else {
-      this._placeRandomFood();
-    }
+    this._placeRandomFood();
   }
 }
 
+/**
+ * Returns the wrapped coordinates of the cell the snake will move into next.
+ *
+ * @returns {{ x: number, y: number }}
+ */
 export function _peekNextCell() {
   const hx = this.snake.snakeX[this.snake.headIndex];
   const hy = this.snake.snakeY[this.snake.headIndex];
@@ -76,6 +85,7 @@ export function _peekNextCell() {
   return { x: nx, y: ny };
 }
 
+/** Recalculates tick interval based on board index and slow-time passive. */
 export function _recalcTickMs() {
   let ms = Math.max(MIN_TICK_MS, BASE_TICK_MS - (this.boardIndex - 1) * TICK_DECREASE_PER_BOARD);
   const mult = applySlowTime(this);
@@ -85,6 +95,7 @@ export function _recalcTickMs() {
   this.tickMs = ms;
 }
 
+/** Places food at a random unblocked cell (simple fallback, no influence map). */
 export function _placeRandomFood() {
   let x, y;
   do {

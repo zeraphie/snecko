@@ -1,6 +1,6 @@
 // render.js — Board drawing and frame rendering
 
-import { Snake } from "../snake/index.js";
+import { Snake } from '../snake/index.js';
 import {
   CELL_WALL,
   CELL_WALL_LOW,
@@ -13,29 +13,43 @@ import {
   CELL_TELEGRAPH,
   CELL_WORMHOLE_A,
   CELL_WORMHOLE_B,
-} from "../../render/renderer.js";
-import { TERRAIN_LOW, TERRAIN_CURRENT, TERRAIN_TELEGRAPH } from "../board/constants.js";
+} from '../../render/renderer.js';
+import { TERRAIN_LOW, TERRAIN_CURRENT, TERRAIN_TELEGRAPH } from '../board/constants.js';
 import {
   STATE_DRAFT,
   STATE_START,
   STATE_DEAD,
   STATE_TARGETING,
   STATE_WORMHOLE,
-} from "./constants.js";
+} from './constants.js';
+
+// ── Helpers ────────────────────────────────────────────
 
 function currentCellType(mechanic, x, y) {
-  if (mechanic && mechanic.type === "currents") {
+  if (mechanic && mechanic.type === 'currents') {
     const cell = mechanic.cells.find((c) => c.x === x && c.y === y);
+
     if (cell) {
-      if (cell.flowDx === 1) return CELL_CURRENT_RIGHT;
-      if (cell.flowDx === -1) return CELL_CURRENT_LEFT;
-      if (cell.flowDy === 1) return CELL_CURRENT_DOWN;
-      if (cell.flowDy === -1) return CELL_CURRENT_UP;
+      if (cell.flowDx === 1) {
+        return CELL_CURRENT_RIGHT;
+      }
+      if (cell.flowDx === -1) {
+        return CELL_CURRENT_LEFT;
+      }
+      if (cell.flowDy === 1) {
+        return CELL_CURRENT_DOWN;
+      }
+      if (cell.flowDy === -1) {
+        return CELL_CURRENT_UP;
+      }
     }
   }
   return CELL_CURRENT_RIGHT; // fallback
 }
 
+// ── Public API ─────────────────────────────────────────
+
+/** Draws all board cells (walls, food, terrain, snake, portals) to the renderer. */
 export function _drawBoard() {
   const renderer = this.renderer;
   const board = this.board;
@@ -79,9 +93,12 @@ export function _drawBoard() {
   }
 }
 
+/** Renders a complete frame: clear, draw board/HUD/overlays, flush. Handles all game states. */
 export function renderFrame() {
   const renderer = this.renderer;
-  if (!renderer) return;
+  if (!renderer) {
+    return;
+  }
 
   // Draft screen handles its own output (no clear/flush needed)
   if (this.state === STATE_DRAFT) {
@@ -94,7 +111,7 @@ export function renderFrame() {
       );
     } else {
       renderer.clear();
-      renderer.drawScreen("draft", ["L E V E L   U P", "", "Press Enter"]);
+      renderer.drawScreen('draft', ['L E V E L   U P', '', 'Press Enter']);
       renderer.flush();
     }
     return;
@@ -103,28 +120,28 @@ export function renderFrame() {
   renderer.clear();
 
   if (this.state === STATE_START) {
-    renderer.drawScreen("start", [
-      "S N E C K O",
-      "",
-      "Arrow keys or WASD to move",
-      "",
-      "Press Space or Enter to start",
+    renderer.drawScreen('start', [
+      'S N E C K O',
+      '',
+      'Arrow keys or WASD to move',
+      '',
+      'Press Space or Enter to start',
     ]);
     renderer.flush();
     return;
   }
 
   if (this.state === STATE_DEAD) {
-    const cause = this.snake.deathCause || "unknown";
-    renderer.drawScreen("dead", [
-      "G A M E   O V E R",
-      "",
-      "Cause: " + cause,
-      "Score: " + this.score,
-      "Level: " + this.level,
-      "Time: " + this.constructor.formatTime(this.runTime),
-      "",
-      "Press Space or Enter to restart",
+    const cause = this.snake.deathCause || 'unknown';
+    renderer.drawScreen('dead', [
+      'G A M E   O V E R',
+      '',
+      'Cause: ' + cause,
+      'Score: ' + this.score,
+      'Level: ' + this.level,
+      'Time: ' + this.constructor.formatTime(this.runTime),
+      '',
+      'Press Space or Enter to restart',
     ]);
     renderer.flush();
     return;

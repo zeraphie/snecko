@@ -14,31 +14,42 @@ import {
   CELL_TELEGRAPH,
   CELL_WORMHOLE_A,
   CELL_WORMHOLE_B,
-} from "./renderer.js";
-import { LOGO_PIXELS, LOGO_COLORS, LOGO_WIDTH, LOGO_HEIGHT } from "../utils/logo.js";
+} from './renderer.js';
+import { LOGO_PIXELS, LOGO_COLORS, LOGO_WIDTH, LOGO_HEIGHT } from '../utils/logo.js';
+
+// ── Color constants ───────────────────────────────────────────────
 
 const COLORS = {};
 COLORS[CELL_EMPTY] = null;
-COLORS[CELL_WALL] = "#5C3D11";
-COLORS[CELL_WALL_LOW] = "#7A5529";
-COLORS[CELL_SNAKE] = "#27ae60";
-COLORS[CELL_SNAKE_HEAD] = "#5ddb8a";
-COLORS[CELL_FOOD] = "#f1c40f";
-COLORS[CELL_CURRENT_RIGHT] = "#00e5ff";
-COLORS[CELL_CURRENT_LEFT] = "#00e5ff";
-COLORS[CELL_CURRENT_DOWN] = "#00e5ff";
-COLORS[CELL_CURRENT_UP] = "#00e5ff";
-COLORS[CELL_TELEGRAPH] = "#555566";
+COLORS[CELL_WALL] = '#5C3D11';
+COLORS[CELL_WALL_LOW] = '#7A5529';
+COLORS[CELL_SNAKE] = '#27ae60';
+COLORS[CELL_SNAKE_HEAD] = '#5ddb8a';
+COLORS[CELL_FOOD] = '#f1c40f';
+COLORS[CELL_CURRENT_RIGHT] = '#00e5ff';
+COLORS[CELL_CURRENT_LEFT] = '#00e5ff';
+COLORS[CELL_CURRENT_DOWN] = '#00e5ff';
+COLORS[CELL_CURRENT_UP] = '#00e5ff';
+COLORS[CELL_TELEGRAPH] = '#555566';
 
-const BG_LIGHT = "#222034";
-const BG_DARK = "#1a1a2e";
-const HUD_BG = "#16162a";
-const TEXT_COLOR = "#cbdbfc";
+const BG_LIGHT = '#222034';
+const BG_DARK = '#1a1a2e';
+const HUD_BG = '#16162a';
+const TEXT_COLOR = '#cbdbfc';
 
+// ── Constructor ───────────────────────────────────────────────────
+
+/** Canvas-based renderer for the browser. Draws to a 2D context with immediate-mode calls. */
 export class CanvasRenderer {
+  /**
+   * @param {HTMLCanvasElement} canvas
+   * @param {number} cellSize — pixel size per grid cell
+   * @param {number} boardWidth
+   * @param {number} boardHeight
+   */
   constructor(canvas, cellSize, boardWidth, boardHeight) {
     this._canvas = canvas;
-    this._ctx = canvas.getContext("2d");
+    this._ctx = canvas.getContext('2d');
     this._cellSize = cellSize;
     this._boardWidth = boardWidth;
     this._boardHeight = boardHeight;
@@ -51,6 +62,7 @@ export class CanvasRenderer {
     this._animTime = 0;
   }
 
+  /** Clears the canvas with a checkerboard background and resets the HUD area. */
   clear() {
     this._animTime = Date.now() / 1000;
     const ctx = this._ctx;
@@ -65,8 +77,19 @@ export class CanvasRenderer {
     ctx.fillRect(0, this._gridH, this._gridW, this._hudHeight);
   }
 
+  // ── Cell drawing ───────────────────────────────────────────────
+
+  /**
+   * Draws a single cell. Dispatches to shape helpers for food, portals, and currents.
+   *
+   * @param {number} x
+   * @param {number} y
+   * @param {number} type — cell type constant from renderer.js
+   */
   drawCell(x, y, type) {
-    if (type === CELL_EMPTY) return;
+    if (type === CELL_EMPTY) {
+      return;
+    }
     if (type === CELL_FOOD) {
       this._drawPentagon(x, y);
       return;
@@ -87,6 +110,8 @@ export class CanvasRenderer {
     this._ctx.fillStyle = COLORS[type];
     this._ctx.fillRect(x * this._cellSize, y * this._cellSize, this._cellSize, this._cellSize);
   }
+
+  // ── Shape helpers ──────────────────────────────────────────────
 
   _drawPentagon(gx, gy) {
     const cs = this._cellSize;
@@ -126,7 +151,7 @@ export class CanvasRenderer {
     else flowDot = -gy;
 
     const alpha = 0.3 + 0.25 * Math.sin(this._animTime * 3.5 - flowDot * 0.8);
-    ctx.fillStyle = "#00e5ff";
+    ctx.fillStyle = '#00e5ff';
     ctx.globalAlpha = alpha;
     ctx.beginPath();
     if (type === CELL_CURRENT_RIGHT) {
@@ -151,6 +176,16 @@ export class CanvasRenderer {
     ctx.globalAlpha = 1;
   }
 
+  // ── Snake rendering ────────────────────────────────────────────
+
+  /**
+   * Draws the snake head with a directional arrow overlay.
+   *
+   * @param {number} gx
+   * @param {number} gy
+   * @param {number} dx — direction X
+   * @param {number} dy — direction Y
+   */
   drawSnakeHead(gx, gy, dx, dy) {
     const cs = this._cellSize;
     const px = gx * cs;
@@ -184,6 +219,9 @@ export class CanvasRenderer {
     ctx.fill();
   }
 
+  // ── HUD ────────────────────────────────────────────────────────
+
+  /** Draws the two-line HUD below the grid (stats + upgrades). */
   drawHUD(
     score,
     board,
@@ -196,13 +234,13 @@ export class CanvasRenderer {
     selectedConsumable
   ) {
     const ctx = this._ctx;
-    ctx.font = "12px monospace";
-    ctx.textBaseline = "middle";
+    ctx.font = '12px monospace';
+    ctx.textBaseline = 'middle';
 
     // Line 1: stats
     const y1 = this._gridH + 12;
-    const mins = String(Math.floor(time / 60)).padStart(2, "0");
-    const secs = String(Math.floor(time % 60)).padStart(2, "0");
+    const mins = String(Math.floor(time / 60)).padStart(2, '0');
+    const secs = String(Math.floor(time % 60)).padStart(2, '0');
     ctx.fillStyle = TEXT_COLOR;
     ctx.fillText(
       `Lv ${level}  Food: ${foodEaten}/${foodRequired}  Score: ${score}  Time: ${mins}:${secs}`,
@@ -230,14 +268,22 @@ export class CanvasRenderer {
       }
     }
     if (parts.length > 0) {
-      ctx.fillStyle = "#888";
-      ctx.fillText(parts.join("  "), 8, y2);
+      ctx.fillStyle = '#888';
+      ctx.fillText(parts.join('  '), 8, y2);
     }
   }
 
+  // ── Screens ────────────────────────────────────────────────────
+
+  /**
+   * Draws a full-screen overlay (start, dead) with logo and centered text.
+   *
+   * @param {"start"|"dead"} name
+   * @param {string[]} lines
+   */
   drawScreen(name, lines) {
     const ctx = this._ctx;
-    ctx.fillStyle = name === "dead" ? "rgba(0, 0, 0, 1)" : "rgba(0, 0, 0, 0.75)";
+    ctx.fillStyle = name === 'dead' ? 'rgba(0, 0, 0, 1)' : 'rgba(0, 0, 0, 0.75)';
     ctx.fillRect(0, 0, this._canvas.width, this._canvas.height);
 
     // Logo pixel size — scale so logo is ~100px wide
@@ -247,9 +293,9 @@ export class CanvasRenderer {
     const logoGap = 20;
 
     ctx.fillStyle = TEXT_COLOR;
-    ctx.font = "16px monospace";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    ctx.font = '16px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
 
     const lineHeight = 24;
     const textBlockH = lines.length * lineHeight;
@@ -259,7 +305,7 @@ export class CanvasRenderer {
     // Draw logo centered (rotated 90° on death)
     const logoCX = this._gridW / 2;
     const logoCY = startY + logoH / 2;
-    if (name === "dead") {
+    if (name === 'dead') {
       ctx.save();
       ctx.translate(logoCX, logoCY);
       ctx.rotate(-Math.PI / 2);
@@ -274,7 +320,7 @@ export class CanvasRenderer {
     for (let i = 0; i < lines.length; i++) {
       ctx.fillText(lines[i], this._gridW / 2, textStartY + i * lineHeight);
     }
-    ctx.textAlign = "left";
+    ctx.textAlign = 'left';
   }
 
   _drawLogo(ox, oy, px) {
@@ -286,21 +332,29 @@ export class CanvasRenderer {
     }
   }
 
+  /**
+   * Draws the draft/level-up screen with selectable upgrade cards.
+   *
+   * @param {object[]} choices
+   * @param {object|null} mutation
+   * @param {number} selectedIndex
+   * @param {boolean} mutationAccepted
+   */
   drawDraftScreen(choices, mutation, selectedIndex, mutationAccepted) {
     const ctx = this._ctx;
     const w = this._gridW;
 
     // Full black background
-    ctx.fillStyle = "#000";
+    ctx.fillStyle = '#000';
     ctx.fillRect(0, 0, this._canvas.width, this._canvas.height);
 
-    ctx.textAlign = "center";
-    ctx.textBaseline = "middle";
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
 
     // Title
     ctx.fillStyle = TEXT_COLOR;
-    ctx.font = "bold 20px monospace";
-    ctx.fillText("L E V E L   U P", w / 2, 30);
+    ctx.font = 'bold 20px monospace';
+    ctx.fillText('L E V E L   U P', w / 2, 30);
 
     // Vertical card list
     const cardW = Math.min(w - 40, 320);
@@ -317,73 +371,76 @@ export class CanvasRenderer {
       const selected = i === selectedIndex;
 
       // Card background
-      ctx.fillStyle = selected ? "#2a3a5c" : "#1a1a2e";
+      ctx.fillStyle = selected ? '#2a3a5c' : '#1a1a2e';
       ctx.fillRect(cardX, y, cardW, cardH);
 
       // Card border
-      ctx.strokeStyle = selected ? "#27ae60" : "#444";
+      ctx.strokeStyle = selected ? '#27ae60' : '#444';
       ctx.lineWidth = selected ? 2 : 1;
       ctx.strokeRect(cardX, y, cardW, cardH);
 
       // Selection marker + name (left-aligned)
-      ctx.textAlign = "left";
-      ctx.fillStyle = selected ? "#27ae60" : "#666";
-      ctx.font = "bold 14px monospace";
-      const label = selected ? "\u25b6 " + def.name : def.name;
+      ctx.textAlign = 'left';
+      ctx.fillStyle = selected ? '#27ae60' : '#666';
+      ctx.font = 'bold 14px monospace';
+      const label = selected ? '\u25b6 ' + def.name : def.name;
       ctx.fillText(label, cardX + 10, y + 20);
 
       // Type badge (right-aligned)
-      ctx.textAlign = "right";
-      ctx.fillStyle = "#888";
-      ctx.font = "11px monospace";
-      const badge = def.type === "passive" ? "+" + def.duration + " Rounds" : "x" + def.charges;
+      ctx.textAlign = 'right';
+      ctx.fillStyle = '#888';
+      ctx.font = '11px monospace';
+      const badge = def.type === 'passive' ? '+' + def.duration + ' Rounds' : 'x' + def.charges;
       ctx.fillText(badge, cardX + cardW - 10, y + 20);
 
       // Description
-      ctx.textAlign = "left";
-      ctx.fillStyle = "#aaa";
-      ctx.font = "11px monospace";
+      ctx.textAlign = 'left';
+      ctx.fillStyle = '#aaa';
+      ctx.font = '11px monospace';
       ctx.fillText(def.desc, cardX + 10, y + 38);
     }
 
-    // Mutation slot
+    // Mutation slot (optional bonus card)
     if (mutation) {
       const mY = startY + choices.length * (cardH + gap);
 
-      ctx.fillStyle = mutationAccepted ? "#3a2040" : "#1a1a2e";
+      ctx.fillStyle = mutationAccepted ? '#3a2040' : '#1a1a2e';
       ctx.fillRect(cardX, mY, cardW, cardH);
 
-      ctx.strokeStyle = mutationAccepted ? "#e74c3c" : "#6a3a3a";
+      ctx.strokeStyle = mutationAccepted ? '#e74c3c' : '#6a3a3a';
       ctx.lineWidth = mutationAccepted ? 2 : 1;
       ctx.strokeRect(cardX, mY, cardW, cardH);
 
-      ctx.textAlign = "left";
-      ctx.fillStyle = mutationAccepted ? "#e74c3c" : "#6a3a3a";
-      ctx.font = "bold 14px monospace";
+      ctx.textAlign = 'left';
+      ctx.fillStyle = mutationAccepted ? '#e74c3c' : '#6a3a3a';
+      ctx.font = 'bold 14px monospace';
       const mLabel = mutationAccepted
-        ? "\u25b6 MUTATION: " + mutation.name
-        : "MUTATION: " + mutation.name;
+        ? '\u25b6 MUTATION: ' + mutation.name
+        : 'MUTATION: ' + mutation.name;
       ctx.fillText(mLabel, cardX + 10, mY + 20);
 
-      ctx.fillStyle = "#aaa";
-      ctx.font = "11px monospace";
+      ctx.fillStyle = '#aaa';
+      ctx.font = '11px monospace';
       ctx.fillText(mutation.desc, cardX + 10, mY + 38);
     }
 
     // Instructions
     const instrY = startY + totalCards * (cardH + gap) + 10;
-    ctx.textAlign = "center";
-    ctx.fillStyle = "#666";
-    ctx.font = "12px monospace";
+    ctx.textAlign = 'center';
+    ctx.fillStyle = '#666';
+    ctx.font = '12px monospace';
     ctx.fillText(
-      "\u2191\u2193 select" + (mutation ? ", \u2190\u2192 mutation" : "") + ", Enter confirm",
+      '\u2191\u2193 select' + (mutation ? ', \u2190\u2192 mutation' : '') + ', Enter confirm',
       w / 2,
       instrY
     );
 
-    ctx.textAlign = "left";
+    ctx.textAlign = 'left';
   }
 
+  // ── Overlays ───────────────────────────────────────────────────
+
+  /** Draws the bomb targeting overlay (3x3 blast preview + crosshair). */
   drawTargetingOverlay(cursorX, cursorY, boardW, boardH) {
     const ctx = this._ctx;
     const cs = this._cellSize;
@@ -399,13 +456,13 @@ export class CanvasRenderer {
         else if (by >= boardH) by -= boardH;
 
         const isCenter = dx === 0 && dy === 0;
-        ctx.fillStyle = isCenter ? "rgba(255, 80, 80, 0.6)" : "rgba(255, 80, 80, 0.25)";
+        ctx.fillStyle = isCenter ? 'rgba(255, 80, 80, 0.6)' : 'rgba(255, 80, 80, 0.25)';
         ctx.fillRect(bx * cs, by * cs, cs, cs);
       }
     }
 
     // Cursor crosshair border
-    ctx.strokeStyle = "#ff5050";
+    ctx.strokeStyle = '#ff5050';
     ctx.lineWidth = 2;
     ctx.strokeRect(cursorX * cs, cursorY * cs, cs, cs);
   }
@@ -416,7 +473,7 @@ export class CanvasRenderer {
     const cy = gy * cs + cs / 2;
     const ctx = this._ctx;
     const isA = type === CELL_WORMHOLE_A;
-    const color = isA ? "#ff6600" : "#3399ff";
+    const color = isA ? '#ff6600' : '#3399ff';
     const pulse = 0.6 + 0.4 * Math.sin(this._animTime * 3 + (isA ? 0 : Math.PI));
     const r = cs * 0.4 * (0.8 + 0.2 * pulse);
 
@@ -428,14 +485,15 @@ export class CanvasRenderer {
 
     // Inner ring
     ctx.globalAlpha = pulse * 0.5;
-    ctx.fillStyle = "#fff";
+    ctx.fillStyle = '#fff';
     ctx.beginPath();
     ctx.arc(cx, cy, r * 0.4, 0, Math.PI * 2);
     ctx.fill();
     ctx.globalAlpha = 1;
   }
 
-  drawWormholeOverlay(cursorX, cursorY, phase, portalA, boardW, boardH) {
+  /** Draws the wormhole placement overlay (cursor + placed portal A). */
+  drawWormholeOverlay(cursorX, cursorY, phase, portalA, _boardW, _boardH) {
     const ctx = this._ctx;
     const cs = this._cellSize;
 
@@ -445,7 +503,7 @@ export class CanvasRenderer {
     }
 
     // Draw cursor
-    const color = phase === 1 ? "#ff6600" : "#3399ff";
+    const color = phase === 1 ? '#ff6600' : '#3399ff';
     ctx.globalAlpha = 0.4;
     ctx.fillStyle = color;
     ctx.fillRect(cursorX * cs, cursorY * cs, cs, cs);
@@ -455,20 +513,19 @@ export class CanvasRenderer {
     ctx.strokeRect(cursorX * cs, cursorY * cs, cs, cs);
 
     // Phase label
-    ctx.fillStyle = "#fff";
-    ctx.font = "bold 12px monospace";
-    ctx.textAlign = "center";
-    ctx.textBaseline = "top";
+    ctx.fillStyle = '#fff';
+    ctx.font = 'bold 12px monospace';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
     ctx.fillText(
-      phase === 1 ? "Place Portal A" : "Place Portal B",
+      phase === 1 ? 'Place Portal A' : 'Place Portal B',
       this._gridW / 2,
       this._gridH + 2
     );
-    ctx.textAlign = "left";
-    ctx.textBaseline = "middle";
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'middle';
   }
 
-  flush() {
-    // no-op — canvas draws are immediate
-  }
+  /** No-op — canvas draws are immediate. */
+  flush() {}
 }

@@ -1,44 +1,49 @@
+set shell := ["bash", "-cu"]
+
+nvm := "source ${NVM_DIR:-$HOME/.nvm}/nvm.sh --no-use && nvm use --silent"
+
 default:
   @just --list
 
 # Run all checks (format, lint, test)
-check:
-  bun run format:check
-  bun run lint
-  bun run test
+check: format-check lint test
 
 # Format all files
 format:
-  bun run format
+  {{nvm}} && bun run format
+
+# Check formatting
+format-check:
+  {{nvm}} && bun run format:check
 
 # Lint source and test files
 lint:
-  bun run lint
+  {{nvm}} && bun run lint
 
 # Auto-fix lint issues
 lint-fix:
-  bun run lint:fix
+  {{nvm}} && bun run lint:fix
 
 # Run tests
 test:
-  bun run test
+  {{nvm}} && bun run test
 
 # Run tests in watch mode
 test-watch:
-  bun run test:watch
+  {{nvm}} && bun run test:watch
 
 # Run tests with coverage
 test-coverage:
-  bun run test:coverage
+  {{nvm}} && bun run test:coverage
 
 # Generate crystal bitmasks from .shapes file
 gen-shapes:
-  node scripts/gen-shapes.js
+  {{nvm}} && node scripts/gen-shapes.js
 
 # Play in terminal
 play:
-  node src/main.terminal.js
+  {{nvm}} && node src/main.terminal.js
 
 # Serve for browser (needed for ESM <script type="module">)
 serve:
-  bun run serve
+  {{nvm}} && bun run serve

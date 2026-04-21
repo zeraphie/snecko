@@ -1,41 +1,59 @@
 // draft.js — Draft screen methods (selection, mutation, confirm)
 
-import { TYPE_PASSIVE, TYPE_CONSUMABLE, TYPE_MUTATION } from "../upgrades/defs.js";
+import { TYPE_PASSIVE, TYPE_CONSUMABLE, TYPE_MUTATION } from '../upgrades/defs.js';
 import {
   generateBoard as crystallineGenerate,
   advanceBoard as crystallineAdvance,
-} from "../generation/index.js";
+} from '../generation/index.js';
 import {
   generateWildlandsBoard,
   advanceWildlandsBoard,
-} from "../generation/wildlands/generator.js";
+} from '../generation/wildlands/generator.js';
 import {
   STATE_DRAFT,
   STATE_PLAYING,
   FOOD_REQUIRED_BASE,
   FOOD_REQUIRED_PER_LEVEL,
   INITIAL_SNAKE_LENGTH,
-} from "./constants.js";
+} from './constants.js';
 
 const GENERATORS = {
   crystalline: { generate: crystallineGenerate, advance: crystallineAdvance },
-  wildlands: { generate: generateWildlandsBoard, advance: advanceWildlandsBoard },
+  wildlands: {
+    generate: generateWildlandsBoard,
+    advance: advanceWildlandsBoard,
+  },
 };
 
+/**
+ * Selects a draft choice by index.
+ *
+ * @param {number} index
+ */
 export function selectDraft(index) {
-  if (this.state !== STATE_DRAFT) return;
+  if (this.state !== STATE_DRAFT) {
+    return;
+  }
   if (this._draftPool && index >= 0 && index < this._draftPool.choices.length) {
     this._draftSelection = index;
   }
 }
 
+/** Toggles acceptance of the bonus mutation slot. */
 export function toggleMutation() {
-  if (this.state !== STATE_DRAFT) return;
+  if (this.state !== STATE_DRAFT) {
+    return;
+  }
   if (this._draftPool && this._draftPool.mutation) {
     this._draftMutationAccepted = !this._draftMutationAccepted;
   }
 }
 
+/**
+ * Applies an upgrade definition to the game's upgrade state.
+ *
+ * @param {object} def — upgrade definition from defs.js
+ */
 export function _applyUpgrade(def) {
   if (def.type === TYPE_PASSIVE) {
     this.upgrades.addPassive(def.id, def.duration, def.durationUnit);
@@ -51,8 +69,11 @@ export function _applyUpgrade(def) {
   }
 }
 
+/** Confirms the draft selection, applies upgrades, advances level, and regenerates the board. */
 export function confirmDraft() {
-  if (this.state !== STATE_DRAFT) return;
+  if (this.state !== STATE_DRAFT) {
+    return;
+  }
 
   // Apply selected upgrade(s)
   if (this._draftPool) {

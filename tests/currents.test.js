@@ -1,12 +1,14 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import { Board } from "../src/core/board";
-import { Snake } from "../src/core/snake";
+// currents.test.js — tests for river current generation and drift mechanics
+
+import { describe, it, expect } from 'vitest';
+import { Board } from '../src/core/board';
+import { Snake } from '../src/core/snake';
 import {
   initCurrents,
   advanceCurrents,
   applyCurrentDrift,
-} from "../src/core/mechanics/currents.js";
-import { TERRAIN_CURRENT, TERRAIN_NONE } from "../src/core/board/constants.js";
+} from '../src/core/mechanics/currents.js';
+import { TERRAIN_CURRENT, TERRAIN_NONE } from '../src/core/board/constants.js';
 
 function makeGame(width = 21, height = 21) {
   const board = new Board(width, height);
@@ -20,31 +22,31 @@ function makeGame(width = 21, height = 21) {
   };
 }
 
-describe("initCurrents", () => {
-  it("sets mechanic type to currents", () => {
+describe('initCurrents', () => {
+  it('sets mechanic type to currents', () => {
     const game = makeGame();
     initCurrents(game);
-    expect(game.mechanic.type).toBe("currents");
+    expect(game.mechanic.type).toBe('currents');
     expect(game.mechanic.phase).toBe(0);
   });
 
-  it("generates river cells", () => {
+  it('generates river cells', () => {
     const game = makeGame();
     initCurrents(game);
     expect(game.mechanic.cells.length).toBeGreaterThan(0);
   });
 
-  it("river cells have flow direction", () => {
+  it('river cells have flow direction', () => {
     const game = makeGame();
     initCurrents(game);
     for (const cell of game.mechanic.cells) {
-      expect(typeof cell.x).toBe("number");
-      expect(typeof cell.y).toBe("number");
+      expect(typeof cell.x).toBe('number');
+      expect(typeof cell.y).toBe('number');
       expect(Math.abs(cell.flowDx) + Math.abs(cell.flowDy)).toBe(1);
     }
   });
 
-  it("paints TERRAIN_CURRENT on river cells", () => {
+  it('paints TERRAIN_CURRENT on river cells', () => {
     const game = makeGame();
     initCurrents(game);
     const w = game.board.width;
@@ -53,11 +55,11 @@ describe("initCurrents", () => {
     }
   });
 
-  it("does not place river on wall cells", () => {
+  it('does not place river on wall cells', () => {
     const game = makeGame();
     // Fill a row with walls
     for (let x = 0; x < game.board.width; x++) {
-      game.board.setCell("wall", x, 5);
+      game.board.setCell('wall', x, 5);
     }
     initCurrents(game);
     for (const cell of game.mechanic.cells) {
@@ -65,7 +67,7 @@ describe("initCurrents", () => {
     }
   });
 
-  it("does not place river on snake cells", () => {
+  it('does not place river on snake cells', () => {
     const game = makeGame();
     initCurrents(game);
     for (const cell of game.mechanic.cells) {
@@ -76,19 +78,19 @@ describe("initCurrents", () => {
   });
 });
 
-describe("advanceCurrents", () => {
-  it("no-ops if mechanic is null", () => {
+describe('advanceCurrents', () => {
+  it('no-ops if mechanic is null', () => {
     const game = makeGame();
     advanceCurrents(game); // should not throw
   });
 
-  it("no-ops if mechanic is not currents", () => {
+  it('no-ops if mechanic is not currents', () => {
     const game = makeGame();
-    game.mechanic = { type: "lattice" };
+    game.mechanic = { type: 'lattice' };
     advanceCurrents(game); // should not throw
   });
 
-  it("cycles through phases: telegraph → flow → surge → back to telegraph", () => {
+  it('cycles through phases: telegraph → flow → surge → back to telegraph', () => {
     const game = makeGame();
     initCurrents(game);
     expect(game.mechanic.phase).toBe(0); // telegraph
@@ -104,7 +106,7 @@ describe("advanceCurrents", () => {
     expect(game.mechanic.phase).toBe(0); // telegraph again
   });
 
-  it("widens river on surge phase", () => {
+  it('widens river on surge phase', () => {
     const game = makeGame();
     initCurrents(game);
     const cellsBefore = game.mechanic.cells.length;
@@ -115,11 +117,9 @@ describe("advanceCurrents", () => {
     expect(game.mechanic.cells.length).toBeGreaterThanOrEqual(cellsBefore);
   });
 
-  it("generates new river on shift phase", () => {
+  it('generates new river on shift phase', () => {
     const game = makeGame();
     initCurrents(game);
-    const oldCells = [...game.mechanic.cells];
-
     advanceCurrents(game); // flow
     advanceCurrents(game); // surge
     advanceCurrents(game); // shift → telegraph of new river
@@ -128,7 +128,7 @@ describe("advanceCurrents", () => {
     expect(game.mechanic.cells.length).toBeGreaterThan(0);
   });
 
-  it("resets contactApplied on advance", () => {
+  it('resets contactApplied on advance', () => {
     const game = makeGame();
     initCurrents(game);
     game.mechanic.contactApplied = true;
@@ -136,7 +136,7 @@ describe("advanceCurrents", () => {
     expect(game.mechanic.contactApplied).toBe(false);
   });
 
-  it("clears old terrain before repainting", () => {
+  it('clears old terrain before repainting', () => {
     const game = makeGame();
     initCurrents(game);
     const w = game.board.width;
@@ -158,12 +158,12 @@ describe("advanceCurrents", () => {
   });
 });
 
-describe("applyCurrentDrift", () => {
+describe('applyCurrentDrift', () => {
   function makeFlowGame() {
     const game = makeGame();
     // Manually set up a controlled current mechanic
     game.mechanic = {
-      type: "currents",
+      type: 'currents',
       phase: 1, // FLOW
       cells: [{ x: 11, y: 10, flowDx: 1, flowDy: 0 }],
       contactApplied: false,
@@ -171,17 +171,17 @@ describe("applyCurrentDrift", () => {
     return game;
   }
 
-  it("no-ops if mechanic is null", () => {
+  it('no-ops if mechanic is null', () => {
     const game = makeGame();
     const hx = game.snake.snakeX[game.snake.headIndex];
     applyCurrentDrift(game);
     expect(game.snake.snakeX[game.snake.headIndex]).toBe(hx);
   });
 
-  it("no-ops if not in flow or surge phase", () => {
+  it('no-ops if not in flow or surge phase', () => {
     const game = makeGame();
     game.mechanic = {
-      type: "currents",
+      type: 'currents',
       phase: 0, // telegraph — no drift
       cells: [{ x: 11, y: 10, flowDx: 1, flowDy: 0 }],
       contactApplied: false,
@@ -196,7 +196,7 @@ describe("applyCurrentDrift", () => {
     expect(game.snake.snakeX[game.snake.headIndex]).toBe(11);
   });
 
-  it("applies drift when head is on current cell in flow phase", () => {
+  it('applies drift when head is on current cell in flow phase', () => {
     const game = makeFlowGame();
     // Move snake head to (11,10) — the current cell
     game.snake.step(game.board);
@@ -207,7 +207,7 @@ describe("applyCurrentDrift", () => {
     expect(game.snake.snakeX[game.snake.headIndex]).toBe(12);
   });
 
-  it("applies 2 drift steps in surge phase", () => {
+  it('applies 2 drift steps in surge phase', () => {
     const game = makeFlowGame();
     game.mechanic.phase = 2; // surge
     // Move snake to (11,10)
@@ -218,7 +218,7 @@ describe("applyCurrentDrift", () => {
     expect(game.snake.snakeX[game.snake.headIndex]).toBe(13);
   });
 
-  it("sets contactApplied flag after drift", () => {
+  it('sets contactApplied flag after drift', () => {
     const game = makeFlowGame();
     game.snake.step(game.board);
 
@@ -226,7 +226,7 @@ describe("applyCurrentDrift", () => {
     expect(game.mechanic.contactApplied).toBe(true);
   });
 
-  it("does not apply drift twice while contactApplied is true", () => {
+  it('does not apply drift twice while contactApplied is true', () => {
     const game = makeFlowGame();
     game.snake.step(game.board);
 
@@ -237,7 +237,7 @@ describe("applyCurrentDrift", () => {
     expect(game.snake.snakeX[game.snake.headIndex]).toBe(hx);
   });
 
-  it("resets contactApplied when head leaves current cells", () => {
+  it('resets contactApplied when head leaves current cells', () => {
     const game = makeFlowGame();
     game.snake.step(game.board); // head at (11,10)
 
@@ -250,10 +250,10 @@ describe("applyCurrentDrift", () => {
     expect(game.mechanic.contactApplied).toBe(false);
   });
 
-  it("absorbs drift into wall (no death)", () => {
+  it('absorbs drift into wall (no death)', () => {
     const game = makeFlowGame();
     // Place wall at (12,10) — where drift would push
-    game.board.setCell("wall", 12, 10);
+    game.board.setCell('wall', 12, 10);
 
     game.snake.step(game.board); // head at (11,10)
     applyCurrentDrift(game);
@@ -263,10 +263,10 @@ describe("applyCurrentDrift", () => {
     expect(game.snake.alive).toBe(true);
   });
 
-  it("absorbs drift into snake body (no death)", () => {
+  it('absorbs drift into snake body (no death)', () => {
     const game = makeFlowGame();
     // Place snake body at (12,10)
-    game.board.setCell("snake", 12, 10);
+    game.board.setCell('snake', 12, 10);
 
     game.snake.step(game.board); // head at (11,10)
     applyCurrentDrift(game);
@@ -276,10 +276,10 @@ describe("applyCurrentDrift", () => {
     expect(game.snake.alive).toBe(true);
   });
 
-  it("wraps drift around board edges", () => {
+  it('wraps drift around board edges', () => {
     const game = makeGame();
     game.mechanic = {
-      type: "currents",
+      type: 'currents',
       phase: 1,
       cells: [{ x: 20, y: 10, flowDx: 1, flowDy: 0 }],
       contactApplied: false,
@@ -293,11 +293,11 @@ describe("applyCurrentDrift", () => {
     expect(game.snake.snakeX[game.snake.headIndex]).toBe(0);
   });
 
-  it("partial surge — absorbs second step if blocked", () => {
+  it('partial surge — absorbs second step if blocked', () => {
     const game = makeFlowGame();
     game.mechanic.phase = 2; // surge (2 drift steps)
     // Place wall at (13,10) — blocks second drift step
-    game.board.setCell("wall", 13, 10);
+    game.board.setCell('wall', 13, 10);
 
     game.snake.step(game.board); // head at (11,10)
     applyCurrentDrift(game);
@@ -307,7 +307,7 @@ describe("applyCurrentDrift", () => {
     expect(game.snake.alive).toBe(true);
   });
 
-  it("does not drift when head is not on current cell", () => {
+  it('does not drift when head is not on current cell', () => {
     const game = makeFlowGame();
     // Current cell is at (11,10), snake head starts at (10,10)
     // Don't step — head is not on current cell

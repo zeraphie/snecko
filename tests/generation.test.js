@@ -1,6 +1,8 @@
-import { describe, it, expect } from "vitest";
-import { Board } from "../src/core/board";
-import { Snake } from "../src/core/snake";
+// generation.test.js — tests for board generation, shape placement, and food spawning
+
+import { describe, it, expect } from 'vitest';
+import { Board } from '../src/core/board';
+import { Snake } from '../src/core/snake';
 import {
   buildReservedSpawnZone,
   buildReservedAroundSnake,
@@ -9,8 +11,8 @@ import {
   placeFood,
   generateBoard,
   advanceBoard,
-} from "../src/core/generation";
-import { TERRAIN_TELEGRAPH, TERRAIN_CURRENT } from "../src/core/board/constants.js";
+} from '../src/core/generation';
+import { TERRAIN_TELEGRAPH, TERRAIN_CURRENT } from '../src/core/board/constants.js';
 
 // Minimal game-like object for generateBoard/advanceBoard
 function makeGame() {
@@ -19,8 +21,8 @@ function makeGame() {
   return { board, snake, score: 0, boardIndex: 1 };
 }
 
-describe("buildReservedSpawnZone", () => {
-  it("marks cells around spawn as reserved", () => {
+describe('buildReservedSpawnZone', () => {
+  it('marks cells around spawn as reserved', () => {
     const board = new Board(21, 21);
     buildReservedSpawnZone(board, 10, 10, 3, 1, 0);
 
@@ -29,15 +31,15 @@ describe("buildReservedSpawnZone", () => {
     expect(board.isReservedCell(12, 10)).toBe(true);
   });
 
-  it("does not go out of bounds", () => {
+  it('does not go out of bounds', () => {
     const board = new Board(21, 21);
     buildReservedSpawnZone(board, 1, 1, 3, -1, 0);
     expect(board.isReservedCell(0, 1)).toBe(true);
   });
 });
 
-describe("generateInfluenceMap", () => {
-  it("returns normalized values in [0, 1]", () => {
+describe('generateInfluenceMap', () => {
+  it('returns normalized values in [0, 1]', () => {
     const board = new Board(21, 21);
     const map = generateInfluenceMap(board);
 
@@ -48,7 +50,7 @@ describe("generateInfluenceMap", () => {
     }
   });
 
-  it("contains at least one cell with value 1", () => {
+  it('contains at least one cell with value 1', () => {
     const board = new Board(21, 21);
     const map = generateInfluenceMap(board);
     let hasMax = false;
@@ -59,27 +61,27 @@ describe("generateInfluenceMap", () => {
   });
 });
 
-describe("pickShapesForBoard", () => {
-  it("returns 1 shape for boards 1-3", () => {
+describe('pickShapesForBoard', () => {
+  it('returns 1 shape for boards 1-3', () => {
     for (let b = 1; b <= 3; b++) {
       expect(pickShapesForBoard(b).length).toBe(1);
     }
   });
 
-  it("returns 2 shapes for boards 4-8", () => {
+  it('returns 2 shapes for boards 4-8', () => {
     for (let b = 4; b <= 8; b++) {
       expect(pickShapesForBoard(b).length).toBe(2);
     }
   });
 
-  it("returns 3+ shapes for boards 9+", () => {
+  it('returns 3+ shapes for boards 9+', () => {
     expect(pickShapesForBoard(9).length).toBe(3);
     expect(pickShapesForBoard(13).length).toBe(4);
   });
 });
 
-describe("placeFood", () => {
-  it("places food on an unblocked cell", () => {
+describe('placeFood', () => {
+  it('places food on an unblocked cell', () => {
     const board = new Board(21, 21);
     const snake = new Snake();
     snake.init(board, 10, 10, 3, 1, 0);
@@ -91,8 +93,8 @@ describe("placeFood", () => {
   });
 });
 
-describe("buildReservedAroundSnake", () => {
-  it("reserves cells around snake body", () => {
+describe('buildReservedAroundSnake', () => {
+  it('reserves cells around snake body', () => {
     const board = new Board(21, 21);
     const snake = new Snake();
     snake.init(board, 10, 10, 3, 1, 0);
@@ -104,7 +106,7 @@ describe("buildReservedAroundSnake", () => {
     expect(board.isReservedCell(12, 10)).toBe(true);
   });
 
-  it("reserves cells ahead of head", () => {
+  it('reserves cells ahead of head', () => {
     const board = new Board(21, 21);
     const snake = new Snake();
     snake.init(board, 10, 10, 3, 1, 0);
@@ -116,8 +118,8 @@ describe("buildReservedAroundSnake", () => {
   });
 });
 
-describe("advanceBoard", () => {
-  it("preserves existing walls", () => {
+describe('advanceBoard', () => {
+  it('preserves existing walls', () => {
     const game = makeGame();
     generateBoard(game);
 
@@ -141,7 +143,7 @@ describe("advanceBoard", () => {
     expect(wallsAfter).toBeGreaterThanOrEqual(wallsBefore);
   });
 
-  it("preserves snake position", () => {
+  it('preserves snake position', () => {
     const game = makeGame();
     generateBoard(game);
 
@@ -157,7 +159,7 @@ describe("advanceBoard", () => {
     expect(game.snake.snakeY[game.snake.headIndex]).toBe(headBefore.y);
   });
 
-  it("places new food on unblocked cell", () => {
+  it('places new food on unblocked cell', () => {
     const game = makeGame();
     generateBoard(game);
     game.boardIndex = 2;
@@ -168,7 +170,7 @@ describe("advanceBoard", () => {
     expect(game.board.isBlockedCell(game.board.foodX, game.board.foodY)).toBe(false);
   });
 
-  it("does not place walls on snake", () => {
+  it('does not place walls on snake', () => {
     for (let i = 0; i < 30; i++) {
       const game = makeGame();
       generateBoard(game);
@@ -187,8 +189,8 @@ describe("advanceBoard", () => {
   });
 });
 
-describe("generateBoard", () => {
-  it("produces a valid board with snake and food", () => {
+describe('generateBoard', () => {
+  it('produces a valid board with snake and food', () => {
     const game = makeGame();
     generateBoard(game);
 
@@ -202,7 +204,7 @@ describe("generateBoard", () => {
     expect(game.board.isSnakeCell(game.board.foodX, game.board.foodY)).toBe(false);
   });
 
-  it("is safe across 50 random boards", () => {
+  it('is safe across 50 random boards', () => {
     for (let i = 0; i < 50; i++) {
       const game = makeGame();
       game.boardIndex = 1 + Math.floor(Math.random() * 15);
@@ -217,8 +219,8 @@ describe("generateBoard", () => {
   });
 });
 
-describe("placeFood avoids terrain", () => {
-  it("does not place food on telegraph cells", () => {
+describe('placeFood avoids terrain', () => {
+  it('does not place food on telegraph cells', () => {
     const board = new Board(21, 21);
     // Fill most of the board with telegraph terrain, leaving a few cells open
     const w = board.width;
@@ -228,7 +230,9 @@ describe("placeFood avoids terrain", () => {
       }
     }
     // Clear a small area
+    // oxlint-disable-next-line oxc/erasing-op
     board.terrain[0 * w + 0] = 0;
+    // oxlint-disable-next-line oxc/erasing-op
     board.terrain[0 * w + 1] = 0;
 
     placeFood(board);
@@ -236,7 +240,7 @@ describe("placeFood avoids terrain", () => {
     expect(t).not.toBe(TERRAIN_TELEGRAPH);
   });
 
-  it("does not place food on current cells", () => {
+  it('does not place food on current cells', () => {
     const board = new Board(21, 21);
     const w = board.width;
     for (let y = 0; y < board.height; y++) {
@@ -245,6 +249,7 @@ describe("placeFood avoids terrain", () => {
       }
     }
     // Clear a small area
+    // oxlint-disable-next-line oxc/erasing-op
     board.terrain[0 * w + 0] = 0;
 
     placeFood(board);

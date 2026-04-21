@@ -1,11 +1,11 @@
 // constants.js — Shared game constants and state names
 
-export const STATE_START = "start";
-export const STATE_PLAYING = "playing";
-export const STATE_DRAFT = "draft";
-export const STATE_TARGETING = "targeting";
-export const STATE_WORMHOLE = "wormhole";
-export const STATE_DEAD = "dead";
+export const STATE_START = 'start';
+export const STATE_PLAYING = 'playing';
+export const STATE_DRAFT = 'draft';
+export const STATE_TARGETING = 'targeting';
+export const STATE_WORMHOLE = 'wormhole';
+export const STATE_DEAD = 'dead';
 
 export const BOARD_W = 21;
 export const BOARD_H = 21;

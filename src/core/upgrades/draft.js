@@ -1,9 +1,13 @@
 // draft.js — Draft pool generation for level-up upgrade selection
 
-import { getEligibleUpgrades, TYPE_MUTATION, TYPE_PASSIVE, TYPE_CONSUMABLE } from "./defs.js";
+import { getEligibleUpgrades, TYPE_MUTATION, TYPE_PASSIVE, TYPE_CONSUMABLE } from './defs.js';
+
+// ── Constants ──────────────────────────────────────────
 
 const MUTATION_CHANCE = 0.25;
 const MUTATION_GUARANTEE_EVERY = 3;
+
+// ── Public API ─────────────────────────────────────────
 
 /**
  * Generate a draft pool: 3 main choices (passives + consumables)

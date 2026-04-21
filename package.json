@@ -2,25 +2,25 @@
   "name": "snecko",
   "version": "1.0.0",
   "private": true,
-  "type": "module",
   "description": "Snake + Roguelike game",
+  "type": "module",
   "scripts": {
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "lint": "eslint src/ tests/",
-    "lint:fix": "eslint --fix src/ tests/",
-    "format": "prettier --write \"**/*.{js,json,html,md}\"",
-    "format:check": "prettier --check \"**/*.{js,json,html,md}\"",
-    "check": "npm run format:check && npm run lint && npm run test",
+    "lint": "oxlint src/ tests/",
+    "lint:fix": "oxlint --fix src/ tests/",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "check": "bun run format:check && bun run lint && bun run test",
     "play": "node src/main.terminal.js",
     "serve": "npx --yes serve .",
     "upload:build": "bun build ./index.html --outdir ./dist --production --minify",
     "upload:serve": "npx --yes serve ./dist"
   },
   "devDependencies": {
-    "eslint": "^9.0.0",
-    "prettier": "^3.2.0",
+    "oxfmt": "^0.45.0",
+    "oxlint": "^1.60.0",
     "vitest": "^3.0.0"
   }
 }

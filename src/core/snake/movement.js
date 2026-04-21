@@ -1,16 +1,35 @@
 // movement.js — Direction setting and step logic
 
-import { MAX_CELLS } from "./constants.js";
+import { MAX_CELLS } from './constants.js';
 
+/**
+ * Queues a direction change for the next tick. Ignores reversals and zero vectors.
+ *
+ * @param {number} dx
+ * @param {number} dy
+ */
 export function setNextDirection(dx, dy) {
-  if (dx === -this.dirX && dy === -this.dirY) return;
-  if (dx === 0 && dy === 0) return;
+  if (dx === -this.dirX && dy === -this.dirY) {
+    return;
+  }
+  if (dx === 0 && dy === 0) {
+    return;
+  }
   this.nextDirX = dx;
   this.nextDirY = dy;
 }
 
+/**
+ * Advances the snake one cell in the current direction. Handles wrapping,
+ * collision detection, food consumption, and growth.
+ *
+ * @param {import('../board/index.js').Board} board
+ * @returns {"ok"|"food"|"wall"|"self"|"dead"} — outcome of the step
+ */
 export function step(board) {
-  if (!this.alive) return "dead";
+  if (!this.alive) {
+    return 'dead';
+  }
 
   this.dirX = this.nextDirX;
   this.dirY = this.nextDirY;
@@ -28,8 +47,8 @@ export function step(board) {
 
   if (board.isWallCell(nx, ny)) {
     this.alive = false;
-    this.deathCause = "wall";
-    return "wall";
+    this.deathCause = 'wall';
+    return 'wall';
   }
 
   const tailX = this.snakeX[this.tailIndex];
@@ -38,8 +57,8 @@ export function step(board) {
 
   if (board.isSnakeCell(nx, ny) && !tailWillVacate) {
     this.alive = false;
-    this.deathCause = "self";
-    return "self";
+    this.deathCause = 'self';
+    return 'self';
   }
 
   const ateFood = nx === board.foodX && ny === board.foodY;
@@ -47,13 +66,13 @@ export function step(board) {
   this.headIndex = (this.headIndex + 1) % MAX_CELLS;
   this.snakeX[this.headIndex] = nx;
   this.snakeY[this.headIndex] = ny;
-  board.setCell("snake", nx, ny);
+  board.setCell('snake', nx, ny);
 
   if (this.growing) {
     this.growing = false;
     this.snakeLength++;
   } else {
-    board.clearCell("snake", tailX, tailY);
+    board.clearCell('snake', tailX, tailY);
     this.tailIndex = (this.tailIndex + 1) % MAX_CELLS;
   }
 
@@ -61,8 +80,8 @@ export function step(board) {
     this.growing = true;
     board.foodX = -1;
     board.foodY = -1;
-    return "food";
+    return 'food';
   }
 
-  return "ok";
+  return 'ok';
 }

@@ -1,9 +1,9 @@
 // generation.js — Board generation: influence map, shape placement, food
 
-import { Snake } from "../snake/index.js";
-import { buildCrystals, canPlaceStage, placeStage } from "./crystalline/crystals.js";
-import { initLattice, advanceLattice } from "../mechanics/lattice.js";
-import { TERRAIN_TELEGRAPH, TERRAIN_CURRENT } from "../board/constants.js";
+import { Snake } from '../snake/index.js';
+import { buildCrystals, canPlaceStage, placeStage } from './crystalline/crystals.js';
+import { initLattice, advanceLattice } from '../mechanics/lattice.js';
+import { TERRAIN_TELEGRAPH, TERRAIN_CURRENT } from '../board/constants.js';
 
 const CRYSTALS = buildCrystals();
 const SPAWN_BUFFER = 3;
@@ -14,6 +14,16 @@ const RESERVE_RADIUS = 2;
 
 // ── Reserve zone helpers ──────────────────────────────────────────
 
+/**
+ * Marks a rectangular zone around the snake's spawn as reserved.
+ *
+ * @param {import('../board/index.js').Board} board
+ * @param {number} spawnX
+ * @param {number} spawnY
+ * @param {number} snakeLength
+ * @param {number} dx — spawn direction X
+ * @param {number} dy — spawn direction Y
+ */
 export function buildReservedSpawnZone(board, spawnX, spawnY, snakeLength, dx, dy) {
   let minX = spawnX - Math.abs(dx) * (snakeLength - 1);
   let minY = spawnY - Math.abs(dy) * (snakeLength - 1);
@@ -49,11 +59,17 @@ export function buildReservedSpawnZone(board, spawnX, spawnY, snakeLength, dx, d
 
   for (let y = minY; y <= maxY; y++) {
     for (let x = minX; x <= maxX; x++) {
-      board.setCell("reserved", x, y);
+      board.setCell('reserved', x, y);
     }
   }
 }
 
+/**
+ * Marks cells around the snake body and ahead of the head as reserved.
+ *
+ * @param {import('../board/index.js').Board} board
+ * @param {import('../snake/index.js').Snake} snake
+ */
 export function buildReservedAroundSnake(board, snake) {
   const w = board.width;
   const h = board.height;
@@ -67,7 +83,7 @@ export function buildReservedAroundSnake(board, snake) {
         const rx = sx + dx;
         const ry = sy + dy;
         if (rx >= 0 && rx < w && ry >= 0 && ry < h) {
-          board.setCell("reserved", rx, ry);
+          board.setCell('reserved', rx, ry);
         }
       }
     }
@@ -81,13 +97,19 @@ export function buildReservedAroundSnake(board, snake) {
     const ax = hx + snake.dirX * i;
     const ay = hy + snake.dirY * i;
     if (ax >= 0 && ax < w && ay >= 0 && ay < h) {
-      board.setCell("reserved", ax, ay);
+      board.setCell('reserved', ax, ay);
     }
   }
 }
 
 // ── Influence map ─────────────────────────────────────────────────
 
+/**
+ * Generates a normalised [0,1] influence map using random attractors.
+ *
+ * @param {import('../board/index.js').Board} board
+ * @returns {Float32Array}
+ */
 export function generateInfluenceMap(board) {
   const w = board.width;
   const h = board.height;
@@ -125,6 +147,18 @@ export function generateInfluenceMap(board) {
 
 // ── Shape placement ───────────────────────────────────────────────
 
+/**
+ * Scores a candidate shape placement by influence density + distance from reference point.
+ *
+ * @param {import('../board/index.js').Board} board
+ * @param {Float32Array} influenceMap
+ * @param {object} shape — rotation with solidRows/width/height
+ * @param {number} x
+ * @param {number} y
+ * @param {number} refX
+ * @param {number} refY
+ * @returns {number}
+ */
 export function scoreShapePlacement(board, influenceMap, shape, x, y, refX, refY) {
   const w = board.width;
   let totalInfluence = 0;
@@ -141,6 +175,7 @@ export function scoreShapePlacement(board, influenceMap, shape, x, y, refX, refY
 
   const avgInfluence = cellCount > 0 ? totalInfluence / cellCount : 0;
 
+  // Distance bonus — prefer placements further from the reference point
   const cx = x + shape.width / 2;
   const cy = y + shape.height / 2;
   const dist = Math.sqrt((cx - refX) * (cx - refX) + (cy - refY) * (cy - refY));
@@ -150,6 +185,16 @@ export function scoreShapePlacement(board, influenceMap, shape, x, y, refX, refY
   return avgInfluence + distBonus;
 }
 
+/**
+ * Tries random candidate positions and returns the highest-scoring valid placement.
+ *
+ * @param {import('../board/index.js').Board} board
+ * @param {Float32Array} influenceMap
+ * @param {object} shape
+ * @param {number} refX
+ * @param {number} refY
+ * @returns {{ x: number, y: number, score: number }|null}
+ */
 export function findBestPlacement(board, influenceMap, shape, refX, refY) {
   let bestScore = -1;
   let bestX = -1;
@@ -169,10 +214,18 @@ export function findBestPlacement(board, influenceMap, shape, refX, refY) {
     }
   }
 
-  if (bestScore < 0) return null;
+  if (bestScore < 0) {
+    return null;
+  }
   return { x: bestX, y: bestY, score: bestScore };
 }
 
+/**
+ * Picks a random set of crystal shapes scaled to the current board index.
+ *
+ * @param {number} boardIndex
+ * @returns {object[]}
+ */
 export function pickShapesForBoard(boardIndex) {
   let count;
   if (boardIndex <= 3) count = 1;
@@ -194,11 +247,18 @@ export function pickShapesForBoard(boardIndex) {
 // ── Food placement ────────────────────────────────────────────────
 
 function isFoodBlocked(board, x, y) {
-  if (board.isBlockedCell(x, y)) return true;
+  if (board.isBlockedCell(x, y)) {
+    return true;
+  }
   const t = board.terrain[y * board.width + x];
   return t === TERRAIN_TELEGRAPH || t === TERRAIN_CURRENT;
 }
 
+/**
+ * Places food at a random unblocked, non-terrain cell (with fallback full scan).
+ *
+ * @param {import('../board/index.js').Board} board
+ */
 export function placeFood(board) {
   for (let attempts = 0; attempts < 200; attempts++) {
     const x = Math.floor(Math.random() * board.width);
@@ -222,12 +282,17 @@ export function placeFood(board) {
 
 // ── Board generation ──────────────────────────────────────────────
 
+/**
+ * Generates a fresh crystalline board: clears masks, places shapes, spawns snake and food.
+ *
+ * @param {import('../game/index.js').Game} game
+ */
 export function generateBoard(game) {
   const board = game.board;
 
-  board.clearMasks("wall");
-  board.clearMasks("snake");
-  board.clearMasks("reserved");
+  board.clearMasks('wall');
+  board.clearMasks('snake');
+  board.clearMasks('reserved');
   board.terrain.fill(0);
 
   const spawnX = Math.floor(board.width / 2);
@@ -249,7 +314,7 @@ export function generateBoard(game) {
     }
   }
 
-  board.clearMasks("reserved");
+  board.clearMasks('reserved');
 
   game.snake.init(board, spawnX, spawnY, snakeLen, dx, dy);
 
@@ -258,6 +323,11 @@ export function generateBoard(game) {
   initLattice(game);
 }
 
+/**
+ * Advances the crystalline board by one step (lattice growth + food placement).
+ *
+ * @param {import('../game/index.js').Game} game
+ */
 export function advanceBoard(game) {
   const board = game.board;
 
