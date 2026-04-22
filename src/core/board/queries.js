@@ -17,7 +17,7 @@ export function isInBounds(x, y) {
  * @returns {boolean}
  */
 export function isWallCell(x, y) {
-  return this.isCellSet('wall', x, y);
+  return this.isCellSet("wall", x, y);
 }
 
 /**
@@ -26,7 +26,7 @@ export function isWallCell(x, y) {
  * @returns {boolean}
  */
 export function isSnakeCell(x, y) {
-  return this.isCellSet('snake', x, y);
+  return this.isCellSet("snake", x, y);
 }
 
 /**
@@ -35,7 +35,7 @@ export function isSnakeCell(x, y) {
  * @returns {boolean}
  */
 export function isReservedCell(x, y) {
-  return this.isCellSet('reserved', x, y);
+  return this.isCellSet("reserved", x, y);
 }
 
 /**

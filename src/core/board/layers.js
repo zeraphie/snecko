@@ -1,6 +1,6 @@
 // layers.js — Bitmask layer engine (get/set/clear cells)
 
-import { CHUNK_BITS } from './constants.js';
+import { CHUNK_BITS } from "./constants.js";
 
 /**
  * Returns the Uint32Array bitmask for the given layer name.
@@ -9,10 +9,10 @@ import { CHUNK_BITS } from './constants.js';
  * @returns {Uint32Array}
  */
 export function _getMask(layer) {
-  if (layer === 'wall') {
+  if (layer === "wall") {
     return this.wallMasks;
   }
-  if (layer === 'snake') {
+  if (layer === "snake") {
     return this.snakeMasks;
   }
   return this.reservedMasks;

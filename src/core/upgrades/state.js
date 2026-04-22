@@ -3,14 +3,14 @@
 /** Tracks active passives, consumable charges, and the current world mode. */
 export class UpgradeState {
   constructor() {
-    this.worldMode = 'crystalline';
+    this.worldMode = "crystalline";
     this.passives = [];
     this.consumables = [];
   }
 
   /** Clears all passives and consumables, resets world mode to crystalline. */
   reset() {
-    this.worldMode = 'crystalline';
+    this.worldMode = "crystalline";
     this.passives = [];
     this.consumables = [];
   }
@@ -22,9 +22,9 @@ export class UpgradeState {
    * @param {number} duration
    * @param {"levels"|"food"} [durationUnit="levels"]
    */
-  addPassive(id, duration, durationUnit = 'levels') {
+  addPassive(id, duration, durationUnit = "levels") {
     const existing = this.passives.find((p) => p.id === id);
-    if (durationUnit === 'food') {
+    if (durationUnit === "food") {
       if (existing) {
         existing.remainingFood = duration;
         delete existing.remainingLevels;
@@ -50,7 +50,9 @@ export class UpgradeState {
   /** Decrements level-based passives and removes expired ones. */
   tickPassives() {
     for (let i = this.passives.length - 1; i >= 0; i--) {
-      if (this.passives[i].remainingLevels === undefined) continue;
+      if (this.passives[i].remainingLevels === undefined) {
+        continue;
+      }
       this.passives[i].remainingLevels--;
       if (this.passives[i].remainingLevels <= 0) {
         this.passives.splice(i, 1);
@@ -61,7 +63,9 @@ export class UpgradeState {
   /** Decrements food-based passives and removes expired ones. */
   tickFoodPassives() {
     for (let i = this.passives.length - 1; i >= 0; i--) {
-      if (this.passives[i].remainingFood === undefined) continue;
+      if (this.passives[i].remainingFood === undefined) {
+        continue;
+      }
       this.passives[i].remainingFood--;
       if (this.passives[i].remainingFood <= 0) {
         this.passives.splice(i, 1);

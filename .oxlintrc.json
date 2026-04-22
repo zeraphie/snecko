@@ -1,1 +1,68 @@
-/Users/izzyskye/dev/i-dotfiles/ai/templates/project/.oxlintrc.json
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/crates/oxc_linter/src/rules.rs",
+  "plugins": ["oxc", "unicorn"],
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2022": true
+  },
+  "globals": {},
+  "settings": {},
+  "rules": {
+    "no-unused-vars": [
+      "error",
+      {
+        "args": "none",
+        "varsIgnorePattern": "^_"
+      }
+    ],
+    "no-undef": "error",
+    "no-var": "error",
+    "prefer-const": "error",
+    "eqeqeq": ["error", "always"],
+    "no-eval": "error",
+    "no-unreachable": "error",
+    "no-dupe-keys": "error",
+    "no-duplicate-case": "error",
+    "valid-typeof": "error",
+    "no-console": "warn",
+    "no-debugger": "error",
+    "no-empty": "error",
+    "no-redeclare": "error",
+    "no-shadow": "warn",
+    "no-use-before-define": [
+      "error",
+      {
+        "functions": false,
+        "classes": true,
+        "variables": true
+      }
+    ],
+    "prefer-template": "off",
+    "object-shorthand": ["error", "always"],
+    "no-useless-constructor": "error",
+    "no-useless-return": "error",
+    "no-else-return": "error",
+    "no-lonely-if": "error",
+    "consistent-return": "warn",
+    "no-control-regex": "off",
+    "curly": "error"
+  },
+  "overrides": [
+    {
+      "files": [
+        "tests/**/*.js",
+        "tests/**/*.ts",
+        "**/*.test.js",
+        "**/*.test.ts",
+        "**/*.spec.js",
+        "**/*.spec.ts"
+      ],
+      "rules": {
+        "no-console": "off",
+        "no-shadow": "off"
+      }
+    }
+  ],
+  "ignorePatterns": ["node_modules", "dist", "coverage", ".git"]
+}

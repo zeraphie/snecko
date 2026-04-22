@@ -1,6 +1,6 @@
 // render.js — Board drawing and frame rendering
 
-import { Snake } from '../snake/index.js';
+import { Snake } from "../snake/index.js";
 import {
   CELL_WALL,
   CELL_WALL_LOW,
@@ -13,20 +13,28 @@ import {
   CELL_TELEGRAPH,
   CELL_WORMHOLE_A,
   CELL_WORMHOLE_B,
-} from '../../render/renderer.js';
-import { TERRAIN_LOW, TERRAIN_CURRENT, TERRAIN_TELEGRAPH } from '../board/constants.js';
-import {
-  STATE_DRAFT,
-  STATE_START,
-  STATE_DEAD,
-  STATE_TARGETING,
-  STATE_WORMHOLE,
-} from './constants.js';
+  CELL_RED_FOOD,
+  CELL_BOSS_BODY,
+  CELL_BOSS_DAMAGED,
+  CELL_BOSS_WEAK,
+  CELL_PROJECTILE,
+  CELL_PLAYER_INVUL,
+  CELL_BOSS_HIT,
+  CELL_WALL_ARENA,
+  CELL_ANCHOR_LOCK,
+  CELL_DANGER_TRAIL,
+  CELL_ECHO_ZONE,
+  CELL_PLAYER_BULLET,
+  CELL_EXHAUST,
+} from "../../render/renderer.js";
+import { getPlayerCells } from "../boss/player.js";
+import { TERRAIN_LOW, TERRAIN_CURRENT, TERRAIN_TELEGRAPH } from "../board/constants.js";
+import { getScreen } from "../../screens/registry.js";
 
 // ── Helpers ────────────────────────────────────────────
 
 function currentCellType(mechanic, x, y) {
-  if (mechanic && mechanic.type === 'currents') {
+  if (mechanic && mechanic.type === "currents") {
     const cell = mechanic.cells.find((c) => c.x === x && c.y === y);
 
     if (cell) {
@@ -49,6 +57,159 @@ function currentCellType(mechanic, x, y) {
 
 // ── Public API ─────────────────────────────────────────
 
+/**
+ * Draws the boss arena: arena walls, boss body/weak cells, projectiles, and
+ * the player plane at board.playerX / board.playerY facing _playerFacing.
+ *
+ * Draw order (back-to-front):
+ *   1. Arena walls
+ *   2. Boss body / weak-point cells
+ *   3. Projectiles
+ *   4. Player plane body cells (CELL_SNAKE)
+ *   5. Player tip (drawSnakeHead) — always on top
+ *
+ * Body cells (indices 1-5) are skipped if they fall outside the board or on a
+ * wall — handles the spawn position near the south wall gracefully.
+ */
+export function _drawBossArena() {
+  const renderer = this.renderer;
+  const board = this.board;
+
+  // 1. Arena walls — anchor-lock cells (tracked in _bossModifiers) render as
+  //    CELL_ANCHOR_LOCK (amber) instead of CELL_WALL_ARENA so the player can
+  //    tell them apart and know they're temporary and clearable.
+  const lockCellKey = (x, y) => `${x},${y}`;
+  const lockCellSet = new Set();
+  for (const mod of this._bossModifiers) {
+    if (mod.type === "anchor_lock") {
+      for (const c of mod.cells) {
+        lockCellSet.add(lockCellKey(c.x, c.y));
+      }
+    }
+  }
+
+  for (let y = 0; y < board.height; y++) {
+    for (let x = 0; x < board.width; x++) {
+      if (board.isWallCell(x, y)) {
+        const cellType = lockCellSet.has(lockCellKey(x, y)) ? CELL_ANCHOR_LOCK : CELL_WALL_ARENA;
+        renderer.drawCell(x, y, cellType);
+      }
+    }
+  }
+
+  // 1b. Sovereign current zones — draw as directional current arrows so the
+  //     player can read the push direction at a glance.
+  for (const mod of this._bossModifiers) {
+    if (mod.type !== "sovereign_current") {
+      continue;
+    }
+    const cellType =
+      mod.dx === 1
+        ? CELL_CURRENT_RIGHT
+        : mod.dx === -1
+          ? CELL_CURRENT_LEFT
+          : mod.dy === 1
+            ? CELL_CURRENT_DOWN
+            : CELL_CURRENT_UP;
+    for (const cell of mod.cells) {
+      if (board.isInBounds(cell.x, cell.y) && !board.isWallCell(cell.x, cell.y)) {
+        renderer.drawCell(cell.x, cell.y, cellType);
+      }
+    }
+  }
+
+  // 1c. Danger trail cells
+  for (const mod of this._bossModifiers) {
+    if (mod.type === "danger_trail" && board.isInBounds(mod.x, mod.y)) {
+      renderer.drawCell(mod.x, mod.y, CELL_DANGER_TRAIL);
+    }
+  }
+
+  // 1d. Echo zone cells
+  for (const mod of this._bossModifiers) {
+    if (mod.type === "echo_zone" && board.isInBounds(mod.x, mod.y)) {
+      renderer.drawCell(mod.x, mod.y, CELL_ECHO_ZONE);
+    }
+  }
+
+  // 2. Boss body cells — use CELL_BOSS_HIT during stagger for a hit-flash effect
+  if (this._boss) {
+    const staggered = this._boss._staggerTicks > 0;
+    for (const cell of this._boss.getCells()) {
+      let type;
+      if (cell.weak) {
+        type = CELL_BOSS_WEAK;
+      } else if (staggered) {
+        type = CELL_BOSS_HIT;
+      } else if (cell.hp < this._boss._bodyHp) {
+        type = CELL_BOSS_DAMAGED;
+      } else {
+        type = CELL_BOSS_BODY;
+      }
+      renderer.drawCell(cell.x, cell.y, type);
+    }
+  }
+
+  // 3. Projectiles
+  for (const p of this._projectiles) {
+    if (board.isInBounds(p.x, p.y)) {
+      renderer.drawCell(p.x, p.y, CELL_PROJECTILE);
+    }
+  }
+
+  // 3b. Player bullets
+  for (const pb of this._playerBullets) {
+    if (board.isInBounds(pb.x, pb.y)) {
+      renderer.drawCell(pb.x, pb.y, CELL_PLAYER_BULLET);
+    }
+  }
+
+  // 4 & 5. Player plane — use invul cell types during the grace window
+  if (board.playerX >= 0 && board.playerY >= 0) {
+    const dir = this._playerFacing;
+    const cells = getPlayerCells(board.playerX, board.playerY, dir.dx, dir.dy);
+    const invul = this._playerInvulTicks > 0;
+
+    // Exhaust flames below the tail (player always faces up)
+    const tailY = board.playerY + 2;
+    const fc = this._playerFireCounter || 0;
+    // Primary flame — always visible
+    const ey1 = tailY + 1;
+    if (board.isInBounds(board.playerX, ey1) && !board.isWallCell(board.playerX, ey1)) {
+      renderer.drawCell(board.playerX, ey1, CELL_EXHAUST);
+    }
+    // Wing flames — alternate sides
+    const wingX = fc % 2 === 0 ? board.playerX - 1 : board.playerX + 1;
+    if (fc % 3 !== 0 && board.isInBounds(wingX, ey1) && !board.isWallCell(wingX, ey1)) {
+      renderer.drawCell(wingX, ey1, CELL_EXHAUST);
+    }
+    // Tongue — occasional
+    const ey2 = tailY + 2;
+    if (
+      fc % 3 === 0 &&
+      board.isInBounds(board.playerX, ey2) &&
+      !board.isWallCell(board.playerX, ey2)
+    ) {
+      renderer.drawCell(board.playerX, ey2, CELL_EXHAUST);
+    }
+
+    // Body cells (indices 1-5): skip invalid positions
+    for (let i = 1; i < cells.length; i++) {
+      const c = cells[i];
+      if (board.isInBounds(c.x, c.y) && !board.isWallCell(c.x, c.y)) {
+        renderer.drawCell(c.x, c.y, invul ? CELL_PLAYER_INVUL : CELL_SNAKE);
+      }
+    }
+
+    // Tip (index 0): directional head, cyan-flickering when invulnerable
+    if (invul) {
+      renderer.drawSnakeHeadInvul(board.playerX, board.playerY, dir.dx, dir.dy);
+    } else {
+      renderer.drawSnakeHead(board.playerX, board.playerY, dir.dx, dir.dy);
+    }
+  }
+}
+
 /** Draws all board cells (walls, food, terrain, snake, portals) to the renderer. */
 export function _drawBoard() {
   const renderer = this.renderer;
@@ -60,6 +221,8 @@ export function _drawBoard() {
         renderer.drawCell(x, y, t === TERRAIN_LOW ? CELL_WALL_LOW : CELL_WALL);
       } else if (x === board.foodX && y === board.foodY) {
         renderer.drawCell(x, y, CELL_FOOD);
+      } else if (x === board.bossFoodX && y === board.bossFoodY) {
+        renderer.drawCell(x, y, CELL_RED_FOOD);
       } else {
         const t = board.terrain[y * board.width + x];
         if (t === TERRAIN_CURRENT) {
@@ -93,89 +256,15 @@ export function _drawBoard() {
   }
 }
 
-/** Renders a complete frame: clear, draw board/HUD/overlays, flush. Handles all game states. */
+/** Renders a complete frame by dispatching to the registered screen for the current state. */
 export function renderFrame() {
   const renderer = this.renderer;
   if (!renderer) {
     return;
   }
 
-  // Draft screen handles its own output (no clear/flush needed)
-  if (this.state === STATE_DRAFT) {
-    if (renderer.drawDraftScreen) {
-      renderer.drawDraftScreen(
-        this._draftPool.choices,
-        this._draftPool.mutation,
-        this._draftSelection,
-        this._draftMutationAccepted
-      );
-    } else {
-      renderer.clear();
-      renderer.drawScreen('draft', ['L E V E L   U P', '', 'Press Enter']);
-      renderer.flush();
-    }
-    return;
+  const screen = getScreen(this.state);
+  if (screen) {
+    screen.draw(renderer, this);
   }
-
-  renderer.clear();
-
-  if (this.state === STATE_START) {
-    renderer.drawScreen('start', [
-      'S N E C K O',
-      '',
-      'Arrow keys or WASD to move',
-      '',
-      'Press Space or Enter to start',
-    ]);
-    renderer.flush();
-    return;
-  }
-
-  if (this.state === STATE_DEAD) {
-    const cause = this.snake.deathCause || 'unknown';
-    renderer.drawScreen('dead', [
-      'G A M E   O V E R',
-      '',
-      'Cause: ' + cause,
-      'Score: ' + this.score,
-      'Level: ' + this.level,
-      'Time: ' + this.constructor.formatTime(this.runTime),
-      '',
-      'Press Space or Enter to restart',
-    ]);
-    renderer.flush();
-    return;
-  }
-
-  this._drawBoard();
-  if (this.state === STATE_TARGETING && this._bombCursor && renderer.drawTargetingOverlay) {
-    renderer.drawTargetingOverlay(
-      this._bombCursor.x,
-      this._bombCursor.y,
-      this.board.width,
-      this.board.height
-    );
-  }
-  if (this.state === STATE_WORMHOLE && this._wormholeCursor && renderer.drawWormholeOverlay) {
-    renderer.drawWormholeOverlay(
-      this._wormholeCursor.x,
-      this._wormholeCursor.y,
-      this._wormholePhase,
-      this._wormholeA,
-      this.board.width,
-      this.board.height
-    );
-  }
-  renderer.drawHUD(
-    this.score,
-    this.boardIndex,
-    this.runTime,
-    this.level,
-    this.foodEaten,
-    this.foodRequired,
-    this.upgrades.passives,
-    this.upgrades.consumables,
-    this._selectedConsumable
-  );
-  renderer.flush();
 }

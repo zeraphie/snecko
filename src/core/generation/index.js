@@ -1,9 +1,9 @@
 // generation.js — Board generation: influence map, shape placement, food
 
-import { Snake } from '../snake/index.js';
-import { buildCrystals, canPlaceStage, placeStage } from './crystalline/crystals.js';
-import { initLattice, advanceLattice } from '../mechanics/lattice.js';
-import { TERRAIN_TELEGRAPH, TERRAIN_CURRENT } from '../board/constants.js';
+import { Snake } from "../snake/index.js";
+import { buildCrystals, canPlaceStage, placeStage } from "./crystalline/crystals.js";
+import { initLattice, advanceLattice } from "../mechanics/lattice.js";
+import { TERRAIN_TELEGRAPH, TERRAIN_CURRENT } from "../board/constants.js";
 
 const CRYSTALS = buildCrystals();
 const SPAWN_BUFFER = 3;
@@ -47,10 +47,16 @@ export function buildReservedSpawnZone(board, spawnX, spawnY, snakeLength, dx, d
   maxY += SPAWN_BUFFER;
 
   const ahead = SPAWN_BUFFER + 2;
-  if (dx > 0) maxX += ahead;
-  else if (dx < 0) minX -= ahead;
-  if (dy > 0) maxY += ahead;
-  else if (dy < 0) minY -= ahead;
+  if (dx > 0) {
+    maxX += ahead;
+  } else if (dx < 0) {
+    minX -= ahead;
+  }
+  if (dy > 0) {
+    maxY += ahead;
+  } else if (dy < 0) {
+    minY -= ahead;
+  }
 
   minX = Math.max(0, minX);
   minY = Math.max(0, minY);
@@ -59,7 +65,7 @@ export function buildReservedSpawnZone(board, spawnX, spawnY, snakeLength, dx, d
 
   for (let y = minY; y <= maxY; y++) {
     for (let x = minX; x <= maxX; x++) {
-      board.setCell('reserved', x, y);
+      board.setCell("reserved", x, y);
     }
   }
 }
@@ -83,11 +89,13 @@ export function buildReservedAroundSnake(board, snake) {
         const rx = sx + dx;
         const ry = sy + dy;
         if (rx >= 0 && rx < w && ry >= 0 && ry < h) {
-          board.setCell('reserved', rx, ry);
+          board.setCell("reserved", rx, ry);
         }
       }
     }
-    if (idx === snake.headIndex) break;
+    if (idx === snake.headIndex) {
+      break;
+    }
     idx = (idx + 1) % Snake.MAX_CELLS;
   }
 
@@ -97,7 +105,7 @@ export function buildReservedAroundSnake(board, snake) {
     const ax = hx + snake.dirX * i;
     const ay = hy + snake.dirY * i;
     if (ax >= 0 && ax < w && ay >= 0 && ay < h) {
-      board.setCell('reserved', ax, ay);
+      board.setCell("reserved", ax, ay);
     }
   }
 }
@@ -134,7 +142,9 @@ export function generateInfluenceMap(board) {
 
   let max = 0;
   for (let i = 0; i < map.length; i++) {
-    if (map[i] > max) max = map[i];
+    if (map[i] > max) {
+      max = map[i];
+    }
   }
   if (max > 0) {
     for (let i = 0; i < map.length; i++) {
@@ -167,7 +177,9 @@ export function scoreShapePlacement(board, influenceMap, shape, x, y, refX, refY
   for (let row = 0; row < shape.height; row++) {
     const rowMask = shape.solidRows[row];
     for (let col = 0; col < shape.width; col++) {
-      if (!(rowMask & (1 << col))) continue;
+      if (!(rowMask & (1 << col))) {
+        continue;
+      }
       totalInfluence += influenceMap[(y + row) * w + (x + col)];
       cellCount++;
     }
@@ -204,7 +216,9 @@ export function findBestPlacement(board, influenceMap, shape, refX, refY) {
     const x = Math.floor(Math.random() * board.width);
     const y = Math.floor(Math.random() * board.height);
 
-    if (!canPlaceStage(board, shape, x, y)) continue;
+    if (!canPlaceStage(board, shape, x, y)) {
+      continue;
+    }
 
     const score = scoreShapePlacement(board, influenceMap, shape, x, y, refX, refY);
     if (score > bestScore) {
@@ -228,9 +242,13 @@ export function findBestPlacement(board, influenceMap, shape, refX, refY) {
  */
 export function pickShapesForBoard(boardIndex) {
   let count;
-  if (boardIndex <= 3) count = 1;
-  else if (boardIndex <= 8) count = 2;
-  else count = 3 + Math.floor((boardIndex - 9) / 4);
+  if (boardIndex <= 3) {
+    count = 1;
+  } else if (boardIndex <= 8) {
+    count = 2;
+  } else {
+    count = 3 + Math.floor((boardIndex - 9) / 4);
+  }
 
   const shapes = [];
   for (let i = 0; i < count; i++) {
@@ -290,9 +308,9 @@ export function placeFood(board) {
 export function generateBoard(game) {
   const board = game.board;
 
-  board.clearMasks('wall');
-  board.clearMasks('snake');
-  board.clearMasks('reserved');
+  board.clearMasks("wall");
+  board.clearMasks("snake");
+  board.clearMasks("reserved");
   board.terrain.fill(0);
 
   const spawnX = Math.floor(board.width / 2);
@@ -314,7 +332,7 @@ export function generateBoard(game) {
     }
   }
 
-  board.clearMasks('reserved');
+  board.clearMasks("reserved");
 
   game.snake.init(board, spawnX, spawnY, snakeLen, dx, dy);
 

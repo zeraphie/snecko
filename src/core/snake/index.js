@@ -1,7 +1,7 @@
 // snake.js — Ring-buffer snake with movement and collision
 
-import { MAX_CELLS } from './constants.js';
-import { setNextDirection, step } from './movement.js';
+import { MAX_CELLS } from "./constants.js";
+import { setNextDirection, step } from "./movement.js";
 
 // ── Snake class ────────────────────────────────────────
 
@@ -53,7 +53,7 @@ export class Snake {
       const y = spawnY - dy * (length - 1 - i);
       this.snakeX[i] = x;
       this.snakeY[i] = y;
-      board.setCell('snake', x, y);
+      board.setCell("snake", x, y);
     }
   }
 }

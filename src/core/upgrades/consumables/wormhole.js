@@ -6,7 +6,7 @@
  * @param {import('../../game/index.js').Game} game
  */
 export function enterWormholePlacement(game) {
-  game.state = 'wormhole';
+  game.state = "wormhole";
   game._wormholePhase = 1;
   game._wormholeCursor = {
     x: game.snake.snakeX[game.snake.headIndex],
@@ -22,15 +22,21 @@ export function enterWormholePlacement(game) {
  * @param {number} dy
  */
 export function moveWormholeCursor(game, dx, dy) {
-  if (game.state !== 'wormhole') {
+  if (game.state !== "wormhole") {
     return;
   }
   let nx = game._wormholeCursor.x + dx;
   let ny = game._wormholeCursor.y + dy;
-  if (nx < 0) nx = game.board.width - 1;
-  else if (nx >= game.board.width) nx = 0;
-  if (ny < 0) ny = game.board.height - 1;
-  else if (ny >= game.board.height) ny = 0;
+  if (nx < 0) {
+    nx = game.board.width - 1;
+  } else if (nx >= game.board.width) {
+    nx = 0;
+  }
+  if (ny < 0) {
+    ny = game.board.height - 1;
+  } else if (ny >= game.board.height) {
+    ny = 0;
+  }
   game._wormholeCursor.x = nx;
   game._wormholeCursor.y = ny;
 }
@@ -62,7 +68,7 @@ export function isValidPortalCell(game, x, y) {
  * @param {import('../../game/index.js').Game} game
  */
 export function confirmWormholePlacement(game) {
-  if (game.state !== 'wormhole') {
+  if (game.state !== "wormhole") {
     return;
   }
   const cx = game._wormholeCursor.x;
@@ -84,7 +90,7 @@ export function confirmWormholePlacement(game) {
     game._wormholeB = { x: cx, y: cy };
     game._wormholeCursor = null;
     game._wormholePhase = 0;
-    game.state = 'playing';
+    game.state = "playing";
     game.lastTickTime = Date.now();
   }
 }
@@ -95,15 +101,15 @@ export function confirmWormholePlacement(game) {
  * @param {import('../../game/index.js').Game} game
  */
 export function cancelWormhole(game) {
-  if (game.state !== 'wormhole') {
+  if (game.state !== "wormhole") {
     return;
   }
   game._wormholeCursor = null;
   game._wormholePhase = 0;
   game._wormholeA = null;
   game._wormholeB = null;
-  game.upgrades.addConsumable('wormhole', 1); // refund charge
-  game.state = 'playing';
+  game.upgrades.addConsumable("wormhole", 1); // refund charge
+  game.state = "playing";
   game.lastTickTime = Date.now();
 }
 
@@ -135,8 +141,8 @@ export function applyWormholeTeleport(game) {
   }
 
   // Move the head to the destination
-  game.board.clearCell('snake', hx, hy);
+  game.board.clearCell("snake", hx, hy);
   game.snake.snakeX[game.snake.headIndex] = destX;
   game.snake.snakeY[game.snake.headIndex] = destY;
-  game.board.setCell('snake', destX, destY);
+  game.board.setCell("snake", destX, destY);
 }

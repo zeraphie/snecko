@@ -1,55 +1,46 @@
 # Snecko
 
-Snake, but it's a roguelite. https://zeraphie.github.io/snecko/
+[![CI](https://github.com/zeraphie/snecko/actions/workflows/ci.yml/badge.svg)](https://github.com/zeraphie/snecko/actions/workflows/ci.yml)
+[![Node](https://img.shields.io/badge/node-lts%2Fkrypton-brightgreen)](https://nodejs.org)
+[![Zero Dependencies](https://img.shields.io/badge/runtime%20deps-0-blue)](#)
+[![GitHub Pages](https://img.shields.io/badge/play-online-orange)](https://zeraphie.github.io/snecko/)
 
-## How to play
+Snake, but it's a roguelite. Procedural crystal walls, boss fights, contraband upgrades, and permadeath — in the terminal or the browser.
 
-You control a snake. Eat the food to clear the current room.
-
-Each time you do, the board resets into a new layout with crystal-shaped walls placed procedurally. Your snake keeps its length between rooms, so the longer you survive, the harder it gets to move without trapping yourself.
-
-**Controls:** Arrow keys or WASD
-
-You die if you hit a wall or yourself.
-
----
-
-## Running
-
-### Browser
-
-Run it through a local server and open `index.html` in a browser.
-
-### Terminal
-
-Requires Node.js.
+## Quick Start
 
 ```bash
-npm run play
+nvm use
+npm install
+npm run play        # terminal
+just serve          # browser
 ```
 
-Or if you have [just](https://github.com/casey/just?tab=readme-ov-file#installation) installed
+## How to Play
+
+Arrow keys or WASD. Eat food to clear rooms. Each room generates new crystal-shaped walls. Your snake keeps its length between rooms, so the longer you survive the harder it gets.
+
+Between rooms you pick contraband upgrades that modify your run. Survive long enough and you'll face a boss fight.
+
+## Commands
 
 ```bash
-just play
+just play           # terminal mode
+just serve          # browser mode
+just check          # format + lint + test
+just play boss      # jump straight to boss fight
 ```
 
-Works best in a larger terminal (around 120×40 or bigger). It uses Unicode block characters, so make sure your font supports them.
+## Design
 
----
+- Zero runtime dependencies — ESM modules, no bundler
+- Bitmask board with 31-bit chunks (Uint32Array)
+- Ring-buffer snake with O(1) movement
+- Runs in both `<canvas>` and ANSI terminal from shared game logic
+- Procedural board generation using crystal shapes
 
-## Rules
+## Tests
 
-- Eating food clears the board and generates a new one
-- Each food increases your snake’s length by 1
-- Each board has procedurally placed crystal wall shapes
-- The number/density of obstacles increases as you progress
-- Hitting a wall or your own body ends the run
-
----
-
-## Architecture
-
-No external dependencies.
-
-The game logic is shared between environments, with rendering abstracted so it runs both in the browser (canvas) and in the terminal.
+```bash
+npm test
+```

@@ -3,7 +3,7 @@
 // BASE_SHAPES is generated from crystals.shapes by: just gen-shapes
 // Do not edit BASE_SHAPES by hand.
 
-import { TERRAIN_TELEGRAPH, TERRAIN_NONE } from '../../board/constants.js';
+import { TERRAIN_TELEGRAPH, TERRAIN_NONE } from "../../board/constants.js";
 
 // ── Shape data ────────────────────────────────────────────────────
 
@@ -143,7 +143,9 @@ export function canPlaceStage(board, stage, x, y) {
     const combined = solidMask | telegraphMask;
 
     for (let col = 0; col < stage.width; col++) {
-      if (!(combined & (1 << col))) continue;
+      if (!(combined & (1 << col))) {
+        continue;
+      }
       const bx = x + col;
       if (bx < 0 || bx >= board.width) {
         return false;
@@ -175,8 +177,10 @@ export function placeStage(board, stage, x, y) {
     const by = y + row;
     const solidMask = stage.solidRows[row];
     for (let col = 0; col < stage.width; col++) {
-      if (!(solidMask & (1 << col))) continue;
-      board.setCell('wall', x + col, by);
+      if (!(solidMask & (1 << col))) {
+        continue;
+      }
+      board.setCell("wall", x + col, by);
     }
   }
 }
@@ -193,12 +197,18 @@ export function placeTelegraph(board, stage, x, y) {
   const w = board.width;
   for (let row = 0; row < stage.height; row++) {
     const by = y + row;
-    if (by < 0 || by >= board.height) continue;
+    if (by < 0 || by >= board.height) {
+      continue;
+    }
     const telegraphMask = stage.telegraphRows[row];
     for (let col = 0; col < stage.width; col++) {
-      if (!(telegraphMask & (1 << col))) continue;
+      if (!(telegraphMask & (1 << col))) {
+        continue;
+      }
       const bx = x + col;
-      if (bx < 0 || bx >= board.width) continue;
+      if (bx < 0 || bx >= board.width) {
+        continue;
+      }
       board.terrain[by * w + bx] = TERRAIN_TELEGRAPH;
     }
   }
@@ -212,6 +222,8 @@ export function placeTelegraph(board, stage, x, y) {
 export function clearTelegraph(board) {
   const terrain = board.terrain;
   for (let i = 0; i < terrain.length; i++) {
-    if (terrain[i] === TERRAIN_TELEGRAPH) terrain[i] = TERRAIN_NONE;
+    if (terrain[i] === TERRAIN_TELEGRAPH) {
+      terrain[i] = TERRAIN_NONE;
+    }
   }
 }

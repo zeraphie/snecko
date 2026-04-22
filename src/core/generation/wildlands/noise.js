@@ -12,7 +12,9 @@ export function createPermTable(seed) {
   const perm = new Uint8Array(512);
 
   // Fill 0..255
-  for (let i = 0; i < 256; i++) perm[i] = i;
+  for (let i = 0; i < 256; i++) {
+    perm[i] = i;
+  }
 
   // splitmix32 PRNG for deterministic shuffle
   let s = seed | 0;
@@ -34,7 +36,9 @@ export function createPermTable(seed) {
   }
 
   // Duplicate into upper half
-  for (let i = 0; i < 256; i++) perm[i + 256] = perm[i];
+  for (let i = 0; i < 256; i++) {
+    perm[i + 256] = perm[i];
+  }
 
   return perm;
 }

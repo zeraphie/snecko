@@ -2,73 +2,73 @@
 
 // ── Constants ──────────────────────────────────────────
 
-export const TYPE_PASSIVE = 'passive';
-export const TYPE_CONSUMABLE = 'consumable';
-export const TYPE_MUTATION = 'mutation';
+export const TYPE_PASSIVE = "passive";
+export const TYPE_CONSUMABLE = "consumable";
+export const TYPE_MUTATION = "mutation";
 
 // ── Catalog ────────────────────────────────────────────
 
 export const UPGRADES = {
   // Passives
   climber: {
-    id: 'climber',
+    id: "climber",
     type: TYPE_PASSIVE,
-    name: 'Parkour!',
-    desc: 'Low walls? More like no walls',
+    name: "Parkour!",
+    desc: "Low walls? More like no walls",
     duration: 4,
-    modeOnly: 'wildlands',
+    modeOnly: "wildlands",
   },
   iron_jaw: {
-    id: 'iron_jaw',
+    id: "iron_jaw",
     type: TYPE_PASSIVE,
-    name: 'Mmm, Crunchy',
-    desc: 'Walls are tasty too',
+    name: "Mmm, Crunchy",
+    desc: "Walls are tasty too",
     duration: 3,
-    durationUnit: 'food',
+    durationUnit: "food",
   },
   slow_time: {
-    id: 'slow_time',
+    id: "slow_time",
     type: TYPE_PASSIVE,
-    name: 'Snake.exe has stopped responding',
+    name: "Snake.exe has stopped responding",
     desc: "Everything is slower. You're welcome",
     duration: 3,
   },
 
   // Consumables
   bomb: {
-    id: 'bomb',
+    id: "bomb",
     type: TYPE_CONSUMABLE,
-    name: 'Who gave the snake a gun?',
-    desc: 'Seriously, who did this',
+    name: "Who gave the snake a gun?",
+    desc: "Seriously, who did this",
     charges: 2,
   },
   dash: {
-    id: 'dash',
+    id: "dash",
     type: TYPE_CONSUMABLE,
-    name: 'Snek Goes Brrrr',
-    desc: 'Zoom through walls at alarming speed',
+    name: "Snek Goes Brrrr",
+    desc: "Zoom through walls at alarming speed",
     charges: 3,
   },
   wormhole: {
-    id: 'wormhole',
+    id: "wormhole",
     type: TYPE_CONSUMABLE,
-    name: 'Snake Discovered Quantum Mechanics',
-    desc: 'Do quantum mechanics things',
+    name: "Snake Discovered Quantum Mechanics",
+    desc: "Do quantum mechanics things",
     charges: 1,
   },
 
   // World mutations
   wildlands: {
-    id: 'wildlands',
+    id: "wildlands",
     type: TYPE_MUTATION,
-    name: 'Wildlands',
-    desc: 'FBM terrain generation',
+    name: "Wildlands",
+    desc: "FBM terrain generation",
   },
   crystalline: {
-    id: 'crystalline',
+    id: "crystalline",
     type: TYPE_MUTATION,
-    name: 'Crystalline',
-    desc: 'Crystal growth generation',
+    name: "Crystalline",
+    desc: "Crystal growth generation",
   },
 };
 

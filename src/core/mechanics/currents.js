@@ -1,7 +1,7 @@
 // currents.js — Wildlands mechanic: FBM-based winding rivers
 
-import { createPermTable, fbm2 } from '../generation/wildlands/noise.js';
-import { TERRAIN_CURRENT, TERRAIN_NONE } from '../board/constants.js';
+import { createPermTable, fbm2 } from "../generation/wildlands/noise.js";
+import { TERRAIN_CURRENT, TERRAIN_NONE } from "../board/constants.js";
 
 const PHASE_TELEGRAPH = 0;
 const PHASE_FLOW = 1;
@@ -18,7 +18,7 @@ const PHASE_COUNT = 4;
  */
 export function initCurrents(game) {
   game.mechanic = {
-    type: 'currents',
+    type: "currents",
     phase: PHASE_TELEGRAPH,
     cells: [],
     contactApplied: false,
@@ -35,7 +35,7 @@ export function initCurrents(game) {
  */
 export function advanceCurrents(game) {
   const mech = game.mechanic;
-  if (!mech || mech.type !== 'currents') {
+  if (!mech || mech.type !== "currents") {
     return;
   }
 
@@ -70,7 +70,7 @@ export function advanceCurrents(game) {
  */
 export function applyCurrentDrift(game) {
   const mech = game.mechanic;
-  if (!mech || mech.type !== 'currents') {
+  if (!mech || mech.type !== "currents") {
     return;
   }
   if (mech.phase !== PHASE_FLOW && mech.phase !== PHASE_SURGE) {
@@ -104,10 +104,16 @@ export function applyCurrentDrift(game) {
     let ny = cy + cell.flowDy;
 
     // Wrap
-    if (nx < 0) nx = board.width - 1;
-    else if (nx >= board.width) nx = 0;
-    if (ny < 0) ny = board.height - 1;
-    else if (ny >= board.height) ny = 0;
+    if (nx < 0) {
+      nx = board.width - 1;
+    } else if (nx >= board.width) {
+      nx = 0;
+    }
+    if (ny < 0) {
+      ny = board.height - 1;
+    } else if (ny >= board.height) {
+      ny = 0;
+    }
 
     // Absorb drift if it would hit a wall or self
     if (board.isWallCell(nx, ny)) {
@@ -121,12 +127,12 @@ export function applyCurrentDrift(game) {
     const headIdx = (snake.headIndex + 1) % snake.constructor.MAX_CELLS;
     snake.snakeX[headIdx] = nx;
     snake.snakeY[headIdx] = ny;
-    board.setCell('snake', nx, ny);
+    board.setCell("snake", nx, ny);
 
     // Remove tail to keep length constant
     const tailX = snake.snakeX[snake.tailIndex];
     const tailY = snake.snakeY[snake.tailIndex];
-    board.clearCell('snake', tailX, tailY);
+    board.clearCell("snake", tailX, tailY);
     snake.tailIndex = (snake.tailIndex + 1) % snake.constructor.MAX_CELLS;
     snake.headIndex = headIdx;
   }
@@ -173,7 +179,7 @@ function generateRiver(game) {
       y = step;
     }
 
-    const key = x + ',' + y;
+    const key = x + "," + y;
     if (!visited.has(key) && !board.isWallCell(x, y) && !board.isSnakeCell(x, y)) {
       visited.add(key);
       cells.push({ x, y, flowDx, flowDy });
@@ -196,7 +202,7 @@ function generateRiver(game) {
             fx = Math.max(0, Math.min(w - 1, l));
             fy = step;
           }
-          const fkey = fx + ',' + fy;
+          const fkey = fx + "," + fy;
           if (!visited.has(fkey) && !board.isWallCell(fx, fy) && !board.isSnakeCell(fx, fy)) {
             visited.add(fkey);
             cells.push({ x: fx, y: fy, flowDx, flowDy });
@@ -212,7 +218,7 @@ function generateRiver(game) {
 function widenRiver(game) {
   const board = game.board;
   const mech = game.mechanic;
-  const existing = new Set(mech.cells.map((c) => c.x + ',' + c.y));
+  const existing = new Set(mech.cells.map((c) => c.x + "," + c.y));
   const added = [];
 
   for (const cell of mech.cells) {
@@ -231,15 +237,27 @@ function widenRiver(game) {
     for (const p of perps) {
       let px = p.x;
       let py = p.y;
-      if (px < 0) px = board.width - 1;
-      else if (px >= board.width) px = 0;
-      if (py < 0) py = board.height - 1;
-      else if (py >= board.height) py = 0;
+      if (px < 0) {
+        px = board.width - 1;
+      } else if (px >= board.width) {
+        px = 0;
+      }
+      if (py < 0) {
+        py = board.height - 1;
+      } else if (py >= board.height) {
+        py = 0;
+      }
 
-      const key = px + ',' + py;
-      if (existing.has(key)) continue;
-      if (board.isWallCell(px, py)) continue;
-      if (board.isSnakeCell(px, py)) continue;
+      const key = px + "," + py;
+      if (existing.has(key)) {
+        continue;
+      }
+      if (board.isWallCell(px, py)) {
+        continue;
+      }
+      if (board.isSnakeCell(px, py)) {
+        continue;
+      }
       existing.add(key);
       added.push({ x: px, y: py, flowDx: cell.flowDx, flowDy: cell.flowDy });
     }
@@ -260,6 +278,8 @@ function clearCurrentTerrain(game) {
   const board = game.board;
   const terrain = board.terrain;
   for (let i = 0; i < terrain.length; i++) {
-    if (terrain[i] === TERRAIN_CURRENT) terrain[i] = TERRAIN_NONE;
+    if (terrain[i] === TERRAIN_CURRENT) {
+      terrain[i] = TERRAIN_NONE;
+    }
   }
 }

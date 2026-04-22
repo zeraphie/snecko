@@ -1,111 +1,126 @@
 // main.terminal.js — Terminal entry point with game loop
 
-import readline from 'node:readline';
-import { TerminalRenderer } from './render/terminal.js';
-import { Game } from './core/game/index.js';
-import { generateBoard, advanceBoard } from './core/generation/index.js';
+import { readFileSync } from "node:fs";
+import { resolve, dirname } from "node:path";
+import { fileURLToPath } from "node:url";
+import { TerminalRenderer } from "./render/terminal/index.js";
+import { loadAssets, getLoaderDots } from "./core/loader.js";
+import { KeyboardTerminalController } from "./input/KeyboardTerminalController.js";
+import { Game } from "./core/game/index.js";
+import { generateBoard, advanceBoard } from "./core/generation/index.js";
+import {
+  generateWildlandsBoard,
+  advanceWildlandsBoard,
+} from "./core/generation/wildlands/generator.js";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const projectRoot = resolve(__dirname, "..");
+
+// ── Mode / world selection ────────────────────────────────────────
+//
+// process.argv[2]  mode  — play style
+//   (empty)               normal crystalline game
+//   boss                  skip straight to boss arena every fight
+//   wildlands             wildlands terrain + currents
+//
+// process.argv[3]  world — boss biome override (only meaningful with mode=boss,
+//                          but also respected in wildlands mode for consistency)
+//   (empty)               derive from mode (wildlands → wildlands boss)
+//   wildlands             The Current Sovereign
+//   crystalline           The Anchor  (explicit; same as default)
+//
+// Examples
+//   just play                   → crystalline game, The Anchor on trigger
+//   just play boss              → boss arena, The Anchor (crystalline)
+//   just play wildlands         → wildlands terrain, The Current Sovereign
+//   just play boss wildlands    → boss arena, The Current Sovereign
+
+const mode = process.argv[2] || "";
+const worldArg = process.argv[3] || "";
+
+// The effective world mode: explicit override first, then infer from play mode.
+const effectiveWorld = worldArg || (mode === "wildlands" ? "wildlands" : "");
+
+// ── Generator setup ───────────────────────────────────────────────
 
 const game = new Game();
-game.generateBoard = generateBoard;
-game.advanceBoard = advanceBoard;
+
+if (mode === "wildlands") {
+  game.generateBoard = generateWildlandsBoard;
+  game.advanceBoard = advanceWildlandsBoard;
+} else {
+  game.generateBoard = generateBoard;
+  game.advanceBoard = advanceBoard;
+}
+
+// ── startRun patch ────────────────────────────────────────────────
+//
+// startRun() calls upgrades.reset() which resets worldMode to 'crystalline'.
+// Any dev-mode override needs to be re-applied after that reset.
+// This single patch handles:
+//   1. Restoring the effective world mode after reset.
+//   2. Entering the boss arena immediately (boss mode only).
+
+if (effectiveWorld || mode === "boss") {
+  const _origStartRun = game.startRun.bind(game);
+  game.startRun = function () {
+    _origStartRun();
+    if (effectiveWorld) {
+      this.upgrades.worldMode = effectiveWorld;
+    }
+    if (mode === "boss") {
+      this._enterBossFight();
+    }
+  };
+}
+
+// ── Renderer & screen init ────────────────────────────────────────
+
 game.renderer = new TerminalRenderer(process.stdout, Game.BOARD_W, Game.BOARD_H);
 
-// Clear screen on start
-process.stdout.write('\x1b[2J\x1b[H');
-
-// Raw mode for keypress input
-readline.emitKeypressEvents(process.stdin);
-if (process.stdin.isTTY) {
-  process.stdin.setRawMode(true);
+// Clear screen; set terminal tab title for dev modes
+process.stdout.write("\x1b[2J\x1b[H");
+const titleParts = [mode, worldArg].filter(Boolean);
+if (titleParts.length > 0) {
+  process.stdout.write(`\x1b]0;snecko [${titleParts.join("/")}]\x07`);
 }
-process.stdin.resume();
 
-process.stdin.on('keypress', function (ch, key) {
-  if (!key) {
-    return;
-  }
-
-  if (key.ctrl && key.name === 'c') {
+const controller = new KeyboardTerminalController({
+  onQuit: () => {
     game.renderer.destroy();
     process.exit();
-  }
-
-  if (key.name === 'q') {
-    game.renderer.destroy();
-    process.exit();
-  }
-
-  if (game.state === Game.STATE_DRAFT) {
-    switch (key.name) {
-      case 'up':
-      case 'w':
-        game.selectDraft(Math.max(0, game._draftSelection - 1));
-        break;
-      case 'down':
-      case 's':
-        game.selectDraft(game._draftSelection + 1);
-        break;
-      case 'left':
-      case 'right':
-      case 'a':
-      case 'd':
-        game.toggleMutation();
-        break;
-      case 'return':
-      case 'space':
-        game.confirmDraft();
-        break;
-      default:
-        if (ch === '1') game.selectDraft(0);
-        else if (ch === '2') game.selectDraft(1);
-        else if (ch === '3') game.selectDraft(2);
-        else if (ch === '4') game.toggleMutation();
-        break;
-    }
-    return;
-  }
-
-  switch (key.name) {
-    case 'escape':
-      if (game.state === Game.STATE_TARGETING) {
-        game.cancelTargeting();
-      }
-      break;
-    case 'return':
-      game.confirm();
-      break;
-    case 'space':
-      if (game.state === Game.STATE_PLAYING) {
-        game.useConsumable();
-      } else {
-        game.confirm();
-      }
-      break;
-    case 'tab':
-      game.cycleConsumable();
-      break;
-    case 'up':
-    case 'w':
-      game.onInput(0, -1);
-      break;
-    case 'down':
-    case 's':
-      game.onInput(0, 1);
-      break;
-    case 'left':
-    case 'a':
-      game.onInput(-1, 0);
-      break;
-    case 'right':
-    case 'd':
-      game.onInput(1, 0);
-      break;
-  }
+  },
 });
+controller.attach(game);
 
-game.renderFrame();
+// ── Loader → game loop ────────────────────────────────────────────
 
-setInterval(function () {
-  game.tick();
+(async function () {
+  const loaderStart = Date.now();
+  const loaderInterval = setInterval(function () {
+    const elapsed = Date.now() - loaderStart;
+    const dots = getLoaderDots(elapsed);
+    game.renderer.drawLoader(dots);
+  }, 16);
+
+  const readFile = async (path) => readFileSync(resolve(projectRoot, path), "utf-8");
+  game.manifest = await loadAssets(readFile);
+
+  clearInterval(loaderInterval);
+
   game.renderFrame();
-}, 16);
+
+  setInterval(function () {
+    // Boss mode: whenever the game lands in STATE_PLAYING (e.g. after a boss
+    // victory that didn't trigger a draft), restore the world mode and jump
+    // straight back into the arena so there's no detour through normal boards.
+    if (mode === "boss" && game.state === Game.STATE_PLAYING) {
+      if (effectiveWorld) {
+        game.upgrades.worldMode = effectiveWorld;
+      }
+      game._enterBossFight();
+    }
+    game.tick();
+    game.renderFrame();
+  }, 16);
+})();

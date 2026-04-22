@@ -42,8 +42,12 @@ export function bfsReachable(board, startX, startY, targetX, targetY) {
       const nx = neighbors[i][0];
       const ny = neighbors[i][1];
       const ni = ny * w + nx;
-      if (visited[ni]) continue;
-      if (board.isWallCell(nx, ny)) continue;
+      if (visited[ni]) {
+        continue;
+      }
+      if (board.isWallCell(nx, ny)) {
+        continue;
+      }
       visited[ni] = 1;
       queue.push(ni);
     }

@@ -1,5 +1,7 @@
 // bomb.js — Bomb consumable: targeting cursor + 3x3 blast radius
 
+import { DEATH_BOMB } from "../../game/constants.js";
+
 const BLAST_RADIUS = 1; // 3x3 area (1 cell in each direction from center)
 
 /**
@@ -8,7 +10,7 @@ const BLAST_RADIUS = 1; // 3x3 area (1 cell in each direction from center)
  * @param {import('../../game/index.js').Game} game
  */
 export function enterTargeting(game) {
-  game.state = 'targeting';
+  game.state = "targeting";
   game._bombCursor = {
     x: game.snake.snakeX[game.snake.headIndex],
     y: game.snake.snakeY[game.snake.headIndex],
@@ -23,15 +25,21 @@ export function enterTargeting(game) {
  * @param {number} dy
  */
 export function moveCursor(game, dx, dy) {
-  if (game.state !== 'targeting') {
+  if (game.state !== "targeting") {
     return;
   }
   let nx = game._bombCursor.x + dx;
   let ny = game._bombCursor.y + dy;
-  if (nx < 0) nx = game.board.width - 1;
-  else if (nx >= game.board.width) nx = 0;
-  if (ny < 0) ny = game.board.height - 1;
-  else if (ny >= game.board.height) ny = 0;
+  if (nx < 0) {
+    nx = game.board.width - 1;
+  } else if (nx >= game.board.width) {
+    nx = 0;
+  }
+  if (ny < 0) {
+    ny = game.board.height - 1;
+  } else if (ny >= game.board.height) {
+    ny = 0;
+  }
   game._bombCursor.x = nx;
   game._bombCursor.y = ny;
 }
@@ -43,7 +51,7 @@ export function moveCursor(game, dx, dy) {
  * @param {import('../../game/index.js').Game} game
  */
 export function confirmBomb(game) {
-  if (game.state !== 'targeting') {
+  if (game.state !== "targeting") {
     return;
   }
 
@@ -58,13 +66,19 @@ export function confirmBomb(game) {
       let bx = cx + dx;
       let by = cy + dy;
       // Wrap
-      if (bx < 0) bx += w;
-      else if (bx >= w) bx -= w;
-      if (by < 0) by += h;
-      else if (by >= h) by -= h;
+      if (bx < 0) {
+        bx += w;
+      } else if (bx >= w) {
+        bx -= w;
+      }
+      if (by < 0) {
+        by += h;
+      } else if (by >= h) {
+        by -= h;
+      }
 
       if (game.board.isWallCell(bx, by)) {
-        game.board.clearCell('wall', bx, by);
+        game.board.clearCell("wall", bx, by);
       }
       if (game.board.isSnakeCell(bx, by)) {
         hitSnake = true;
@@ -76,10 +90,10 @@ export function confirmBomb(game) {
 
   if (hitSnake) {
     game.snake.alive = false;
-    game.snake.deathCause = 'bomb';
-    game.state = 'dead';
+    game.snake.deathCause = DEATH_BOMB;
+    game.state = "dead";
   } else {
-    game.state = 'playing';
+    game.state = "playing";
     game.lastTickTime = Date.now();
   }
 }
@@ -90,12 +104,12 @@ export function confirmBomb(game) {
  * @param {import('../../game/index.js').Game} game
  */
 export function cancelBomb(game) {
-  if (game.state !== 'targeting') {
+  if (game.state !== "targeting") {
     return;
   }
   game._bombCursor = null;
-  game.upgrades.addConsumable('bomb', 1); // refund charge
-  game.state = 'playing';
+  game.upgrades.addConsumable("bomb", 1); // refund charge
+  game.state = "playing";
   game.lastTickTime = Date.now();
 }
 
