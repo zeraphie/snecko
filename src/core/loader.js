@@ -7,7 +7,7 @@
 import { parseArenaFile } from "./boss/arena.js";
 import { parseBossShape } from "./boss/boss-shape.js";
 
-const MIN_LOAD_MS = 300000;
+const MIN_LOAD_MS = 300;
 
 const ARENA_FILES = ["src/core/boss/arenas/default.arena"];
 
@@ -58,7 +58,8 @@ export function getLoaderDots(elapsed) {
     const gridIdx = SPIRAL_ORDER[i];
     const offset = i * dotWindow;
     // Normalise to [0, 1] within this dot's window, wrapping around
-    const local = ((t - offset + cycleDuration) % cycleDuration) / cycleDuration;
+    const local =
+      ((t - offset + cycleDuration) % cycleDuration) / cycleDuration;
     // Sine pulse: peaks at the dot's phase, fades smoothly
     opacities[gridIdx] = Math.max(0, Math.sin(local * Math.PI * 2) * 0.5 + 0.5);
   }
