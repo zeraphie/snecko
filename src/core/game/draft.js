@@ -1,21 +1,21 @@
 // draft.js — Draft screen methods (selection, mutation, confirm)
 
-import { TYPE_PASSIVE, TYPE_CONSUMABLE, TYPE_MUTATION } from '../upgrades/defs.js';
+import { TYPE_PASSIVE, TYPE_CONSUMABLE, TYPE_MUTATION } from "../upgrades/defs.js";
 import {
   generateBoard as crystallineGenerate,
   advanceBoard as crystallineAdvance,
-} from '../generation/index.js';
+} from "../generation/index.js";
 import {
   generateWildlandsBoard,
   advanceWildlandsBoard,
-} from '../generation/wildlands/generator.js';
+} from "../generation/wildlands/generator.js";
 import {
   STATE_DRAFT,
   STATE_PLAYING,
   FOOD_REQUIRED_BASE,
   FOOD_REQUIRED_PER_LEVEL,
   INITIAL_SNAKE_LENGTH,
-} from './constants.js';
+} from "./constants.js";
 
 const GENERATORS = {
   crystalline: { generate: crystallineGenerate, advance: crystallineAdvance },

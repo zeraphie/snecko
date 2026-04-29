@@ -9,7 +9,7 @@ const SLOW_TIME_MULTIPLIER = 1.5;
  * @returns {number|null}
  */
 export function applySlowTime(game) {
-  if (game.upgrades.hasPassive('slow_time')) {
+  if (game.upgrades.hasPassive("slow_time")) {
     return SLOW_TIME_MULTIPLIER;
   }
   return null;

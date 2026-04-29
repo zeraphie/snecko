@@ -7,9 +7,9 @@ import {
   TERRAIN_HIGH,
   TERRAIN_TELEGRAPH,
   TERRAIN_CURRENT,
-} from './constants.js';
-import { _getMask, isCellSet, setCell, clearCell, clearMasks } from './layers.js';
-import { isInBounds, isWallCell, isSnakeCell, isReservedCell, isBlockedCell } from './queries.js';
+} from "./constants.js";
+import { _getMask, isCellSet, setCell, clearCell, clearMasks } from "./layers.js";
+import { isInBounds, isWallCell, isSnakeCell, isReservedCell, isBlockedCell } from "./queries.js";
 
 /**
  * Bitmask board with chunk-based row storage for walls, snake, and reserved cells.
@@ -33,6 +33,10 @@ export class Board {
     this.terrain = new Uint8Array(width * height);
     this.foodX = -1;
     this.foodY = -1;
+    this.bossFoodX = -1;
+    this.bossFoodY = -1;
+    this.playerX = -1;
+    this.playerY = -1;
   }
 }
 

@@ -1,9 +1,9 @@
 // generator.js — Wildlands terrain generation using FBM noise
 
-import { createPermTable, fbm2 } from './noise.js';
-import { bfsReachable } from '../common/solvability.js';
-import { TERRAIN_NONE, TERRAIN_LOW, TERRAIN_HIGH, TERRAIN_CURRENT } from '../../board/constants.js';
-import { initCurrents, advanceCurrents } from '../../mechanics/currents.js';
+import { createPermTable, fbm2 } from "./noise.js";
+import { bfsReachable } from "../common/solvability.js";
+import { TERRAIN_NONE, TERRAIN_LOW, TERRAIN_HIGH, TERRAIN_CURRENT } from "../../board/constants.js";
+import { initCurrents, advanceCurrents } from "../../mechanics/currents.js";
 
 const SPAWN_CLEAR_RADIUS = 4;
 const LOW_THRESHOLD = 0.15; // fbm > this → low wall
@@ -23,9 +23,9 @@ export function generateWildlandsBoard(game) {
   const w = board.width;
   const h = board.height;
 
-  board.clearMasks('wall');
-  board.clearMasks('snake');
-  board.clearMasks('reserved');
+  board.clearMasks("wall");
+  board.clearMasks("snake");
+  board.clearMasks("reserved");
   board.terrain.fill(TERRAIN_NONE);
 
   const seed = Date.now() ^ (game.boardIndex * 7919);
@@ -40,15 +40,17 @@ export function generateWildlandsBoard(game) {
       // Clear zone around spawn
       const dx = x - spawnX;
       const dy = y - spawnY;
-      if (Math.abs(dx) <= SPAWN_CLEAR_RADIUS && Math.abs(dy) <= SPAWN_CLEAR_RADIUS) continue;
+      if (Math.abs(dx) <= SPAWN_CLEAR_RADIUS && Math.abs(dy) <= SPAWN_CLEAR_RADIUS) {
+        continue;
+      }
 
       const n = fbm2(x * SCALE, y * SCALE, OCTAVES, LACUNARITY, PERSISTENCE, perm);
 
       if (n > HIGH_THRESHOLD) {
-        board.setCell('wall', x, y);
+        board.setCell("wall", x, y);
         board.terrain[y * w + x] = TERRAIN_HIGH;
       } else if (n > LOW_THRESHOLD) {
-        board.setCell('wall', x, y);
+        board.setCell("wall", x, y);
         board.terrain[y * w + x] = TERRAIN_LOW;
       }
     }
@@ -86,8 +88,12 @@ function placeWildlandsFood(board, fromX, fromY) {
   for (let attempts = 0; attempts < 200; attempts++) {
     const x = Math.floor(Math.random() * board.width);
     const y = Math.floor(Math.random() * board.height);
-    if (board.isBlockedCell(x, y)) continue;
-    if (board.terrain[y * board.width + x] === TERRAIN_CURRENT) continue;
+    if (board.isBlockedCell(x, y)) {
+      continue;
+    }
+    if (board.terrain[y * board.width + x] === TERRAIN_CURRENT) {
+      continue;
+    }
     if (bfsReachable(board, fromX, fromY, x, y)) {
       board.foodX = x;
       board.foodY = y;
@@ -97,8 +103,12 @@ function placeWildlandsFood(board, fromX, fromY) {
   // Fallback: scan all cells
   for (let y = 0; y < board.height; y++) {
     for (let x = 0; x < board.width; x++) {
-      if (board.isBlockedCell(x, y)) continue;
-      if (board.terrain[y * board.width + x] === TERRAIN_CURRENT) continue;
+      if (board.isBlockedCell(x, y)) {
+        continue;
+      }
+      if (board.terrain[y * board.width + x] === TERRAIN_CURRENT) {
+        continue;
+      }
       if (bfsReachable(board, fromX, fromY, x, y)) {
         board.foodX = x;
         board.foodY = y;

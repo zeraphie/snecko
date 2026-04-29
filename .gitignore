@@ -6,3 +6,4 @@ PLAN*.md
 **/PLAN*.md
 .DS_Store
 dist
+ai/

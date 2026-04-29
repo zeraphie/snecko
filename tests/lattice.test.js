@@ -1,11 +1,11 @@
 // lattice.test.js — tests for lattice mechanic initialisation and advancement
 
-import { describe, it, expect } from 'vitest';
-import { Board } from '../src/core/board';
-import { Snake } from '../src/core/snake';
-import { initLattice, advanceLattice } from '../src/core/mechanics/lattice.js';
-import { buildCrystals } from '../src/core/generation/crystalline/crystals.js';
-import { TERRAIN_TELEGRAPH } from '../src/core/board/constants.js';
+import { describe, it, expect } from "vitest";
+import { Board } from "../src/core/board";
+import { Snake } from "../src/core/snake";
+import { initLattice, advanceLattice } from "../src/core/mechanics/lattice.js";
+import { buildCrystals } from "../src/core/generation/crystalline/crystals.js";
+import { TERRAIN_TELEGRAPH } from "../src/core/board/constants.js";
 
 const CRYSTALS = buildCrystals();
 
@@ -21,29 +21,29 @@ function makeGame(width = 21, height = 21) {
   };
 }
 
-describe('initLattice', () => {
-  it('sets mechanic type to lattice', () => {
+describe("initLattice", () => {
+  it("sets mechanic type to lattice", () => {
     const game = makeGame();
     initLattice(game);
-    expect(game.mechanic.type).toBe('lattice');
-    expect(game.mechanic.phase).toBe('place');
+    expect(game.mechanic.type).toBe("lattice");
+    expect(game.mechanic.phase).toBe("place");
     expect(game.mechanic.activeCrystal).toBe(null);
   });
 });
 
-describe('advanceLattice', () => {
-  it('no-ops if mechanic is null', () => {
+describe("advanceLattice", () => {
+  it("no-ops if mechanic is null", () => {
     const game = makeGame();
     advanceLattice(game); // should not throw
   });
 
-  it('no-ops if mechanic is not lattice', () => {
+  it("no-ops if mechanic is not lattice", () => {
     const game = makeGame();
-    game.mechanic = { type: 'currents' };
+    game.mechanic = { type: "currents" };
     advanceLattice(game); // should not throw
   });
 
-  it('places a crystal on first advance (place phase)', () => {
+  it("places a crystal on first advance (place phase)", () => {
     const game = makeGame();
     initLattice(game);
 
@@ -54,7 +54,7 @@ describe('advanceLattice', () => {
     expect(countWalls(game.board)).toBeGreaterThan(wallsBefore);
   });
 
-  it('sets activeCrystal after placement', () => {
+  it("sets activeCrystal after placement", () => {
     const game = makeGame();
     initLattice(game);
     advanceLattice(game);
@@ -63,28 +63,28 @@ describe('advanceLattice', () => {
     // and phase should be "telegraph"
     const mech = game.mechanic;
     if (mech.activeCrystal) {
-      expect(mech.phase).toBe('telegraph');
+      expect(mech.phase).toBe("telegraph");
       expect(mech.activeCrystal.stageIdx).toBe(0);
     }
   });
 
-  it('shows telegraph cells after placement of multi-stage crystal', () => {
+  it("shows telegraph cells after placement of multi-stage crystal", () => {
     const game = makeGame();
     initLattice(game);
     advanceLattice(game);
 
     const mech = game.mechanic;
-    if (mech.activeCrystal && mech.phase === 'telegraph') {
+    if (mech.activeCrystal && mech.phase === "telegraph") {
       // Should have telegraph terrain cells
       const _hasTelegraph = game.board.terrain.some((t) => t === TERRAIN_TELEGRAPH);
       // Telegraph is present if the next stage has telegraph bits defined,
       // OR if the next stage's solid cells are shown as telegraph preview
       // Either way, the phase being "telegraph" is correct
-      expect(mech.phase).toBe('telegraph');
+      expect(mech.phase).toBe("telegraph");
     }
   });
 
-  it('grows crystal on advance after telegraph phase', () => {
+  it("grows crystal on advance after telegraph phase", () => {
     const game = makeGame();
     initLattice(game);
 
@@ -92,7 +92,7 @@ describe('advanceLattice', () => {
     advanceLattice(game);
     const mech = game.mechanic;
 
-    if (mech.activeCrystal && mech.phase === 'telegraph') {
+    if (mech.activeCrystal && mech.phase === "telegraph") {
       const wallsBefore = countWalls(game.board);
 
       // Grow
@@ -100,11 +100,11 @@ describe('advanceLattice', () => {
 
       expect(countWalls(game.board)).toBeGreaterThanOrEqual(wallsBefore);
       expect(mech.activeCrystal.stageIdx).toBe(1);
-      expect(mech.phase === 'growth' || mech.phase === 'telegraph').toBe(true);
+      expect(mech.phase === "growth" || mech.phase === "telegraph").toBe(true);
     }
   });
 
-  it('cycles through full crystal lifecycle', () => {
+  it("cycles through full crystal lifecycle", () => {
     const game = makeGame();
     initLattice(game);
 
@@ -113,7 +113,7 @@ describe('advanceLattice', () => {
     let sawPlace = false;
     for (let i = 0; i < 20; i++) {
       advanceLattice(game);
-      if (i > 0 && game.mechanic.phase === 'place' && !game.mechanic.activeCrystal) {
+      if (i > 0 && game.mechanic.phase === "place" && !game.mechanic.activeCrystal) {
         sawPlace = true;
       }
     }
@@ -124,8 +124,8 @@ describe('advanceLattice', () => {
   });
 });
 
-describe('snake blocks growth', () => {
-  it('snake body prevents wall placement during growth', () => {
+describe("snake blocks growth", () => {
+  it("snake body prevents wall placement during growth", () => {
     const game = makeGame();
     initLattice(game);
 
@@ -133,7 +133,7 @@ describe('snake blocks growth', () => {
     advanceLattice(game);
     const mech = game.mechanic;
 
-    if (mech.activeCrystal && mech.phase === 'telegraph') {
+    if (mech.activeCrystal && mech.phase === "telegraph") {
       const active = mech.activeCrystal;
       const crystal = CRYSTALS[active.crystalIdx];
       const nextStage = crystal.stages[active.stageIdx + 1];
@@ -144,7 +144,9 @@ describe('snake blocks growth', () => {
       let targetY = -1;
       for (let row = 0; row < shape.height && targetX < 0; row++) {
         for (let col = 0; col < shape.width; col++) {
-          if (!(shape.solidRows[row] & (1 << col))) continue;
+          if (!(shape.solidRows[row] & (1 << col))) {
+            continue;
+          }
           const bx = active.x + col;
           const by = active.y + row;
           if (!game.board.isWallCell(bx, by)) {
@@ -157,7 +159,7 @@ describe('snake blocks growth', () => {
 
       if (targetX >= 0) {
         // Place snake on that cell
-        game.board.setCell('snake', targetX, targetY);
+        game.board.setCell("snake", targetX, targetY);
 
         // Grow
         advanceLattice(game);
@@ -166,14 +168,14 @@ describe('snake blocks growth', () => {
         expect(game.board.isWallCell(targetX, targetY)).toBe(false);
 
         // Clean up
-        game.board.clearCell('snake', targetX, targetY);
+        game.board.clearCell("snake", targetX, targetY);
       }
     }
   });
 });
 
-describe('telegraph cleanup', () => {
-  it('clears telegraph terrain on growth', () => {
+describe("telegraph cleanup", () => {
+  it("clears telegraph terrain on growth", () => {
     const game = makeGame();
     initLattice(game);
 
@@ -181,7 +183,7 @@ describe('telegraph cleanup', () => {
     advanceLattice(game);
     const mech = game.mechanic;
 
-    if (mech.activeCrystal && mech.phase === 'telegraph') {
+    if (mech.activeCrystal && mech.phase === "telegraph") {
       // Verify telegraph exists
       const hadTelegraph = game.board.terrain.some((t) => t === TERRAIN_TELEGRAPH);
 
@@ -191,7 +193,7 @@ describe('telegraph cleanup', () => {
       // After growth, telegraph cells should be cleared
       // (new telegraph may appear for next stage, but old ones are gone)
       // At minimum, clearTelegraph was called
-      if (hadTelegraph && mech.phase === 'growth') {
+      if (hadTelegraph && mech.phase === "growth") {
         // No telegraph should remain after growth if no more stages to telegraph
         // This is hard to assert generically, so just check it didn't crash
         expect(true).toBe(true);
@@ -200,8 +202,8 @@ describe('telegraph cleanup', () => {
   });
 });
 
-describe('phase transitions', () => {
-  it('place → telegraph → growth → telegraph → growth → place for 3-stage crystal', () => {
+describe("phase transitions", () => {
+  it("place → telegraph → growth → telegraph → growth → place for 3-stage crystal", () => {
     const game = makeGame();
     initLattice(game);
 
@@ -211,7 +213,7 @@ describe('phase transitions', () => {
       advanceLattice(game);
       phases.push(game.mechanic.phase);
       // If we've returned to "place" with no active crystal, a full cycle completed
-      if (phases.length > 1 && game.mechanic.phase === 'place' && !game.mechanic.activeCrystal) {
+      if (phases.length > 1 && game.mechanic.phase === "place" && !game.mechanic.activeCrystal) {
         break;
       }
     }
@@ -219,7 +221,7 @@ describe('phase transitions', () => {
     // A 3-stage crystal should produce: telegraph, telegraph, growth, telegraph, growth, place
     // (place immediately transitions to telegraph if multi-stage)
     // The exact sequence depends on the crystal chosen, but it should end at "place"
-    expect(phases[phases.length - 1]).toBe('place');
+    expect(phases[phases.length - 1]).toBe("place");
   });
 });
 
@@ -227,7 +229,9 @@ function countWalls(board) {
   let count = 0;
   for (let y = 0; y < board.height; y++) {
     for (let x = 0; x < board.width; x++) {
-      if (board.isWallCell(x, y)) count++;
+      if (board.isWallCell(x, y)) {
+        count++;
+      }
     }
   }
   return count;

@@ -41,8 +41,15 @@ gen-shapes:
   {{nvm}} && node scripts/gen-shapes.js
 
 # Play in terminal
-play:
-  {{nvm}} && node src/main.terminal.js
+# mode:  boss (skip to boss arena) | wildlands (wildlands terrain)
+# world: wildlands | crystalline   (sets the boss biome; inferred from mode if omitted)
+# Examples:
+#   just play                  → crystalline game, The Anchor on trigger
+#   just play boss             → boss arena, The Anchor (crystalline)
+#   just play wildlands        → wildlands terrain, The Current Sovereign
+#   just play boss wildlands   → boss arena, The Current Sovereign
+play mode="" world="":
+  {{nvm}} && node src/main.terminal.js {{mode}} {{world}}
 
 # Serve for browser (needed for ESM <script type="module">)
 serve:

@@ -1,31 +1,31 @@
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
+import fs from "node:fs";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const SHAPES_FILE = path.join(
   __dirname,
-  '..',
-  'src',
-  'core',
-  'generation',
-  'crystalline',
-  'crystals.shapes'
+  "..",
+  "src",
+  "core",
+  "generation",
+  "crystalline",
+  "crystals.shapes"
 );
 const TARGET_FILE = path.join(
   __dirname,
-  '..',
-  'src',
-  'core',
-  'generation',
-  'crystalline',
-  'crystals.js'
+  "..",
+  "src",
+  "core",
+  "generation",
+  "crystalline",
+  "crystals.js"
 );
 
-const SOLID = '\u2588'; // █
-const TELEGRAPH = '\u2593'; // ▓
-const SPACE = '\u2591'; // ░
+const SOLID = "\u2588"; // █
+const TELEGRAPH = "\u2593"; // ▓
+const SPACE = "\u2591"; // ░
 
 function parseShapesFile(text) {
   const blocks = text.trim().split(/\n\n+/);
@@ -33,7 +33,7 @@ function parseShapesFile(text) {
   const crystalMap = new Map();
 
   for (const block of blocks) {
-    const lines = block.split('\n').filter((l) => l.length > 0);
+    const lines = block.split("\n").filter((l) => l.length > 0);
     if (lines.length < 2) continue;
 
     const header = lines[0].trim();
@@ -84,7 +84,7 @@ function parseShapesFile(text) {
 }
 
 function toBinary(mask, width) {
-  return '0b' + mask.toString(2).padStart(width, '0');
+  return "0b" + mask.toString(2).padStart(width, "0");
 }
 
 function generateBaseShapes(crystals) {
@@ -92,36 +92,36 @@ function generateBaseShapes(crystals) {
     const stageStrs = c.stages.map((s) => {
       const solidStrs = s.solidRows.map((r) => toBinary(r, s.width));
       const telegraphStrs = s.telegraphRows.map((r) => toBinary(r, s.width));
-      return `    { width: ${s.width}, height: ${s.height}, solidRows: [${solidStrs.join(', ')}], telegraphRows: [${telegraphStrs.join(', ')}] }`;
+      return `    { width: ${s.width}, height: ${s.height}, solidRows: [${solidStrs.join(", ")}], telegraphRows: [${telegraphStrs.join(", ")}] }`;
     });
-    return `  { name: "${c.name}", stages: [\n${stageStrs.join(',\n')},\n  ] }`;
+    return `  { name: "${c.name}", stages: [\n${stageStrs.join(",\n")},\n  ] }`;
   });
-  return entries.join(',\n');
+  return entries.join(",\n");
 }
 
 // Read and parse
-const shapesText = fs.readFileSync(SHAPES_FILE, 'utf8');
+const shapesText = fs.readFileSync(SHAPES_FILE, "utf8");
 const crystals = parseShapesFile(shapesText);
 
 if (crystals.length === 0) {
-  console.error('No shapes found in', SHAPES_FILE);
+  console.error("No shapes found in", SHAPES_FILE);
   process.exit(1);
 }
 
 // Read target file and replace BASE_SHAPES block
-const target = fs.readFileSync(TARGET_FILE, 'utf8');
+const target = fs.readFileSync(TARGET_FILE, "utf8");
 const marker = /\/\/ prettier-ignore\nconst BASE_SHAPES = \[\n[\s\S]*?\n\];/;
 
 if (!marker.test(target)) {
-  console.error('Could not find BASE_SHAPES block in', TARGET_FILE);
+  console.error("Could not find BASE_SHAPES block in", TARGET_FILE);
   process.exit(1);
 }
 
 const replacement =
-  '// prettier-ignore\nconst BASE_SHAPES = [\n' + generateBaseShapes(crystals) + ',\n];';
+  "// prettier-ignore\nconst BASE_SHAPES = [\n" + generateBaseShapes(crystals) + ",\n];";
 
 const updated = target.replace(marker, replacement);
-fs.writeFileSync(TARGET_FILE, updated, 'utf8');
+fs.writeFileSync(TARGET_FILE, updated, "utf8");
 
 const totalStages = crystals.reduce((sum, c) => sum + c.stages.length, 0);
 console.log(`Generated ${crystals.length} crystals (${totalStages} stages) from crystals.shapes`);
