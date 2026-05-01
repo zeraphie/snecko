@@ -20,6 +20,7 @@ import {
   BOSS_TICK_MS,
   BOSS_MOVE_MS,
   PLAYER_FIRE_INTERVAL,
+  PLAYER_BULLET_INTERVAL,
   BOSS_FOOD_REWARD,
   BOSS_INVUL_TICKS,
   BOSS_PHASE_INTRO,
@@ -374,9 +375,14 @@ export function _bossTick() {
       spawnPlayerBullet(this);
     }
 
-    // 5. Player bullet advance + collision vs boss
-    updatePlayerBullets(this._playerBullets, board);
-    if (this._playerBullets.length > 0 && this._boss._staggerTicks === 0) {
+    // 5. Player bullet advance + collision vs boss (throttled by PLAYER_BULLET_INTERVAL)
+    this._playerBulletMoveCounter++;
+    const advanceBullets = this._playerBulletMoveCounter >= PLAYER_BULLET_INTERVAL;
+    if (advanceBullets) {
+      this._playerBulletMoveCounter = 0;
+      updatePlayerBullets(this._playerBullets, board);
+    }
+    if (advanceBullets && this._playerBullets.length > 0 && this._boss._staggerTicks === 0) {
       const { weakHits, bodyHits, hitIndices } = checkPlayerBulletCollision(
         this._playerBullets,
         this._boss
@@ -474,6 +480,7 @@ export function _enterBossFight() {
   this._projectiles = [];
   this._playerBullets = [];
   this._playerFireCounter = 0;
+  this._playerBulletMoveCounter = 0;
   this._playerInvulTicks = 0;
   this._playerStaggerTicks = 0;
   this._gomuShieldActive = this._contraband.some((c) => c.id === "gomu_gomu");

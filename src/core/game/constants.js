@@ -28,6 +28,7 @@ export const BOSS_FOOD_INTERVAL = 10;
 export const BOSS_TICK_MS = 120;
 export const BOSS_MOVE_MS = 33; // movement sub-tick interval (~30 Hz)
 export const PLAYER_FIRE_INTERVAL = 8; // movement sub-ticks between auto-fire shots
+export const PLAYER_BULLET_INTERVAL = 2; // movement sub-ticks per bullet step (1 = full speed, 2 = half)
 export const BOSS_HP = 12;
 export const BOSS_BODY_HP = 3; // HP per destructible body cell
 export const BOSS_FOOD_REWARD = 3;

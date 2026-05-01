@@ -20,6 +20,7 @@ import {
   DEATH_BOMB,
   BOSS_BODY_HP,
   HUNGRY_VERTICAL_RANGE,
+  PLAYER_BULLET_INTERVAL,
 } from "../src/core/game/constants.js";
 
 const __testDir = dirname(fileURLToPath(import.meta.url));
@@ -1320,8 +1321,11 @@ describe("boss fight", () => {
     }
     expect(boss.isWeakExposed()).toBe(true);
     const hpBefore = boss.hp;
-    // Place a bullet one cell below the weak point, travelling up
+    // Place a bullet one cell below the weak point, travelling up.
+    // Bullets advance every PLAYER_BULLET_INTERVAL movement sub-ticks, so
+    // pre-set the counter so this tick advances the bullet onto the weak point.
     game._playerBullets.push({ x: wp.x, y: wp.y + 1, dx: 0, dy: -1 });
+    game._playerBulletMoveCounter = PLAYER_BULLET_INTERVAL - 1;
     bossTick(game);
     expect(boss.hp).toBe(hpBefore - 1);
     expect(game.state).toBe(Game.STATE_BOSS);
@@ -1343,6 +1347,7 @@ describe("boss fight", () => {
     }
     game._boss.hp = 1;
     game._playerBullets.push({ x: wp.x, y: wp.y + 1, dx: 0, dy: -1 });
+    game._playerBulletMoveCounter = PLAYER_BULLET_INTERVAL - 1;
     bossTick(game);
     expect(game._boss).toBeNull();
     expect(game.state).toBe(Game.STATE_CONTRABAND);
@@ -3136,6 +3141,7 @@ describe("destructible boss body", () => {
     const hpBefore = boss.hp;
     // Place a bullet one cell below so it advances into the weak point
     game._playerBullets = [{ x: wp.x, y: wp.y + 1, dx: 0, dy: -1 }];
+    game._playerBulletMoveCounter = PLAYER_BULLET_INTERVAL - 1;
     bossTick(game);
     expect(boss.hp).toBe(hpBefore - 1);
   });

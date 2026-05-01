@@ -132,14 +132,17 @@ export function _drawBossArena() {
     }
   }
 
-  // 2. Boss body cells — use CELL_BOSS_HIT during stagger for a hit-flash effect
+  // 2. Boss body cells — flash CELL_BOSS_HIT on weak hit (stagger) or per-cell
+  //    body hit. Weak cell joins the body flash so a successful weak hit reads
+  //    as a clear strike on the whole boss.
   if (this._boss) {
     const staggered = this._boss._staggerTicks > 0;
     for (const cell of this._boss.getCells()) {
+      const cellFlashing = this._boss._cellFlashTicks[cell._shapeIdx] > 0;
       let type;
       if (cell.weak) {
-        type = CELL_BOSS_WEAK;
-      } else if (staggered) {
+        type = staggered ? CELL_BOSS_HIT : CELL_BOSS_WEAK;
+      } else if (staggered || cellFlashing) {
         type = CELL_BOSS_HIT;
       } else if (cell.hp < this._boss._bodyHp) {
         type = CELL_BOSS_DAMAGED;

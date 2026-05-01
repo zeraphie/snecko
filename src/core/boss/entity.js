@@ -5,7 +5,8 @@
 // across drift rebuilds because _cellHp is indexed by shape offset, not
 // world coordinates.
 //
-// The weak point is shielded until all 4-adjacent body cells are destroyed.
+// The weak point is shielded until the body cell directly south of it (the
+// one in the player's upward line of fire) is destroyed.
 
 /**
  * BossEntity represents the visible boss on the arena board.
@@ -63,6 +64,9 @@ export class BossEntity {
     // Weak cells get 0 HP (damage goes to boss HP instead).
     const totalCells = this._shapeCells ? this._shapeCells.length : this.width * this.height;
     this._cellHp = new Uint8Array(totalCells);
+    // Per-cell hit-flash counter (ticks remaining), indexed by shape template index.
+    // Decremented in update(); rendered as CELL_BOSS_HIT while > 0.
+    this._cellFlashTicks = new Uint8Array(totalCells);
 
     if (this._shapeCells) {
       for (let i = 0; i < this._shapeCells.length; i++) {
@@ -146,6 +150,12 @@ export class BossEntity {
    * @param {number} boardW — current board width (used to compute drift bounds)
    */
   update(boardW) {
+    for (let i = 0; i < this._cellFlashTicks.length; i++) {
+      if (this._cellFlashTicks[i] > 0) {
+        this._cellFlashTicks[i]--;
+      }
+    }
+
     if (this._staggerTicks > 0) {
       this._staggerTicks--;
       return;
@@ -202,6 +212,7 @@ export class BossEntity {
     const idx = cell._shapeIdx;
     this._cellHp[idx] = Math.max(0, this._cellHp[idx] - 1);
     cell.hp = this._cellHp[idx];
+    this._cellFlashTicks[idx] = 3;
 
     if (this._cellHp[idx] <= 0) {
       const ci = this.cells.indexOf(cell);
@@ -214,8 +225,9 @@ export class BossEntity {
   }
 
   /**
-   * Returns true if the weak point is exposed (all 4-adjacent body cells
-   * in shape space are destroyed). When shielded, bullets cannot reach it.
+   * Returns true if the weak point is exposed — the body cell directly south
+   * of it (the cell in the player's upward line of fire) has been destroyed.
+   * If the weak point has no south neighbour in the shape, it counts as exposed.
    *
    * @returns {boolean}
    */
@@ -226,33 +238,24 @@ export class BossEntity {
         return true;
       }
       for (let i = 0; i < this._shapeCells.length; i++) {
-        if (this._shapeCells[i].weak) {
+        const sc = this._shapeCells[i];
+        if (sc.weak) {
           continue;
         }
-        const ddx = Math.abs(this._shapeCells[i].dx - weakSc.dx);
-        const ddy = Math.abs(this._shapeCells[i].dy - weakSc.dy);
-        if (ddx + ddy === 1 && this._cellHp[i] > 0) {
+        if (sc.dx === weakSc.dx && sc.dy === weakSc.dy + 1 && this._cellHp[i] > 0) {
           return false;
         }
       }
       return true;
     }
 
-    // Fallback rectangle: check 4 neighbors of weak offset
+    // Fallback rectangle: check south neighbour of weak offset
     const wx = this._weakX;
-    const wy = this._weakY;
-    const neighbors = [
-      [wx - 1, wy],
-      [wx + 1, wy],
-      [wx, wy - 1],
-      [wx, wy + 1],
-    ];
-    for (const [nx, ny] of neighbors) {
-      if (nx >= 0 && nx < this.width && ny >= 0 && ny < this.height) {
-        const idx = ny * this.width + nx;
-        if (this._cellHp[idx] > 0) {
-          return false;
-        }
+    const ny = this._weakY + 1;
+    if (wx >= 0 && wx < this.width && ny >= 0 && ny < this.height) {
+      const idx = ny * this.width + wx;
+      if (this._cellHp[idx] > 0) {
+        return false;
       }
     }
     return true;

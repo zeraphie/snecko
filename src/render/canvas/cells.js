@@ -90,10 +90,12 @@ export function drawCell(x, y, type) {
     return;
   }
   if (type === CELL_BOSS_HIT) {
+    // Pulse between boss body purple and a lighter lavender — bright enough
+    // to read as a hit, soft enough not to strobe.
     const t = Math.abs(Math.sin(this._animTime * 12.0));
-    const r = Math.round(142 + (255 - 142) * t);
-    const g = Math.round(68 + (255 - 68) * t);
-    const b = Math.round(173 + (255 - 173) * t);
+    const r = Math.round(142 + (210 - 142) * t);
+    const g = Math.round(68 + (150 - 68) * t);
+    const b = Math.round(173 + (230 - 173) * t);
     this._ctx.fillStyle = `rgb(${r},${g},${b})`;
     this._ctx.fillRect(x * this._cellSize, y * this._cellSize, this._cellSize, this._cellSize);
     return;
