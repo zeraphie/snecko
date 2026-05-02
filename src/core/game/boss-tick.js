@@ -3,6 +3,7 @@
 import { applyArena } from "../boss/arena.js";
 import { BossEntity } from "../boss/entity.js";
 import { getBossDef } from "../boss/bosses/index.js";
+import { FLOW_TICKS as ALGORITHM_FLOW_TICKS } from "../boss/bosses/the-algorithm.js";
 import { getPlayerCells } from "../boss/player.js";
 import { updateProjectiles, checkProjectileCollision } from "../boss/projectiles.js";
 import {
@@ -50,6 +51,16 @@ function _updateBossModifiers(game) {
   for (let i = game._bossModifiers.length - 1; i >= 0; i--) {
     const mod = game._bossModifiers[i];
     mod.ticksLeft--;
+
+    // algorithm_current runs telegraph → flow → expire. Once the
+    // remaining ticks fall to FLOW_TICKS, switch on the drift.
+    if (mod.type === "algorithm_current" && mod.state === "telegraph") {
+      if (mod.ticksLeft <= ALGORITHM_FLOW_TICKS) {
+        mod.state = "flow";
+        mod.driftActive = true;
+      }
+    }
+
     if (mod.ticksLeft <= 0) {
       if (mod.type === "anchor_lock") {
         for (const cell of mod.cells) {
@@ -197,6 +208,30 @@ function _pushEchoZone(game, x, y) {
   mods.push({ type: "echo_zone", x, y, ticksLeft: ECHO_ZONE_TICKS });
 }
 
+// ── Drift cells helper ────────────────────────────────────────────
+
+/**
+ * Collects cells from any active drift modifier (e.g. The Algorithm's
+ * `algorithm_current` while in flow phase). Used by both projectile and
+ * player-bullet update passes to bend trajectories that pass through.
+ *
+ * Returns null when no drift is active so the consumers skip the lookup.
+ *
+ * @param {Array<object>} modifiers
+ * @returns {Array<{x:number, y:number, flowDx:number, flowDy:number}> | null}
+ */
+function _collectDriftCells(modifiers) {
+  let result = null;
+  for (const mod of modifiers) {
+    if (!mod.driftActive || !mod.cells) continue;
+    if (!result) result = [];
+    for (const cell of mod.cells) {
+      result.push(cell);
+    }
+  }
+  return result;
+}
+
 // ── Boss tick (dual timer) ─────────────────────────────────────────
 
 /**
@@ -294,15 +329,17 @@ export function _bossTick() {
       }
     }
 
-    // 2. Sovereign current push
+    // 2. Algorithm current push — only during the flow phase, only when
+    //    the player is standing on one of the river's cells. Per-cell
+    //    `flowDx/flowDy` lets the river curve.
     for (const mod of this._bossModifiers) {
-      if (mod.type !== "sovereign_current") {
+      if (mod.type !== "algorithm_current" || !mod.driftActive) {
         continue;
       }
-      const inZone = mod.cells.some((c) => c.x === grid.playerX && c.y === grid.playerY);
-      if (inZone) {
-        const px = grid.playerX + mod.dx;
-        const py = grid.playerY + mod.dy;
+      const cell = mod.cells.find((c) => c.x === grid.playerX && c.y === grid.playerY);
+      if (cell) {
+        const px = grid.playerX + cell.flowDx;
+        const py = grid.playerY + cell.flowDy;
         const hasHungry = this._contraband.some((c) => c.id === "snake_hungry");
         const vRange = hasHungry ? HUNGRY_VERTICAL_RANGE : 0;
         if (
@@ -376,11 +413,12 @@ export function _bossTick() {
     }
 
     // 5. Player bullet advance + collision vs boss (throttled by PLAYER_BULLET_INTERVAL)
+    const driftCells = _collectDriftCells(this._bossModifiers);
     this._playerBulletMoveCounter++;
     const advanceBullets = this._playerBulletMoveCounter >= PLAYER_BULLET_INTERVAL;
     if (advanceBullets) {
       this._playerBulletMoveCounter = 0;
-      updatePlayerBullets(this._playerBullets, grid);
+      updatePlayerBullets(this._playerBullets, grid, driftCells);
     }
     if (advanceBullets && this._playerBullets.length > 0 && this._boss._staggerTicks === 0) {
       const { weakHits, bodyHits, hitIndices } = checkPlayerBulletCollision(
@@ -411,7 +449,7 @@ export function _bossTick() {
     }
 
     // 6. Boss projectile advance + collision vs player
-    updateProjectiles(this._projectiles, grid);
+    updateProjectiles(this._projectiles, grid, driftCells);
     const playerCells = getPlayerCells(
       grid.playerX,
       grid.playerY,

@@ -194,7 +194,7 @@ pre-generated per act, with fixed 2-wide corridors and 1-wide walls.
 | **Boss** | The entity defined in `boss/bosses/<name>.js`. | Boss |
 | **Phase** | Boss combat phase: `BOSS_PHASE_INTRO` / `_1` / `_2` / `_3` (`fight.js`). **Reserved for bosses** — mutation lifecycles use **lifecycle state** (see Mutation structure), not "phase." | "Phase 2!" |
 | **Weak point** / **Body cell** | Damage targeting: weak point = HP, body = destructible cover. | "Weak point" surfaces in HUD; body cells are visual. |
-| **Modifier** (`_bossModifiers`) | Temporary boss-spawned hazard or cover (`anchor_lock`, `sovereign_current`, `danger_trail`, `echo_zone`). | Not exposed by name. |
+| **Modifier** (`_bossModifiers`) | Temporary boss-spawned hazard or cover (`anchor_lock`, `algorithm_current`, `danger_trail`, `echo_zone`). A modifier may flag itself as a drift source (`driftActive` + `cells[]` with `flowDx`/`flowDy`); both player projectiles and boss projectiles bend through those cells via the hook in `updateProjectiles` / `updatePlayerBullets`. | Not exposed by name. |
 | **Special** | The boss-defined ability fired on `BOSS_SPECIAL_INTERVAL`. | Implicit — players just see the effect. |
 | **Stagger** | A brief boss-can't-act window after certain hits. | Visible as the boss flashing / not firing. |
 

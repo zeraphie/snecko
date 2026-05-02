@@ -2921,21 +2921,21 @@ describe("boss special abilities", () => {
     expect(game._bossModifiers).toHaveLength(0);
   });
 
-  // ── Current Sovereign (wildlands) ──────────────────────────────
+  // ── The Algorithm (wildlands) ───────────────────────────────────
 
-  it("Sovereign: places sovereign_current modifier after BOSS_SPECIAL_INTERVAL ticks", () => {
+  it("Algorithm: places algorithm_current modifier after BOSS_SPECIAL_INTERVAL ticks", () => {
     game.upgrades.mutation = "wildlands";
     game._enterBossFight();
     triggerSpecial(game);
-    const currents = game._bossModifiers.filter((m) => m.type === "sovereign_current");
+    const currents = game._bossModifiers.filter((m) => m.type === "algorithm_current");
     expect(currents.length).toBeGreaterThan(0);
   });
 
-  it("Sovereign: current zone cells are not in the wall bitmask (passable)", () => {
+  it("Algorithm: current river cells are not in the wall bitmask (passable)", () => {
     game.upgrades.mutation = "wildlands";
     game._enterBossFight();
     triggerSpecial(game);
-    const current = game._bossModifiers.find((m) => m.type === "sovereign_current");
+    const current = game._bossModifiers.find((m) => m.type === "algorithm_current");
     if (!current || current.cells.length === 0) {
       return;
     }
@@ -2944,40 +2944,141 @@ describe("boss special abilities", () => {
     }
   });
 
-  it("Sovereign: player standing in current zone is pushed each tick", () => {
+  it("Algorithm: river spawns strictly above the player's current row", () => {
     game.upgrades.mutation = "wildlands";
     game._enterBossFight();
     triggerSpecial(game);
-    const current = game._bossModifiers.find((m) => m.type === "sovereign_current");
+    const current = game._bossModifiers.find((m) => m.type === "algorithm_current");
+    if (!current || current.cells.length === 0) {
+      return;
+    }
+    for (const cell of current.cells) {
+      expect(cell.y).toBeLessThan(game.grid.playerY);
+    }
+  });
+
+  it("Algorithm: spawns in telegraph state with drift inactive", () => {
+    game.upgrades.mutation = "wildlands";
+    game._enterBossFight();
+    triggerSpecial(game);
+    const current = game._bossModifiers.find((m) => m.type === "algorithm_current");
+    if (!current) {
+      return;
+    }
+    expect(current.state).toBe("telegraph");
+    expect(current.driftActive).toBe(false);
+  });
+
+  it("Algorithm: transitions telegraph → flow after the warning window", () => {
+    game.upgrades.mutation = "wildlands";
+    game._enterBossFight();
+    triggerSpecial(game);
+    const current = game._bossModifiers.find((m) => m.type === "algorithm_current");
+    if (!current) {
+      return;
+    }
+    // Run boss-sub-ticks until ticksLeft drops to FLOW_TICKS — by then state
+    // must be "flow". Each `bossTick` ticks the boss sub-loop once.
+    while (current.ticksLeft > 0 && current.state === "telegraph") {
+      bossTick(game);
+    }
+    expect(current.state).toBe("flow");
+    expect(current.driftActive).toBe(true);
+  });
+
+  it("Algorithm: player standing on a flow cell is pushed in the cell's flow direction", () => {
+    game.upgrades.mutation = "wildlands";
+    game._enterBossFight();
+    triggerSpecial(game);
+    const current = game._bossModifiers.find((m) => m.type === "algorithm_current");
     if (!current || current.cells.length === 0) {
       return;
     }
 
-    // Place player on a current zone cell
-    const zoneCell = current.cells[0];
-    game.grid.playerX = zoneCell.x;
-    game.grid.playerY = zoneCell.y;
-    // Set spawn Y so Y clamp allows vertical push
-    game._playerSpawnY = zoneCell.y;
+    // Advance into flow phase.
+    while (current.ticksLeft > 0 && current.state === "telegraph") {
+      bossTick(game);
+    }
+    if (current.state !== "flow") {
+      return;
+    }
+
+    const cell = current.cells[0];
+    game.grid.playerX = cell.x;
+    game.grid.playerY = cell.y;
+    game._playerSpawnY = cell.y; // allow vertical drift past the Y-lock
     const beforeX = game.grid.playerX;
     const beforeY = game.grid.playerY;
 
-    // Tick without holding a key — current should push player
     bossTick(game);
 
-    // Player should have moved in the current direction (dx / dy)
-    const movedX = game.grid.playerX - beforeX;
-    const movedY = game.grid.playerY - beforeY;
-    // Push is horizontal (dx=±1, dy=0) or vertical (dx=0, dy=±1)
-    // We just verify movement happened in the right axis
-    expect(movedX === current.dx && movedY === current.dy).toBe(true);
+    expect(game.grid.playerX - beforeX).toBe(cell.flowDx);
+    expect(game.grid.playerY - beforeY).toBe(cell.flowDy);
   });
 
-  it("Sovereign: current modifier expires after its duration", () => {
+  it("Algorithm: player is NOT pushed during the telegraph phase", () => {
+    // Inject a telegraph-phase modifier directly so the assertion isn't
+    // entangled with the boss-special timing (the natural-cycle case is
+    // covered by the transition test below).
+    game.upgrades.mutation = "wildlands";
+    game._enterBossFight();
+    skipIntro(game);
+
+    const cell = { x: 5, y: 8, flowDx: 1, flowDy: 0 };
+    game._bossModifiers.push({
+      type: "algorithm_current",
+      cells: [cell],
+      state: "telegraph",
+      ticksLeft: 100, // big enough that the next bossTick stays in telegraph
+      driftActive: false,
+    });
+
+    game.grid.playerX = cell.x;
+    game.grid.playerY = cell.y;
+    game._playerSpawnY = cell.y;
+    const beforeX = game.grid.playerX;
+    const beforeY = game.grid.playerY;
+
+    bossTick(game);
+
+    // Confirm the precondition held during the movement sub-tick.
+    expect(game._bossModifiers[0].state).toBe("telegraph");
+    expect(game.grid.playerX).toBe(beforeX);
+    expect(game.grid.playerY).toBe(beforeY);
+  });
+
+  it("Algorithm: a flow-phase modifier registers as a drift source for projectiles + bullets", () => {
+    // Verifies Step 2's drift hook activates for an algorithm_current modifier
+    // once it enters flow. We inject a flow-phase modifier directly to keep
+    // the assertion focused on drift wiring, not special-trigger timing.
+    game.upgrades.mutation = "wildlands";
+    game._enterBossFight();
+    skipIntro(game);
+
+    const cell = { x: 5, y: 8, flowDx: 1, flowDy: 0 };
+    game._bossModifiers.push({
+      type: "algorithm_current",
+      cells: [cell],
+      state: "flow",
+      ticksLeft: 100,
+      driftActive: true,
+    });
+
+    // Place a boss projectile heading down so it lands on (5, 8) after one
+    // bossTick — drift should curve it east to (6, 8).
+    game._projectiles = [{ x: 5, y: 7, dx: 0, dy: 1 }];
+    bossTick(game);
+    if (game._projectiles.length > 0) {
+      expect(game._projectiles[0].x).toBe(6);
+      expect(game._projectiles[0].y).toBe(8);
+    }
+  });
+
+  it("Algorithm: current modifier expires after its duration", () => {
     game.upgrades.mutation = "wildlands";
     game._enterBossFight();
     triggerSpecial(game);
-    const current = game._bossModifiers.find((m) => m.type === "sovereign_current");
+    const current = game._bossModifiers.find((m) => m.type === "algorithm_current");
     if (!current) {
       return;
     }
@@ -2987,7 +3088,7 @@ describe("boss special abilities", () => {
       bossTick(game);
     }
 
-    expect(game._bossModifiers.filter((m) => m.type === "sovereign_current")).toHaveLength(0);
+    expect(game._bossModifiers.filter((m) => m.type === "algorithm_current")).toHaveLength(0);
   });
 
   it("_bossSpecialCounter resets on boss re-entry", () => {

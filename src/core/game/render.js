@@ -99,24 +99,31 @@ export function _drawBossArena() {
     }
   }
 
-  // 1b. Sovereign current zones — draw as directional current arrows so the
-  //     player can read the push direction at a glance.
+  // 1b. Algorithm current — telegraph cells render as warning, flow cells
+  //     render as per-cell directional arrows so the player can read each
+  //     cell's push direction (the river winds, so neighbours can differ).
   for (const mod of this._bossModifiers) {
-    if (mod.type !== "sovereign_current") {
+    if (mod.type !== "algorithm_current") {
       continue;
     }
-    const cellType =
-      mod.dx === 1
-        ? CELL_CURRENT_RIGHT
-        : mod.dx === -1
-          ? CELL_CURRENT_LEFT
-          : mod.dy === 1
-            ? CELL_CURRENT_DOWN
-            : CELL_CURRENT_UP;
     for (const cell of mod.cells) {
-      if (grid.isInBounds(cell.x, cell.y) && !grid.isWallCell(cell.x, cell.y)) {
-        renderer.drawCell(cell.x, cell.y, cellType);
+      if (!grid.isInBounds(cell.x, cell.y) || grid.isWallCell(cell.x, cell.y)) {
+        continue;
       }
+      let cellType;
+      if (mod.state === "telegraph") {
+        cellType = CELL_TELEGRAPH;
+      } else {
+        cellType =
+          cell.flowDx === 1
+            ? CELL_CURRENT_RIGHT
+            : cell.flowDx === -1
+              ? CELL_CURRENT_LEFT
+              : cell.flowDy === 1
+                ? CELL_CURRENT_DOWN
+                : CELL_CURRENT_UP;
+      }
+      renderer.drawCell(cell.x, cell.y, cellType);
     }
   }
 

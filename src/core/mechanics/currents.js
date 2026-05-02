@@ -1,6 +1,6 @@
 // currents.js — Wildlands mechanic: FBM-based winding rivers
 
-import { createPermTable, fbm2 } from "../generation/wildlands/noise.js";
+import { generateRiver } from "../generation/wildlands/river.js";
 import { TERRAIN_CURRENT, TERRAIN_NONE } from "../grid/constants.js";
 import { mixSeeds, splitmix32 } from "../rng.js";
 import { SUBSEED_CURRENTS } from "../seed-streams.js";
@@ -25,7 +25,7 @@ export function initCurrents(game) {
     cells: [],
     contactApplied: false,
   };
-  generateRiver(game);
+  generateWildlandsRiver(game);
   paintCurrentTerrain(game);
 }
 
@@ -47,7 +47,7 @@ export function advanceCurrents(game) {
     widenRiver(game);
   } else if (mech.state === STATE_SHIFT) {
     clearCurrentTerrain(game);
-    generateRiver(game);
+    generateWildlandsRiver(game);
   }
 
   // Repaint terrain for current phase
@@ -142,81 +142,17 @@ export function applyCurrentDrift(game) {
 
 // ── Internal helpers ──────────────────────────────────────────────
 
-function generateRiver(game) {
+function generateWildlandsRiver(game) {
   const grid = game.grid;
-  const w = grid.width;
-  const h = grid.height;
   const mech = game.mechanic;
 
   // Seed noise + axis/lateral picks from the act seed so two runs at
   // the same act produce identical rivers.
   const seed = mixSeeds(game.actSeed, SUBSEED_CURRENTS);
-  const perm = createPermTable(seed);
   const rand = splitmix32(seed);
-
-  // Pick axis and flow direction
   const axis = rand() < 0.5 ? 0 : 1;
-  const flowDx = axis === 0 ? 1 : 0;
-  const flowDy = axis === 1 ? 1 : 0;
 
-  // Lateral parameters
-  const startLateral = axis === 0 ? Math.floor(rand() * h) : Math.floor(rand() * w);
-  const maxSteps = axis === 0 ? w : h;
-  const lateralSize = axis === 0 ? h : w;
-  const amplitude = lateralSize * 0.4;
-
-  // Walk along the river, sampling noise for lateral offset
-  const cells = [];
-  const visited = new Set();
-
-  for (let step = 0; step < maxSteps; step++) {
-    // Sample noise at this position along the river for lateral offset
-    const n = fbm2(step * 0.15, seed * 0.017, 3, 2.0, 0.5, perm);
-    const lateral = Math.round(startLateral + n * amplitude);
-
-    let x, y;
-    if (axis === 0) {
-      x = step;
-      y = Math.max(0, Math.min(h - 1, lateral));
-    } else {
-      x = Math.max(0, Math.min(w - 1, lateral));
-      y = step;
-    }
-
-    const key = x + "," + y;
-    if (!visited.has(key) && !grid.isWallCell(x, y) && !grid.isSnakeCell(x, y)) {
-      visited.add(key);
-      cells.push({ x, y, flowDx, flowDy });
-    }
-
-    // Fill gaps: if lateral shifted by >1 from previous step,
-    // fill intermediate cells so the river stays connected
-    if (step > 0) {
-      const prevN = fbm2((step - 1) * 0.15, seed * 0.017, 3, 2.0, 0.5, perm);
-      const prevLateral = Math.round(startLateral + prevN * amplitude);
-      const diff = lateral - prevLateral;
-      if (Math.abs(diff) > 1) {
-        const dir = diff > 0 ? 1 : -1;
-        for (let l = prevLateral + dir; l !== lateral; l += dir) {
-          let fx, fy;
-          if (axis === 0) {
-            fx = step;
-            fy = Math.max(0, Math.min(h - 1, l));
-          } else {
-            fx = Math.max(0, Math.min(w - 1, l));
-            fy = step;
-          }
-          const fkey = fx + "," + fy;
-          if (!visited.has(fkey) && !grid.isWallCell(fx, fy) && !grid.isSnakeCell(fx, fy)) {
-            visited.add(fkey);
-            cells.push({ x: fx, y: fy, flowDx, flowDy });
-          }
-        }
-      }
-    }
-  }
-
-  mech.cells = cells;
+  mech.cells = generateRiver({ grid, axis, seed, rand });
 }
 
 function widenRiver(game) {

@@ -1,14 +1,23 @@
 // the-algorithm.js — The Algorithm (wildlands boss)
 //
-// Mechanic: "Force Zone"
-// Activates a directional push zone covering roughly half the arena between
-// the boss and the player.  The half is chosen based on the player's current
-// position so it always catches them off-guard.  Any tick the player stands
-// inside the zone (moving or still) they are pushed one extra cell in the
-// zone's direction — mirroring wildlands currents but as a sudden combat hazard.
+// Mechanic: an `algorithm_current` modifier — a winding, river-shaped
+// current that runs horizontally through the band above the player. The
+// same FBM walker the wildlands stage uses (`generation/wildlands/river.js`),
+// constrained so the river never overlaps the player's row: without
+// `snake_hungry` the player physically can't enter it. The hazard the
+// player has to deal with is the boss's bullets curving through the
+// river on their way down.
+//
+// Mini-cycle: spawn in `telegraph` (visible, no drift), advance to
+// `flow` (drifts player + bullets per cell's flow vector), then expire.
 
-/** How long the push zone stays active (boss ticks). */
-const CURRENT_DURATION = 12;
+import { generateRiver } from "../../generation/wildlands/river.js";
+import { splitmix32 } from "../../rng.js";
+
+/** Boss ticks the river spends warning before it activates. */
+const TELEGRAPH_TICKS = 4;
+/** Boss ticks the river is active and drifting. */
+const FLOW_TICKS = 8;
 
 /**
  * @param {import('../../game/index.js').Game} game
@@ -17,47 +26,36 @@ function special(game) {
   const grid = game.grid;
   const boss = game._boss;
 
-  // Zone occupies the area between the boss bottom and player top
-  const zoneTop = boss.y + boss.height + 2;
-  const zoneBottom = Math.min(grid.playerY - 4, grid.height - 6);
-  if (zoneTop > zoneBottom) {
+  // Constrain the river to the band strictly above the player's current
+  // row, below the boss's body. Player can't drift if they can't reach
+  // the river — the threat is the bent bullets.
+  const minLateral = boss.y + boss.height + 1;
+  const maxLateral = grid.playerY - 1;
+  if (minLateral > maxLateral) {
     return;
   }
 
-  // Roughly half the inner arena width (~14 cells)
-  const halfW = Math.floor((grid.width - 2) / 2);
-
-  let zoneLeft, zoneRight, dx;
-  if (grid.playerX < grid.width / 2) {
-    // Player is on the left side — fill the left half, push right
-    zoneLeft = 1;
-    zoneRight = zoneLeft + halfW - 1;
-    dx = 1;
-  } else {
-    // Player is on the right side — fill the right half, push left
-    zoneRight = grid.width - 2;
-    zoneLeft = zoneRight - halfW + 1;
-    dx = -1;
+  const seed = (Math.random() * 0x7fffffff) | 0;
+  const rand = splitmix32(seed);
+  const cells = generateRiver({
+    grid,
+    axis: 0,
+    seed,
+    rand,
+    minLateral,
+    maxLateral,
+  });
+  if (cells.length === 0) {
+    return;
   }
 
-  const cells = [];
-  for (let y = zoneTop; y <= zoneBottom; y++) {
-    for (let x = zoneLeft; x <= zoneRight; x++) {
-      if (!grid.isWallCell(x, y) && !boss.isBodyCell(x, y)) {
-        cells.push({ x, y });
-      }
-    }
-  }
-
-  if (cells.length > 0) {
-    game._bossModifiers.push({
-      type: "sovereign_current",
-      cells,
-      ticksLeft: CURRENT_DURATION,
-      dx,
-      dy: 0,
-    });
-  }
+  game._bossModifiers.push({
+    type: "algorithm_current",
+    cells,
+    state: "telegraph",
+    ticksLeft: TELEGRAPH_TICKS + FLOW_TICKS,
+    driftActive: false,
+  });
 }
 
 /**
@@ -73,3 +71,5 @@ export default {
   shapeFile: "the-algorithm",
   special,
 };
+
+export { TELEGRAPH_TICKS, FLOW_TICKS };
