@@ -11,7 +11,7 @@ import {
 const CRYSTALS = buildCrystals();
 
 /**
- * Initialises the lattice mechanic on a freshly generated crystalline board.
+ * Initialises the lattice mechanic on a freshly generated crystalline grid.
  *
  * @param {import('../game/index.js').Game} game
  */
@@ -19,7 +19,7 @@ export function initLattice(game) {
   game.mechanic = {
     type: "lattice",
     activeCrystal: null, // { crystalIdx, rotation, stageIdx, x, y }
-    phase: "place", // "place" | "telegraph" | "growth"
+    state: "place", // "place" | "telegraph" | "growth"
   };
 }
 
@@ -35,11 +35,11 @@ export function advanceLattice(game) {
     return;
   }
 
-  if (mech.phase === "place") {
+  if (mech.state === "place") {
     placeNewCrystal(game);
-  } else if (mech.phase === "telegraph") {
+  } else if (mech.state === "telegraph") {
     growCrystal(game);
-  } else if (mech.phase === "growth") {
+  } else if (mech.state === "growth") {
     // After growth, check if more stages remain
     const active = mech.activeCrystal;
     if (active) {
@@ -50,17 +50,17 @@ export function advanceLattice(game) {
       } else {
         // Max stage reached — next food places a new crystal
         mech.activeCrystal = null;
-        mech.phase = "place";
+        mech.state = "place";
       }
     } else {
-      mech.phase = "place";
+      mech.state = "place";
     }
   }
 }
 
 function placeNewCrystal(game) {
   const mech = game.mechanic;
-  const board = game.board;
+  const grid = game.grid;
 
   // Pick a random crystal and rotation
   const crystalIdx = Math.floor(Math.random() * CRYSTALS.length);
@@ -79,9 +79,9 @@ function placeNewCrystal(game) {
   let bestDist = -1;
 
   for (let attempt = 0; attempt < 60; attempt++) {
-    const x = Math.floor(Math.random() * board.width);
-    const y = Math.floor(Math.random() * board.height);
-    if (!canPlaceStage(board, shape, x, y)) {
+    const x = Math.floor(Math.random() * grid.width);
+    const y = Math.floor(Math.random() * grid.height);
+    if (!canPlaceStage(grid, shape, x, y)) {
       continue;
     }
 
@@ -100,7 +100,7 @@ function placeNewCrystal(game) {
     return;
   }
 
-  placeStage(board, shape, bestX, bestY);
+  placeStage(grid, shape, bestX, bestY);
 
   mech.activeCrystal = {
     crystalIdx,
@@ -112,13 +112,13 @@ function placeNewCrystal(game) {
 
   // Check if more stages exist
   if (crystal.stages.length > 1) {
-    mech.phase = "telegraph";
+    mech.state = "telegraph";
     // Immediately show telegraph for next stage
     telegraphNextStage(game);
   } else {
     // Only 1 stage — done with this crystal
     mech.activeCrystal = null;
-    mech.phase = "place";
+    mech.state = "place";
   }
 }
 
@@ -130,26 +130,26 @@ function telegraphNextStage(game) {
   const nextStageData = crystal.stages[nextStageIdx];
   const shape = nextStageData.rotations[active.rotation % nextStageData.rotations.length];
 
-  clearTelegraph(game.board);
-  placeTelegraph(game.board, shape, active.x, active.y);
-  mech.phase = "telegraph";
+  clearTelegraph(game.grid);
+  placeTelegraph(game.grid, shape, active.x, active.y);
+  mech.state = "telegraph";
 }
 
 function growCrystal(game) {
   const mech = game.mechanic;
-  const board = game.board;
+  const grid = game.grid;
   const active = mech.activeCrystal;
   const crystal = CRYSTALS[active.crystalIdx];
   const nextStageIdx = active.stageIdx + 1;
   const nextStageData = crystal.stages[nextStageIdx];
   const shape = nextStageData.rotations[active.rotation % nextStageData.rotations.length];
 
-  clearTelegraph(board);
+  clearTelegraph(grid);
 
   // Place solid cells — but skip cells occupied by the snake
   for (let row = 0; row < shape.height; row++) {
     const by = active.y + row;
-    if (by < 0 || by >= board.height) {
+    if (by < 0 || by >= grid.height) {
       continue;
     }
     const solidMask = shape.solidRows[row];
@@ -158,21 +158,21 @@ function growCrystal(game) {
         continue;
       }
       const bx = active.x + col;
-      if (bx < 0 || bx >= board.width) {
+      if (bx < 0 || bx >= grid.width) {
         continue;
       }
       // Snake blocks growth — cell stays empty
-      if (board.isSnakeCell(bx, by)) {
+      if (grid.isSnakeCell(bx, by)) {
         continue;
       }
       // Don't re-place if already a wall (from earlier stage)
-      if (board.isWallCell(bx, by)) {
+      if (grid.isWallCell(bx, by)) {
         continue;
       }
-      board.setCell("wall", bx, by);
+      grid.setCell("wall", bx, by);
     }
   }
 
   active.stageIdx = nextStageIdx;
-  mech.phase = "growth";
+  mech.state = "growth";
 }

@@ -3,7 +3,7 @@
 // BASE_SHAPES is generated from crystals.shapes by: just gen-shapes
 // Do not edit BASE_SHAPES by hand.
 
-import { TERRAIN_TELEGRAPH, TERRAIN_NONE } from "../../board/constants.js";
+import { TERRAIN_TELEGRAPH, TERRAIN_NONE } from "../../grid/constants.js";
 
 // ── Shape data ────────────────────────────────────────────────────
 
@@ -125,16 +125,16 @@ export function buildCrystals() {
 /**
  * Tests whether a crystal stage can be placed at the given position without overlap.
  *
- * @param {import('../../board/index.js').Board} board
+ * @param {import('../../grid/index.js').Grid} grid
  * @param {object} stage — rotation with solidRows/telegraphRows/width/height
  * @param {number} x
  * @param {number} y
  * @returns {boolean}
  */
-export function canPlaceStage(board, stage, x, y) {
+export function canPlaceStage(grid, stage, x, y) {
   for (let row = 0; row < stage.height; row++) {
     const by = y + row;
-    if (by < 0 || by >= board.height) {
+    if (by < 0 || by >= grid.height) {
       return false;
     }
 
@@ -147,16 +147,16 @@ export function canPlaceStage(board, stage, x, y) {
         continue;
       }
       const bx = x + col;
-      if (bx < 0 || bx >= board.width) {
+      if (bx < 0 || bx >= grid.width) {
         return false;
       }
-      if (board.isWallCell(bx, by)) {
+      if (grid.isWallCell(bx, by)) {
         return false;
       }
-      if (board.isSnakeCell(bx, by)) {
+      if (grid.isSnakeCell(bx, by)) {
         return false;
       }
-      if (board.isReservedCell(bx, by)) {
+      if (grid.isReservedCell(bx, by)) {
         return false;
       }
     }
@@ -165,14 +165,14 @@ export function canPlaceStage(board, stage, x, y) {
 }
 
 /**
- * Writes solid cells from a crystal stage into the board's wall layer.
+ * Writes solid cells from a crystal stage into the grid's wall layer.
  *
- * @param {import('../../board/index.js').Board} board
+ * @param {import('../../grid/index.js').Grid} grid
  * @param {object} stage
  * @param {number} x
  * @param {number} y
  */
-export function placeStage(board, stage, x, y) {
+export function placeStage(grid, stage, x, y) {
   for (let row = 0; row < stage.height; row++) {
     const by = y + row;
     const solidMask = stage.solidRows[row];
@@ -180,7 +180,7 @@ export function placeStage(board, stage, x, y) {
       if (!(solidMask & (1 << col))) {
         continue;
       }
-      board.setCell("wall", x + col, by);
+      grid.setCell("wall", x + col, by);
     }
   }
 }
@@ -188,16 +188,16 @@ export function placeStage(board, stage, x, y) {
 /**
  * Marks telegraph cells in the terrain array for the next crystal growth stage.
  *
- * @param {import('../../board/index.js').Board} board
+ * @param {import('../../grid/index.js').Grid} grid
  * @param {object} stage
  * @param {number} x
  * @param {number} y
  */
-export function placeTelegraph(board, stage, x, y) {
-  const w = board.width;
+export function placeTelegraph(grid, stage, x, y) {
+  const w = grid.width;
   for (let row = 0; row < stage.height; row++) {
     const by = y + row;
-    if (by < 0 || by >= board.height) {
+    if (by < 0 || by >= grid.height) {
       continue;
     }
     const telegraphMask = stage.telegraphRows[row];
@@ -206,10 +206,10 @@ export function placeTelegraph(board, stage, x, y) {
         continue;
       }
       const bx = x + col;
-      if (bx < 0 || bx >= board.width) {
+      if (bx < 0 || bx >= grid.width) {
         continue;
       }
-      board.terrain[by * w + bx] = TERRAIN_TELEGRAPH;
+      grid.terrain[by * w + bx] = TERRAIN_TELEGRAPH;
     }
   }
 }
@@ -217,10 +217,10 @@ export function placeTelegraph(board, stage, x, y) {
 /**
  * Resets all telegraph terrain cells back to TERRAIN_NONE.
  *
- * @param {import('../../board/index.js').Board} board
+ * @param {import('../../grid/index.js').Grid} grid
  */
-export function clearTelegraph(board) {
-  const terrain = board.terrain;
+export function clearTelegraph(grid) {
+  const terrain = grid.terrain;
   for (let i = 0; i < terrain.length; i++) {
     if (terrain[i] === TERRAIN_TELEGRAPH) {
       terrain[i] = TERRAIN_NONE;

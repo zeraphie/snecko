@@ -1,41 +1,35 @@
-// state.js — Upgrade state tracking (passives, consumables, world mode)
+// state.js — Upgrade state tracking (passives, consumables, bites, mutation)
 
-/** Tracks active passives, consumable charges, and the current world mode. */
+/** Tracks active passives, consumables, bites, and the current mutation. */
 export class UpgradeState {
   constructor() {
-    this.worldMode = "crystalline";
+    this.mutation = "crystalline";
     this.passives = [];
     this.consumables = [];
+    this.bites = [];
   }
 
-  /** Clears all passives and consumables, resets world mode to crystalline. */
+  /** Clears all upgrade state and resets mutation to crystalline. */
   reset() {
-    this.worldMode = "crystalline";
+    this.mutation = "crystalline";
     this.passives = [];
     this.consumables = [];
+    this.bites = [];
   }
 
   /**
-   * Adds or refreshes a passive upgrade.
+   * Adds or refreshes a passive upgrade. Duration is measured in bites
+   * (food-bites — see PLAN.terminology.md).
    *
    * @param {string} id
-   * @param {number} duration
-   * @param {"levels"|"food"} [durationUnit="levels"]
+   * @param {number} duration — number of bites the passive lasts
    */
-  addPassive(id, duration, durationUnit = "levels") {
+  addPassive(id, duration) {
     const existing = this.passives.find((p) => p.id === id);
-    if (durationUnit === "food") {
-      if (existing) {
-        existing.remainingFood = duration;
-        delete existing.remainingLevels;
-      } else {
-        this.passives.push({ id, remainingFood: duration });
-      }
-    } else if (existing) {
-      existing.remainingLevels = duration;
-      delete existing.remainingFood;
+    if (existing) {
+      existing.remainingBites = duration;
     } else {
-      this.passives.push({ id, remainingLevels: duration });
+      this.passives.push({ id, remainingBites: duration });
     }
   }
 
@@ -47,27 +41,14 @@ export class UpgradeState {
     return this.passives.some((p) => p.id === id);
   }
 
-  /** Decrements level-based passives and removes expired ones. */
-  tickPassives() {
-    for (let i = this.passives.length - 1; i >= 0; i--) {
-      if (this.passives[i].remainingLevels === undefined) {
-        continue;
-      }
-      this.passives[i].remainingLevels--;
-      if (this.passives[i].remainingLevels <= 0) {
-        this.passives.splice(i, 1);
-      }
-    }
-  }
-
   /** Decrements food-based passives and removes expired ones. */
-  tickFoodPassives() {
+  tickBites() {
     for (let i = this.passives.length - 1; i >= 0; i--) {
-      if (this.passives[i].remainingFood === undefined) {
+      if (this.passives[i].remainingBites === undefined) {
         continue;
       }
-      this.passives[i].remainingFood--;
-      if (this.passives[i].remainingFood <= 0) {
+      this.passives[i].remainingBites--;
+      if (this.passives[i].remainingBites <= 0) {
         this.passives.splice(i, 1);
       }
     }
@@ -115,9 +96,52 @@ export class UpgradeState {
   }
 
   /**
-   * @param {"crystalline"|"wildlands"} mode
+   * Adds charges to a bites-type upgrade, stacking if already held.
+   * Bites auto-trigger on a specific in-game event (e.g. eating a wall);
+   * each fire consumes one charge.
+   *
+   * @param {string} id
+   * @param {number} charges
    */
-  setWorldMode(mode) {
-    this.worldMode = mode;
+  addBites(id, charges) {
+    const existing = this.bites.find((b) => b.id === id);
+    if (existing) {
+      existing.charges += charges;
+    } else {
+      this.bites.push({ id, charges });
+    }
+  }
+
+  /**
+   * @param {string} id
+   * @returns {boolean}
+   */
+  hasBites(id) {
+    return this.bites.some((b) => b.id === id && b.charges > 0);
+  }
+
+  /**
+   * Spends one bites charge. Returns false if unavailable. Removes the entry at zero charges.
+   *
+   * @param {string} id
+   * @returns {boolean}
+   */
+  useBites(id) {
+    const b = this.bites.find((entry) => entry.id === id);
+    if (!b || b.charges <= 0) {
+      return false;
+    }
+    b.charges--;
+    if (b.charges <= 0) {
+      this.bites.splice(this.bites.indexOf(b), 1);
+    }
+    return true;
+  }
+
+  /**
+   * @param {"crystalline"|"wildlands"|"catacombs"} mutation
+   */
+  setMutation(mutation) {
+    this.mutation = mutation;
   }
 }

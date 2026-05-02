@@ -31,13 +31,13 @@ export function moveCursor(game, dx, dy) {
   let nx = game._bombCursor.x + dx;
   let ny = game._bombCursor.y + dy;
   if (nx < 0) {
-    nx = game.board.width - 1;
-  } else if (nx >= game.board.width) {
+    nx = game.grid.width - 1;
+  } else if (nx >= game.grid.width) {
     nx = 0;
   }
   if (ny < 0) {
-    ny = game.board.height - 1;
-  } else if (ny >= game.board.height) {
+    ny = game.grid.height - 1;
+  } else if (ny >= game.grid.height) {
     ny = 0;
   }
   game._bombCursor.x = nx;
@@ -57,8 +57,8 @@ export function confirmBomb(game) {
 
   const cx = game._bombCursor.x;
   const cy = game._bombCursor.y;
-  const w = game.board.width;
-  const h = game.board.height;
+  const w = game.grid.width;
+  const h = game.grid.height;
   let hitSnake = false;
 
   for (let dy = -BLAST_RADIUS; dy <= BLAST_RADIUS; dy++) {
@@ -77,10 +77,10 @@ export function confirmBomb(game) {
         by -= h;
       }
 
-      if (game.board.isWallCell(bx, by)) {
-        game.board.clearCell("wall", bx, by);
+      if (game.grid.isWallCell(bx, by)) {
+        game.grid.clearCell("wall", bx, by);
       }
-      if (game.board.isSnakeCell(bx, by)) {
+      if (game.grid.isSnakeCell(bx, by)) {
         hitSnake = true;
       }
     }

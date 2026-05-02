@@ -1,4 +1,4 @@
-// board.js — Bitmask board with chunk-based row storage
+// grid.js — Bitmask grid with chunk-based row storage
 
 import {
   CHUNK_BITS,
@@ -12,13 +12,13 @@ import { _getMask, isCellSet, setCell, clearCell, clearMasks } from "./layers.js
 import { isInBounds, isWallCell, isSnakeCell, isReservedCell, isBlockedCell } from "./queries.js";
 
 /**
- * Bitmask board with chunk-based row storage for walls, snake, and reserved cells.
+ * Bitmask grid with chunk-based row storage for walls, snake, and reserved cells.
  * Terrain data is stored in a parallel Uint8Array.
  */
-export class Board {
+export class Grid {
   /**
-   * @param {number} width — board width in cells
-   * @param {number} height — board height in cells
+   * @param {number} width — grid width in cells
+   * @param {number} height — grid height in cells
    */
   constructor(width, height) {
     const chunksPerRow = Math.ceil(width / CHUNK_BITS);
@@ -41,20 +41,20 @@ export class Board {
 }
 
 // Attach methods from split files
-Board.prototype._getMask = _getMask;
-Board.prototype.isCellSet = isCellSet;
-Board.prototype.setCell = setCell;
-Board.prototype.clearCell = clearCell;
-Board.prototype.clearMasks = clearMasks;
-Board.prototype.isInBounds = isInBounds;
-Board.prototype.isWallCell = isWallCell;
-Board.prototype.isSnakeCell = isSnakeCell;
-Board.prototype.isReservedCell = isReservedCell;
-Board.prototype.isBlockedCell = isBlockedCell;
+Grid.prototype._getMask = _getMask;
+Grid.prototype.isCellSet = isCellSet;
+Grid.prototype.setCell = setCell;
+Grid.prototype.clearCell = clearCell;
+Grid.prototype.clearMasks = clearMasks;
+Grid.prototype.isInBounds = isInBounds;
+Grid.prototype.isWallCell = isWallCell;
+Grid.prototype.isSnakeCell = isSnakeCell;
+Grid.prototype.isReservedCell = isReservedCell;
+Grid.prototype.isBlockedCell = isBlockedCell;
 
-Board.CHUNK_BITS = CHUNK_BITS;
-Board.TERRAIN_NONE = TERRAIN_NONE;
-Board.TERRAIN_LOW = TERRAIN_LOW;
-Board.TERRAIN_HIGH = TERRAIN_HIGH;
-Board.TERRAIN_TELEGRAPH = TERRAIN_TELEGRAPH;
-Board.TERRAIN_CURRENT = TERRAIN_CURRENT;
+Grid.CHUNK_BITS = CHUNK_BITS;
+Grid.TERRAIN_NONE = TERRAIN_NONE;
+Grid.TERRAIN_LOW = TERRAIN_LOW;
+Grid.TERRAIN_HIGH = TERRAIN_HIGH;
+Grid.TERRAIN_TELEGRAPH = TERRAIN_TELEGRAPH;
+Grid.TERRAIN_CURRENT = TERRAIN_CURRENT;

@@ -1,13 +1,13 @@
 // game.js — Game class: state machine, orchestrates tick/draft/render
 
-import { Board } from "../board/index.js";
+import { Grid } from "../grid/index.js";
 import { Snake } from "../snake/index.js";
 import { UpgradeState } from "../upgrades/state.js";
 import { moveCursor, confirmBomb } from "../upgrades/consumables/bomb.js";
 import { moveWormholeCursor, confirmWormholePlacement } from "../upgrades/consumables/wormhole.js";
 import {
-  generateBoard as crystallineGenerate,
-  advanceBoard as crystallineAdvance,
+  generateGrid as crystallineGenerate,
+  advanceGrid as crystallineAdvance,
 } from "../generation/index.js";
 import {
   STATE_START,
@@ -18,12 +18,12 @@ import {
   STATE_DEAD,
   STATE_BOSS,
   STATE_CONTRABAND,
-  BOARD_W,
-  BOARD_H,
+  GRID_W,
+  GRID_H,
   INITIAL_SNAKE_LENGTH,
   BASE_TICK_MS,
   FOOD_REQUIRED_BASE,
-  FOOD_REQUIRED_PER_LEVEL,
+  FOOD_REQUIRED_PER_ACT,
   BOSS_FOOD_INTERVAL,
   BOSS_TICK_MS,
   BOSS_HP,
@@ -55,7 +55,7 @@ import {
 } from "./tick.js";
 import { selectDraft, toggleMutation, _applyUpgrade, confirmDraft } from "./draft.js";
 import { cycleConsumable, useConsumable, cancelTargeting } from "./consumables.js";
-import { _drawBoard, _drawBossArena, renderFrame } from "./render.js";
+import { _drawGrid, _drawBossArena, renderFrame } from "./render.js";
 import { _bossTick, _enterBossFight, _exitBossVictory, _exitBossDeath } from "./boss-tick.js";
 
 // ── Game class ────────────────────────────────────────────────────
@@ -66,13 +66,12 @@ import { _bossTick, _enterBossFight, _exitBossVictory, _exitBossDeath } from "./
 export class Game {
   constructor() {
     this.state = STATE_START;
-    this.board = new Board(BOARD_W, BOARD_H);
+    this.grid = new Grid(GRID_W, GRID_H);
     this.snake = new Snake();
     this.score = 0;
-    this.boardIndex = 1;
-    this.level = 1;
+    this.actIndex = 1;
     this.foodEaten = 0;
-    this.foodRequired = FOOD_REQUIRED_BASE + FOOD_REQUIRED_PER_LEVEL;
+    this.foodRequired = FOOD_REQUIRED_BASE + FOOD_REQUIRED_PER_ACT;
     this.runTime = 0;
     this.tickMs = BASE_TICK_MS;
     this.lastTickTime = 0;
@@ -91,8 +90,8 @@ export class Game {
     this._wormholeB = null;
     this.mechanic = null;
     this.renderer = null;
-    this.generateBoard = null;
-    this.advanceBoard = null;
+    this.generateGrid = null;
+    this.advanceGrid = null;
     this._heldDirection = null;
 
     this._playerFacing = { dx: 1, dy: 0 };
@@ -117,24 +116,23 @@ export class Game {
     this.manifest = { arenas: [], bossShapes: {} };
   }
 
-  /** Resets all state and begins a new run from level 1. */
+  /** Resets all state and begins a new run from act 1. */
   startRun() {
     this.state = STATE_PLAYING;
     this.score = 0;
-    this.boardIndex = 1;
-    this.level = 1;
+    this.actIndex = 1;
     this.foodEaten = 0;
-    this.foodRequired = FOOD_REQUIRED_BASE + FOOD_REQUIRED_PER_LEVEL;
+    this.foodRequired = FOOD_REQUIRED_BASE + FOOD_REQUIRED_PER_ACT;
     this.upgrades.reset();
     // Only install the default crystalline generators when none have been pre-set.
     // Tests that stub these before calling startRun() will have their stubs preserved.
     // confirm() always resets them to crystalline first, so real-game restarts still
-    // get a fresh crystalline board.
-    if (!this.generateBoard) {
-      this.generateBoard = crystallineGenerate;
+    // get a fresh crystalline grid.
+    if (!this.generateGrid) {
+      this.generateGrid = crystallineGenerate;
     }
-    if (!this.advanceBoard) {
-      this.advanceBoard = crystallineAdvance;
+    if (!this.advanceGrid) {
+      this.advanceGrid = crystallineAdvance;
     }
     this._selectedConsumable = 0;
     this._draftsSinceMutation = 0;
@@ -167,26 +165,26 @@ export class Game {
     this.startTime = Date.now();
     this.lastTickTime = Date.now();
     this.snake.snakeLength = INITIAL_SNAKE_LENGTH;
-    this.board.bossFoodX = -1;
-    this.board.bossFoodY = -1;
+    this.grid.bossFoodX = -1;
+    this.grid.bossFoodY = -1;
 
-    if (this.generateBoard) {
-      this.generateBoard(this);
+    if (this.generateGrid) {
+      this.generateGrid(this);
     } else {
-      this._resetBoardSimple();
+      this._resetGridSimple();
     }
   }
 
-  /** Fallback board reset when no generator is assigned. */
-  _resetBoardSimple() {
-    this.board.clearMasks("wall");
-    this.board.clearMasks("snake");
-    this.board.clearMasks("reserved");
-    this.board.terrain.fill(0);
+  /** Fallback grid reset when no generator is assigned. */
+  _resetGridSimple() {
+    this.grid.clearMasks("wall");
+    this.grid.clearMasks("snake");
+    this.grid.clearMasks("reserved");
+    this.grid.terrain.fill(0);
 
-    const cx = Math.floor(BOARD_W / 2);
-    const cy = Math.floor(BOARD_H / 2);
-    this.snake.init(this.board, cx, cy, this.snake.snakeLength, 1, 0);
+    const cx = Math.floor(GRID_W / 2);
+    const cy = Math.floor(GRID_H / 2);
+    this.snake.init(this.grid, cx, cy, this.snake.snakeLength, 1, 0);
 
     this._placeRandomFood();
   }
@@ -234,8 +232,8 @@ export class Game {
       // Always start a fresh crystalline run when the player confirms from
       // the start screen or after death, regardless of any generators that
       // may have been set by a previous run's mutation draft.
-      this.generateBoard = crystallineGenerate;
-      this.advanceBoard = crystallineAdvance;
+      this.generateGrid = crystallineGenerate;
+      this.advanceGrid = crystallineAdvance;
       this.startRun();
     } else if (this.state === STATE_TARGETING) {
       confirmBomb(this);
@@ -274,7 +272,7 @@ Game.prototype.confirmDraft = confirmDraft;
 Game.prototype.cycleConsumable = cycleConsumable;
 Game.prototype.useConsumable = useConsumable;
 Game.prototype.cancelTargeting = cancelTargeting;
-Game.prototype._drawBoard = _drawBoard;
+Game.prototype._drawGrid = _drawGrid;
 Game.prototype._drawBossArena = _drawBossArena;
 Game.prototype.renderFrame = renderFrame;
 Game.prototype._bossTick = _bossTick;
@@ -284,11 +282,11 @@ Game.prototype._exitBossDeath = _exitBossDeath;
 
 // ── Static constants ──────────────────────────────────────────────
 
-Game.BOARD_W = BOARD_W;
-Game.BOARD_H = BOARD_H;
+Game.GRID_W = GRID_W;
+Game.GRID_H = GRID_H;
 Game.INITIAL_SNAKE_LENGTH = INITIAL_SNAKE_LENGTH;
 Game.FOOD_REQUIRED_BASE = FOOD_REQUIRED_BASE;
-Game.FOOD_REQUIRED_PER_LEVEL = FOOD_REQUIRED_PER_LEVEL;
+Game.FOOD_REQUIRED_PER_ACT = FOOD_REQUIRED_PER_ACT;
 Game.STATE_START = STATE_START;
 Game.STATE_PLAYING = STATE_PLAYING;
 Game.STATE_DRAFT = STATE_DRAFT;

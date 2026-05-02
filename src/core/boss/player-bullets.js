@@ -7,7 +7,7 @@
  * @param {import('../game/index.js').Game} game
  */
 export function spawnPlayerBullet(game) {
-  const { playerX, playerY } = game.board;
+  const { playerX, playerY } = game.grid;
   const { dx, dy } = game._playerFacing;
 
   // Spawn one cell ahead of the tip so it doesn't overlap the plane
@@ -21,17 +21,17 @@ export function spawnPlayerBullet(game) {
 
 /**
  * Advances every player bullet by one cell. Removes bullets that leave the
- * board or hit a wall.
+ * grid or hit a wall.
  *
  * @param {Array<{x: number, y: number, dx: number, dy: number}>} bullets
- * @param {import('../board/index.js').Board} board
+ * @param {import('../grid/index.js').Grid} grid
  */
-export function updatePlayerBullets(bullets, board) {
+export function updatePlayerBullets(bullets, grid) {
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
     b.x += b.dx;
     b.y += b.dy;
-    if (!board.isInBounds(b.x, b.y) || board.isWallCell(b.x, b.y)) {
+    if (!grid.isInBounds(b.x, b.y) || grid.isWallCell(b.x, b.y)) {
       bullets.splice(i, 1);
     }
   }

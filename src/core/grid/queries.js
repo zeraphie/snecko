@@ -1,7 +1,7 @@
 // queries.js — Convenience query helpers
 
 /**
- * Tests whether the coordinates are within the board boundaries.
+ * Tests whether the coordinates are within the grid boundaries.
  *
  * @param {number} x
  * @param {number} y

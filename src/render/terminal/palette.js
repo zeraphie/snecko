@@ -4,6 +4,8 @@
 export const GREEN = "\x1b[38;5;35m";
 export const CYAN = "\x1b[96m";
 export const BROWN = "\x1b[38;5;94m";
+export const DARK_BROWN = "\x1b[38;5;58m";
+export const BRIGHT_AMBER = "\x1b[38;5;214m";
 export const RED = "\x1b[91m";
 export const YELLOW = "\x1b[93m";
 export const DIM = "\x1b[2m";

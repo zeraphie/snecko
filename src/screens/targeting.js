@@ -9,8 +9,8 @@ export const targetingScreen = {
       renderer.drawTargetingOverlay(
         game._bombCursor.x,
         game._bombCursor.y,
-        game.board.width,
-        game.board.height
+        game.grid.width,
+        game.grid.height
       );
     }
     renderer.flush();

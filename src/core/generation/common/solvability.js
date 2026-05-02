@@ -1,10 +1,10 @@
-// solvability.js — BFS reachability check for board generation
+// solvability.js — BFS reachability check for grid generation
 
 /**
  * Returns true if the target cell is reachable from the start via BFS,
- * treating wall cells as impassable. Wraps at board edges.
+ * treating wall cells as impassable. Wraps at grid edges.
  *
- * @param {import('../../board/index.js').Board} board
+ * @param {import('../../grid/index.js').Grid} grid
  * @param {number} startX
  * @param {number} startY
  * @param {number} targetX
@@ -12,9 +12,9 @@
  * @returns {boolean}
  * @complexity O(w*h)
  */
-export function bfsReachable(board, startX, startY, targetX, targetY) {
-  const w = board.width;
-  const h = board.height;
+export function bfsReachable(grid, startX, startY, targetX, targetY) {
+  const w = grid.width;
+  const h = grid.height;
   const visited = new Uint8Array(w * h);
 
   const queue = [startX + startY * w];
@@ -45,7 +45,7 @@ export function bfsReachable(board, startX, startY, targetX, targetY) {
       if (visited[ni]) {
         continue;
       }
-      if (board.isWallCell(nx, ny)) {
+      if (grid.isWallCell(nx, ny)) {
         continue;
       }
       visited[ni] = 1;

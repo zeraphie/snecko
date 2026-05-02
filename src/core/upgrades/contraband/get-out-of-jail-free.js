@@ -7,9 +7,8 @@
 /**
  * @type {import('./index.js').ContrabandDef}
  */
+// Player-facing name/desc lives in src/text/labels.js (LABELS.upgrades.get_out_of_jail_free).
 export default {
   id: "get_out_of_jail_free",
-  name: "Get out of jail free",
-  desc: "Just ignore the bullet, lol",
   apply: (_game) => {}, // Checked at fight entry + collision time in boss-tick.js
 };

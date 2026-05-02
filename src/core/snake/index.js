@@ -26,16 +26,16 @@ export class Snake {
   }
 
   /**
-   * Places the snake on the board at the given spawn point.
+   * Places the snake on the grid at the given spawn point.
    *
-   * @param {import('../board/index.js').Board} board
+   * @param {import('../grid/index.js').Grid} grid
    * @param {number} spawnX
    * @param {number} spawnY
    * @param {number} length — initial body length
    * @param {number} dx — initial direction X
    * @param {number} dy — initial direction Y
    */
-  init(board, spawnX, spawnY, length, dx, dy) {
+  init(grid, spawnX, spawnY, length, dx, dy) {
     this.dirX = dx;
     this.dirY = dy;
     this.nextDirX = dx;
@@ -53,7 +53,7 @@ export class Snake {
       const y = spawnY - dy * (length - 1 - i);
       this.snakeX[i] = x;
       this.snakeY[i] = y;
-      board.setCell("snake", x, y);
+      grid.setCell("snake", x, y);
     }
   }
 }

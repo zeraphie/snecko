@@ -61,25 +61,25 @@ export function parseArenaFile(text) {
 }
 
 /**
- * Applies an arena definition to a board, setting wall cells and clearing everything else.
+ * Applies an arena definition to a grid, setting wall cells and clearing everything else.
  *
- * @param {object} board — Board instance
+ * @param {object} grid — Grid instance
  * @param {object} arena — parsed arena definition
  */
-export function applyArena(board, arena) {
-  board.clearMasks("wall");
-  board.clearMasks("snake");
-  board.clearMasks("reserved");
-  board.terrain.fill(0);
-  board.foodX = -1;
-  board.foodY = -1;
-  board.bossFoodX = -1;
-  board.bossFoodY = -1;
+export function applyArena(grid, arena) {
+  grid.clearMasks("wall");
+  grid.clearMasks("snake");
+  grid.clearMasks("reserved");
+  grid.terrain.fill(0);
+  grid.foodX = -1;
+  grid.foodY = -1;
+  grid.bossFoodX = -1;
+  grid.bossFoodY = -1;
 
   for (let y = 0; y < arena.height; y++) {
     for (let x = 0; x < arena.width; x++) {
       if (arena.walls[y][x]) {
-        board.setCell("wall", x, y);
+        grid.setCell("wall", x, y);
       }
     }
   }

@@ -1,6 +1,6 @@
 // index.js — Boss registry and factory
 //
-// Each world mode maps to a dedicated boss file.  Adding a new biome boss is
+// Each mutation maps to a dedicated boss file.  Adding a new biome boss is
 // as simple as creating a new file alongside these and registering it below.
 
 import trafficJam from "./traffic-jam.js";
@@ -38,7 +38,7 @@ const BOSS_DEFS = {
 // ── Fallback ──────────────────────────────────────────────────────
 
 /**
- * Fallback boss used when the world mode has no dedicated entry yet.
+ * Fallback boss used when the mutation has no dedicated entry yet.
  * Points at Absolute Unit so unimplemented biomes still get a functional fight.
  *
  * @type {BossDef}
@@ -48,12 +48,12 @@ export const DEFAULT_BOSS_DEF = absoluteUnit;
 // ── Factory ───────────────────────────────────────────────────────
 
 /**
- * Returns the boss definition for the given world mode, falling back to
+ * Returns the boss definition for the given mutation, falling back to
  * DEFAULT_BOSS_DEF if no specific entry exists.
  *
- * @param {string} worldMode — e.g. 'crystalline', 'wildlands'
+ * @param {string} mutation — e.g. 'crystalline', 'wildlands', 'catacombs'
  * @returns {BossDef}
  */
-export function getBossDef(worldMode) {
-  return BOSS_DEFS[worldMode] ?? DEFAULT_BOSS_DEF;
+export function getBossDef(mutation) {
+  return BOSS_DEFS[mutation] ?? DEFAULT_BOSS_DEF;
 }

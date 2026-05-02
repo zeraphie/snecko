@@ -27,12 +27,16 @@ import {
   CELL_PLAYER_BULLET,
   CELL_BOSS_DAMAGED,
   CELL_EXHAUST,
+  CELL_WALL_HIGH,
+  CELL_WALL_LOW_EDIBLE,
 } from "../renderer.js";
 
 import {
   GREEN,
   CYAN,
   BROWN,
+  DARK_BROWN,
+  BRIGHT_AMBER,
   RED,
   YELLOW,
   DIM,
@@ -51,6 +55,8 @@ export const CELL_CHARS = {};
 CELL_CHARS[CELL_EMPTY] = DIM + "\u2591\u2591" + RESET; // ░░
 CELL_CHARS[CELL_WALL] = BROWN + "\u2588\u2588" + RESET; // ██
 CELL_CHARS[CELL_WALL_LOW] = BROWN + "\u2592\u2592" + RESET; // ▒▒
+CELL_CHARS[CELL_WALL_HIGH] = DARK_BROWN + "\u2588\u2588" + RESET; // wildlands high (darker)
+CELL_CHARS[CELL_WALL_LOW_EDIBLE] = BRIGHT_AMBER + "\u2592\u2592" + RESET; // edible low wall (Iron Jaw active)
 CELL_CHARS[CELL_SNAKE] = GREEN + "\u2593\u2593" + RESET; // ▓▓
 CELL_CHARS[CELL_SNAKE_HEAD] = GREEN + "\u25C6\u25C6" + RESET; // ◆◆ (fallback)
 CELL_CHARS[CELL_FOOD] = YELLOW + "\u25CE\u25CE" + RESET; // ◎◎

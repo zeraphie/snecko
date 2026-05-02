@@ -11,8 +11,8 @@ export const wormholeScreen = {
         game._wormholeCursor.y,
         game._wormholePhase,
         game._wormholeA,
-        game.board.width,
-        game.board.height
+        game.grid.width,
+        game.grid.height
       );
     }
     renderer.flush();

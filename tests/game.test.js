@@ -50,7 +50,7 @@ describe("Game constructor", () => {
     const game = new Game();
     expect(game.state).toBe(Game.STATE_START);
     expect(game.score).toBe(0);
-    expect(game.boardIndex).toBe(1);
+    expect(game.actIndex).toBe(1);
   });
 });
 
@@ -107,7 +107,7 @@ describe("tick", () => {
   it("transitions to DEAD on wall collision", () => {
     const hx = game.snake.snakeX[game.snake.headIndex];
     const hy = game.snake.snakeY[game.snake.headIndex];
-    game.board.setCell("wall", hx + 2, hy);
+    game.grid.setCell("wall", hx + 2, hy);
 
     game.lastTickTime = 0;
     game.tick(); // step 1 — ok
@@ -117,17 +117,17 @@ describe("tick", () => {
   });
 
   it("resets snake length on restart", () => {
-    // Use advanceBoard that places food ahead so snake can eat and grow
-    game.advanceBoard = (g) => {
+    // Use advanceGrid that places food ahead so snake can eat and grow
+    game.advanceGrid = (g) => {
       const hx = g.snake.snakeX[g.snake.headIndex];
       const hy = g.snake.snakeY[g.snake.headIndex];
-      g.board.foodX = hx + g.snake.dirX;
-      g.board.foodY = hy + g.snake.dirY;
+      g.grid.foodX = hx + g.snake.dirX;
+      g.grid.foodY = hy + g.snake.dirY;
     };
     const hx = game.snake.snakeX[game.snake.headIndex];
     const hy = game.snake.snakeY[game.snake.headIndex];
-    game.board.foodX = hx + 1;
-    game.board.foodY = hy;
+    game.grid.foodX = hx + 1;
+    game.grid.foodY = hy;
     game.lastTickTime = 0;
     game.tick(); // eat food
     game.lastTickTime = 0;
@@ -146,12 +146,12 @@ describe("food progression", () => {
   beforeEach(() => {
     game = new Game();
     game.manifest = buildTestManifest();
-    // Use a minimal advanceBoard that just places new food ahead
-    game.advanceBoard = (g) => {
+    // Use a minimal advanceGrid that just places new food ahead
+    game.advanceGrid = (g) => {
       const hx = g.snake.snakeX[g.snake.headIndex];
       const hy = g.snake.snakeY[g.snake.headIndex];
-      g.board.foodX = hx + g.snake.dirX;
-      g.board.foodY = hy + g.snake.dirY;
+      g.grid.foodX = hx + g.snake.dirX;
+      g.grid.foodY = hy + g.snake.dirY;
     };
     game.startRun();
   });
@@ -159,15 +159,15 @@ describe("food progression", () => {
   it("increments score and foodEaten on food", () => {
     const hx = game.snake.snakeX[game.snake.headIndex];
     const hy = game.snake.snakeY[game.snake.headIndex];
-    game.board.foodX = hx + 1;
-    game.board.foodY = hy;
+    game.grid.foodX = hx + 1;
+    game.grid.foodY = hy;
 
     game.lastTickTime = 0;
     game.tick();
 
     expect(game.score).toBe(1);
     expect(game.foodEaten).toBe(1);
-    expect(game.boardIndex).toBe(1); // no level-up yet
+    expect(game.actIndex).toBe(1); // no level-up yet
     expect(game.snake.growing).toBe(true);
   });
 
@@ -178,8 +178,8 @@ describe("food progression", () => {
     for (let i = 0; i < 3; i++) {
       const hx = game.snake.snakeX[game.snake.headIndex];
       const hy = game.snake.snakeY[game.snake.headIndex];
-      game.board.foodX = hx + game.snake.dirX;
-      game.board.foodY = hy + game.snake.dirY;
+      game.grid.foodX = hx + game.snake.dirX;
+      game.grid.foodY = hy + game.snake.dirY;
       game.lastTickTime = 0;
       game.tick();
       if (game.state !== Game.STATE_PLAYING) {
@@ -187,7 +187,7 @@ describe("food progression", () => {
       }
     }
 
-    expect(game.level).toBe(1);
+    expect(game.actIndex).toBe(1);
     expect(game.foodEaten).toBe(3);
   });
 });
@@ -205,7 +205,7 @@ describe("level-up + draft", () => {
       }
       // A boss fight can be triggered when score reaches a multiple of
       // BOSS_FOOD_INTERVAL.  feedSnake is not a boss-fight helper, so we
-      // cleanly abort the fight and regenerate the board so feeding can
+      // cleanly abort the fight and regenerate the grid so feeding can
       // continue.  foodEaten is intentionally left unchanged because the
       // red-food tick that caused the transition did not count toward the
       // level-up threshold.
@@ -213,8 +213,8 @@ describe("level-up + draft", () => {
         game._boss = null;
         game._heldDirection = null;
         game.state = Game.STATE_PLAYING;
-        if (game.generateBoard) {
-          game.generateBoard(game);
+        if (game.generateGrid) {
+          game.generateGrid(game);
         }
         continue;
       }
@@ -224,8 +224,8 @@ describe("level-up + draft", () => {
       const scoreBefore = game.score;
       const hx = game.snake.snakeX[game.snake.headIndex];
       const hy = game.snake.snakeY[game.snake.headIndex];
-      game.board.foodX = hx + game.snake.dirX;
-      game.board.foodY = hy + game.snake.dirY;
+      game.grid.foodX = hx + game.snake.dirX;
+      game.grid.foodY = hy + game.snake.dirY;
       game.lastTickTime = 0;
       game.tick();
       // Red food doesn't increment score — don't count it
@@ -244,21 +244,21 @@ describe("level-up + draft", () => {
   beforeEach(() => {
     game = new Game();
     game.manifest = buildTestManifest();
-    game.generateBoard = (g) => {
-      g.board.clearMasks("wall");
-      g.board.clearMasks("snake");
-      g.board.clearMasks("reserved");
-      const cx = Math.floor(Game.BOARD_W / 2);
-      const cy = Math.floor(Game.BOARD_H / 2);
-      g.snake.init(g.board, cx, cy, g.snake.snakeLength, 1, 0);
-      g.board.foodX = cx + g.snake.snakeLength + 1;
-      g.board.foodY = cy;
+    game.generateGrid = (g) => {
+      g.grid.clearMasks("wall");
+      g.grid.clearMasks("snake");
+      g.grid.clearMasks("reserved");
+      const cx = Math.floor(Game.GRID_W / 2);
+      const cy = Math.floor(Game.GRID_H / 2);
+      g.snake.init(g.grid, cx, cy, g.snake.snakeLength, 1, 0);
+      g.grid.foodX = cx + g.snake.snakeLength + 1;
+      g.grid.foodY = cy;
     };
-    game.advanceBoard = (g) => {
+    game.advanceGrid = (g) => {
       const hx = g.snake.snakeX[g.snake.headIndex];
       const hy = g.snake.snakeY[g.snake.headIndex];
-      g.board.foodX = hx + g.snake.dirX;
-      g.board.foodY = hy + g.snake.dirY;
+      g.grid.foodX = hx + g.snake.dirX;
+      g.grid.foodY = hy + g.snake.dirY;
     };
     game.startRun();
   });
@@ -268,8 +268,8 @@ describe("level-up + draft", () => {
     for (let i = 0; i < 7; i++) {
       const hx = game.snake.snakeX[game.snake.headIndex];
       const hy = game.snake.snakeY[game.snake.headIndex];
-      game.board.foodX = hx + game.snake.dirX;
-      game.board.foodY = hy + game.snake.dirY;
+      game.grid.foodX = hx + game.snake.dirX;
+      game.grid.foodY = hy + game.snake.dirY;
       game.lastTickTime = 0;
       game.tick();
       if (game.state !== Game.STATE_PLAYING) {
@@ -278,15 +278,15 @@ describe("level-up + draft", () => {
     }
     expect(game.state).toBe(Game.STATE_DRAFT);
     // Level hasn't been applied yet
-    expect(game.level).toBe(1);
+    expect(game.actIndex).toBe(1);
   });
 
   it("tick is no-op in DRAFT state", () => {
     game.state = Game.STATE_DRAFT;
-    const levelBefore = game.level;
+    const actBefore = game.actIndex;
     game.lastTickTime = 0;
     game.tick();
-    expect(game.level).toBe(levelBefore);
+    expect(game.actIndex).toBe(actBefore);
   });
 
   it("confirmDraft applies level-up and returns to PLAYING", () => {
@@ -294,9 +294,9 @@ describe("level-up + draft", () => {
     game.foodEaten = game.foodRequired; // simulate threshold reached
     game.confirmDraft();
     expect(game.state).toBe(Game.STATE_PLAYING);
-    expect(game.level).toBe(2);
+    expect(game.actIndex).toBe(2);
     expect(game.foodEaten).toBe(0);
-    expect(game.boardIndex).toBe(2);
+    expect(game.actIndex).toBe(2);
   });
 
   it("confirmDraft resets snake length", () => {
@@ -307,17 +307,17 @@ describe("level-up + draft", () => {
   });
 
   it("confirmDraft is no-op outside DRAFT state", () => {
-    const levelBefore = game.level;
+    const actBefore = game.actIndex;
     game.confirmDraft(); // state is PLAYING
-    expect(game.level).toBe(levelBefore);
+    expect(game.actIndex).toBe(actBefore);
   });
 
   it("triggers level-up at food threshold (full flow)", () => {
     expect(game.foodRequired).toBe(7);
     feedSnake(game, 7);
-    expect(game.level).toBe(2);
+    expect(game.actIndex).toBe(2);
     expect(game.foodEaten).toBe(0);
-    expect(game.boardIndex).toBe(2);
+    expect(game.actIndex).toBe(2);
   });
 
   it("increases foodRequired each level", () => {
@@ -328,7 +328,7 @@ describe("level-up + draft", () => {
   it("recalculates tickMs on level-up", () => {
     feedSnake(game, 7);
     // boardIndex is now 2, base formula: 150 - 8 = 142 (possibly * 1.5 if slow_time drafted)
-    const baseMs = 150 - (game.boardIndex - 1) * 8;
+    const baseMs = 150 - (game.actIndex - 1) * 8;
     const expected = game.upgrades.hasPassive("slow_time") ? Math.round(baseMs * 1.5) : baseMs;
     expect(game.tickMs).toBe(expected);
   });
@@ -346,8 +346,8 @@ describe("level-up + draft", () => {
     for (let i = 0; i < 7; i++) {
       const hx = game.snake.snakeX[game.snake.headIndex];
       const hy = game.snake.snakeY[game.snake.headIndex];
-      game.board.foodX = hx + game.snake.dirX;
-      game.board.foodY = hy + game.snake.dirY;
+      game.grid.foodX = hx + game.snake.dirX;
+      game.grid.foodY = hy + game.snake.dirY;
       game.lastTickTime = 0;
       game.tick();
       if (game.state !== Game.STATE_PLAYING) {
@@ -440,7 +440,7 @@ describe("level-up + draft", () => {
     game._draftMutationAccepted = true;
     game.confirmDraft();
     expect(game.upgrades.hasPassive("slow_time")).toBe(true);
-    expect(game.upgrades.worldMode).toBe("wildlands");
+    expect(game.upgrades.mutation).toBe("wildlands");
   });
 
   it("confirmDraft does not apply mutation when not accepted", () => {
@@ -456,7 +456,7 @@ describe("level-up + draft", () => {
     game._draftSelection = 0;
     game._draftMutationAccepted = false;
     game.confirmDraft();
-    expect(game.upgrades.worldMode).toBe("crystalline");
+    expect(game.upgrades.mutation).toBe("crystalline");
   });
 });
 
@@ -483,7 +483,7 @@ describe("Slow Time passive", () => {
     game._recalcTickMs();
     expect(game.tickMs).toBeGreaterThan(normalMs);
     // Expire it
-    game.upgrades.tickPassives();
+    game.upgrades.tickBites();
     game._recalcTickMs();
     expect(game.tickMs).toBe(normalMs);
   });
@@ -500,8 +500,8 @@ describe("Slow Time passive", () => {
     };
     game._draftSelection = 0;
     game.confirmDraft();
-    // After level-up, boardIndex is 2, so base = 150 - 8 = 142, slowed = 213
-    const baseMs = 150 - (game.boardIndex - 1) * 8;
+    // After act advance, actIndex is 2, so base = 150 - 8 = 142, slowed = 213
+    const baseMs = 150 - (game.actIndex - 1) * 8;
     expect(game.tickMs).toBe(Math.round(baseMs * 1.5));
   });
 });
@@ -516,20 +516,20 @@ describe("Iron Jaw passive", () => {
   });
 
   it("eats wall ahead when iron_jaw is active", () => {
-    game.upgrades.addPassive("iron_jaw", 3, "food");
+    game.upgrades.addBites("iron_jaw", 3);
     // Place wall directly ahead of snake
     const hx = game.snake.snakeX[game.snake.headIndex];
     const hy = game.snake.snakeY[game.snake.headIndex];
     const nx = hx + game.snake.dirX;
     const ny = hy + game.snake.dirY;
-    game.board.setCell("wall", nx, ny);
-    expect(game.board.isWallCell(nx, ny)).toBe(true);
+    game.grid.setCell("wall", nx, ny);
+    expect(game.grid.isWallCell(nx, ny)).toBe(true);
 
     game.lastTickTime = 0;
     game.tick();
 
     // Wall should be cleared, snake alive and moved into that cell
-    expect(game.board.isWallCell(nx, ny)).toBe(false);
+    expect(game.grid.isWallCell(nx, ny)).toBe(false);
     expect(game.state).toBe(Game.STATE_PLAYING);
     expect(game.snake.snakeX[game.snake.headIndex]).toBe(nx);
     expect(game.snake.snakeY[game.snake.headIndex]).toBe(ny);
@@ -540,7 +540,7 @@ describe("Iron Jaw passive", () => {
     const hy = game.snake.snakeY[game.snake.headIndex];
     const nx = hx + game.snake.dirX;
     const ny = hy + game.snake.dirY;
-    game.board.setCell("wall", nx, ny);
+    game.grid.setCell("wall", nx, ny);
 
     game.lastTickTime = 0;
     game.tick();
@@ -548,45 +548,34 @@ describe("Iron Jaw passive", () => {
     expect(game.state).toBe(Game.STATE_DEAD);
   });
 
-  it("expires after 3 food eaten", () => {
-    game.upgrades.addPassive("iron_jaw", 3, "food");
-    game.advanceBoard = (g) => {
-      const hx = g.snake.snakeX[g.snake.headIndex];
-      const hy = g.snake.snakeY[g.snake.headIndex];
-      g.board.foodX = hx + g.snake.dirX;
-      g.board.foodY = hy + g.snake.dirY;
-    };
+  it("expires after 3 walls eaten", () => {
+    game.upgrades.addBites("iron_jaw", 3);
 
-    // Eat 3 food to expire iron jaw
+    // Eat 3 walls to exhaust iron_jaw charges
     for (let i = 0; i < 3; i++) {
       const hx = game.snake.snakeX[game.snake.headIndex];
       const hy = game.snake.snakeY[game.snake.headIndex];
-      game.board.foodX = hx + game.snake.dirX;
-      game.board.foodY = hy + game.snake.dirY;
+      const nx = hx + game.snake.dirX;
+      const ny = hy + game.snake.dirY;
+      game.grid.setCell("wall", nx, ny);
       game.lastTickTime = 0;
       game.tick();
     }
 
-    expect(game.upgrades.hasPassive("iron_jaw")).toBe(false);
+    expect(game.upgrades.hasBites("iron_jaw")).toBe(false);
 
-    // Now hitting a wall should kill
+    // Now hitting another wall should kill
     const hx = game.snake.snakeX[game.snake.headIndex];
     const hy = game.snake.snakeY[game.snake.headIndex];
-    game.board.setCell("wall", hx + game.snake.dirX, hy + game.snake.dirY);
+    game.grid.setCell("wall", hx + game.snake.dirX, hy + game.snake.dirY);
     game.lastTickTime = 0;
     game.tick();
     expect(game.state).toBe(Game.STATE_DEAD);
   });
 
-  it("does not expire from level-based tickPassives", () => {
-    game.upgrades.addPassive("iron_jaw", 3, "food");
-    game.upgrades.tickPassives(); // level-based tick should not affect food-based
-    expect(game.upgrades.hasPassive("iron_jaw")).toBe(true);
-  });
-
   it("_peekNextCell wraps around edges", () => {
     // Move snake to right edge facing right
-    const rightEdge = game.board.width - 1;
+    const rightEdge = game.grid.width - 1;
     game.snake.snakeX[game.snake.headIndex] = rightEdge;
     game.snake.snakeY[game.snake.headIndex] = 5;
     game.snake.nextDirX = 1;
@@ -692,11 +681,11 @@ describe("Dash consumable", () => {
     const dx = game.snake.dirX;
     const dy = game.snake.dirY;
     // Place walls on both cells ahead
-    game.board.setCell("wall", hx + dx, hy + dy);
-    game.board.setCell("wall", hx + dx * 2, hy + dy * 2);
+    game.grid.setCell("wall", hx + dx, hy + dy);
+    game.grid.setCell("wall", hx + dx * 2, hy + dy * 2);
     game.useConsumable();
-    expect(game.board.isWallCell(hx + dx, hy + dy)).toBe(false);
-    expect(game.board.isWallCell(hx + dx * 2, hy + dy * 2)).toBe(false);
+    expect(game.grid.isWallCell(hx + dx, hy + dy)).toBe(false);
+    expect(game.grid.isWallCell(hx + dx * 2, hy + dy * 2)).toBe(false);
     expect(game.state).toBe(Game.STATE_PLAYING);
   });
 
@@ -708,7 +697,7 @@ describe("Dash consumable", () => {
     const dx = game.snake.dirX;
     const dy = game.snake.dirY;
     // Put snake cell 2 ahead
-    game.board.setCell("snake", hx + dx * 2, hy + dy * 2);
+    game.grid.setCell("snake", hx + dx * 2, hy + dy * 2);
     game.useConsumable();
     expect(game.state).toBe(Game.STATE_DEAD);
   });
@@ -719,8 +708,8 @@ describe("Dash consumable", () => {
     const hy = game.snake.snakeY[game.snake.headIndex];
     const dx = game.snake.dirX;
     const dy = game.snake.dirY;
-    game.board.foodX = hx + dx;
-    game.board.foodY = hy + dy;
+    game.grid.foodX = hx + dx;
+    game.grid.foodY = hy + dy;
     const scoreBefore = game.score;
     game.useConsumable();
     expect(game.score).toBe(scoreBefore + 1);
@@ -761,7 +750,7 @@ describe("Wormhole consumable", () => {
   it("cursor wraps around edges", () => {
     game.upgrades.addConsumable("wormhole", 1);
     game.useConsumable();
-    game._wormholeCursor.x = Game.BOARD_W - 1;
+    game._wormholeCursor.x = Game.GRID_W - 1;
     game.onInput(1, 0);
     expect(game._wormholeCursor.x).toBe(0);
   });
@@ -772,8 +761,8 @@ describe("Wormhole consumable", () => {
     game._wormholeCursor.x = 0;
     game._wormholeCursor.y = 0;
     // Clear any walls at target
-    game.board.clearCell("wall", 0, 0);
-    game.board.clearCell("snake", 0, 0);
+    game.grid.clearCell("wall", 0, 0);
+    game.grid.clearCell("snake", 0, 0);
     game.confirm();
     expect(game._wormholePhase).toBe(2);
     expect(game._wormholeA).toEqual({ x: 0, y: 0 });
@@ -786,14 +775,14 @@ describe("Wormhole consumable", () => {
     // Place A
     game._wormholeCursor.x = 0;
     game._wormholeCursor.y = 0;
-    game.board.clearCell("wall", 0, 0);
-    game.board.clearCell("snake", 0, 0);
+    game.grid.clearCell("wall", 0, 0);
+    game.grid.clearCell("snake", 0, 0);
     game.confirm();
     // Place B
     game._wormholeCursor.x = 5;
     game._wormholeCursor.y = 5;
-    game.board.clearCell("wall", 5, 5);
-    game.board.clearCell("snake", 5, 5);
+    game.grid.clearCell("wall", 5, 5);
+    game.grid.clearCell("snake", 5, 5);
     game.confirm();
     expect(game._wormholeA).toEqual({ x: 0, y: 0 });
     expect(game._wormholeB).toEqual({ x: 5, y: 5 });
@@ -805,7 +794,7 @@ describe("Wormhole consumable", () => {
     game.useConsumable();
     game._wormholeCursor.x = 2;
     game._wormholeCursor.y = 2;
-    game.board.setCell("wall", 2, 2);
+    game.grid.setCell("wall", 2, 2);
     game.confirm();
     expect(game._wormholePhase).toBe(1); // still phase 1, placement rejected
   });
@@ -815,8 +804,8 @@ describe("Wormhole consumable", () => {
     game.useConsumable();
     game._wormholeCursor.x = 0;
     game._wormholeCursor.y = 0;
-    game.board.clearCell("wall", 0, 0);
-    game.board.clearCell("snake", 0, 0);
+    game.grid.clearCell("wall", 0, 0);
+    game.grid.clearCell("snake", 0, 0);
     game.confirm(); // place A at (0,0)
     game._wormholeCursor.x = 0;
     game._wormholeCursor.y = 0;
@@ -843,8 +832,8 @@ describe("Wormhole consumable", () => {
     const hx = game.snake.snakeX[game.snake.headIndex];
     const hy = game.snake.snakeY[game.snake.headIndex];
     // Place food far away so it doesn't interfere
-    game.board.foodX = 0;
-    game.board.foodY = 0;
+    game.grid.foodX = 0;
+    game.grid.foodY = 0;
     // Set snake facing right, put portal A one step ahead
     game._wormholeA.x = hx + 1;
     game._wormholeA.y = hy;
@@ -863,8 +852,8 @@ describe("Wormhole consumable", () => {
     const hy = game.snake.snakeY[game.snake.headIndex];
     game._wormholeA = { x: 3, y: 3 };
     game._wormholeB = { x: hx + 1, y: hy };
-    game.board.foodX = 0;
-    game.board.foodY = 0;
+    game.grid.foodX = 0;
+    game.grid.foodY = 0;
 
     game.lastTickTime = 0;
     game.tick();
@@ -934,7 +923,7 @@ describe("Bomb consumable", () => {
   it("cursor wraps around edges", () => {
     game.upgrades.addConsumable("bomb", 2);
     game.useConsumable();
-    game._bombCursor.x = Game.BOARD_W - 1;
+    game._bombCursor.x = Game.GRID_W - 1;
     game.onInput(1, 0);
     expect(game._bombCursor.x).toBe(0);
   });
@@ -948,20 +937,20 @@ describe("Bomb consumable", () => {
     // Clear any walls/snake at target area first
     for (let dy = -1; dy <= 1; dy++) {
       for (let dx = -1; dx <= 1; dx++) {
-        const bx = (0 + dx + Game.BOARD_W) % Game.BOARD_W;
-        const by = (0 + dy + Game.BOARD_H) % Game.BOARD_H;
-        game.board.clearCell("wall", bx, by);
-        game.board.clearCell("snake", bx, by);
+        const bx = (0 + dx + Game.GRID_W) % Game.GRID_W;
+        const by = (0 + dy + Game.GRID_H) % Game.GRID_H;
+        game.grid.clearCell("wall", bx, by);
+        game.grid.clearCell("snake", bx, by);
       }
     }
     // Place walls around cursor
-    game.board.setCell("wall", 1, 0);
-    game.board.setCell("wall", 0, 1);
-    game.board.setCell("wall", 1, 1);
+    game.grid.setCell("wall", 1, 0);
+    game.grid.setCell("wall", 0, 1);
+    game.grid.setCell("wall", 1, 1);
     game.confirm();
-    expect(game.board.isWallCell(1, 0)).toBe(false);
-    expect(game.board.isWallCell(0, 1)).toBe(false);
-    expect(game.board.isWallCell(1, 1)).toBe(false);
+    expect(game.grid.isWallCell(1, 0)).toBe(false);
+    expect(game.grid.isWallCell(0, 1)).toBe(false);
+    expect(game.grid.isWallCell(1, 1)).toBe(false);
     expect(game.state).toBe(Game.STATE_PLAYING);
   });
 
@@ -1053,7 +1042,7 @@ describe("mechanic lifecycle", () => {
     game.startRun();
     game.mechanic = { type: "fake" };
     game.startRun();
-    // startRun sets mechanic to null, then generateBoard sets it to lattice
+    // startRun sets mechanic to null, then generateGrid sets it to lattice
     expect(game.mechanic.type).toBe("lattice");
   });
 
@@ -1071,7 +1060,7 @@ describe("mechanic lifecycle", () => {
     game._draftSelection = 0;
 
     game.confirmDraft();
-    // confirmDraft sets mechanic to null, then generateBoard re-inits it
+    // confirmDraft sets mechanic to null, then generateGrid re-inits it
     expect(game.mechanic.type).toBe("lattice");
   });
 });
@@ -1082,8 +1071,8 @@ describe("boss food co-spawn & trigger", () => {
   function feedOnce(g) {
     const hx = g.snake.snakeX[g.snake.headIndex];
     const hy = g.snake.snakeY[g.snake.headIndex];
-    g.board.foodX = hx + g.snake.dirX;
-    g.board.foodY = hy + g.snake.dirY;
+    g.grid.foodX = hx + g.snake.dirX;
+    g.grid.foodY = hy + g.snake.dirY;
     g.lastTickTime = 0;
     g.tick();
   }
@@ -1091,31 +1080,31 @@ describe("boss food co-spawn & trigger", () => {
   beforeEach(() => {
     game = new Game();
     game.manifest = buildTestManifest();
-    // Stub generators to keep board clear and food always ahead
-    game.generateBoard = (g) => {
-      g.board.clearMasks("wall");
-      g.board.clearMasks("snake");
-      g.board.clearMasks("reserved");
-      g.board.terrain.fill(0);
-      const cx = Math.floor(Game.BOARD_W / 2);
-      const cy = Math.floor(Game.BOARD_H / 2);
-      g.snake.init(g.board, cx, cy, g.snake.snakeLength, 1, 0);
-      g.board.foodX = cx + g.snake.snakeLength + 1;
-      g.board.foodY = cy;
+    // Stub generators to keep grid clear and food always ahead
+    game.generateGrid = (g) => {
+      g.grid.clearMasks("wall");
+      g.grid.clearMasks("snake");
+      g.grid.clearMasks("reserved");
+      g.grid.terrain.fill(0);
+      const cx = Math.floor(Game.GRID_W / 2);
+      const cy = Math.floor(Game.GRID_H / 2);
+      g.snake.init(g.grid, cx, cy, g.snake.snakeLength, 1, 0);
+      g.grid.foodX = cx + g.snake.snakeLength + 1;
+      g.grid.foodY = cy;
     };
-    game.advanceBoard = (g) => {
+    game.advanceGrid = (g) => {
       const hx = g.snake.snakeX[g.snake.headIndex];
       const hy = g.snake.snakeY[g.snake.headIndex];
-      g.board.foodX = hx + g.snake.dirX;
-      g.board.foodY = hy + g.snake.dirY;
+      g.grid.foodX = hx + g.snake.dirX;
+      g.grid.foodY = hy + g.snake.dirY;
     };
     game.startRun();
   });
 
-  it("bossFoodCharge is 0 at start, no boss food on board", () => {
+  it("bossFoodCharge is 0 at start, no boss food on grid", () => {
     expect(game.bossFoodCharge).toBe(0);
-    expect(game.board.bossFoodX).toBe(-1);
-    expect(game.board.bossFoodY).toBe(-1);
+    expect(game.grid.bossFoodX).toBe(-1);
+    expect(game.grid.bossFoodY).toBe(-1);
   });
 
   it("spawns boss food after BOSS_FOOD_INTERVAL regular food eaten", () => {
@@ -1128,8 +1117,8 @@ describe("boss food co-spawn & trigger", () => {
     if (game.state === Game.STATE_DRAFT) {
       game.confirmDraft();
     }
-    expect(game.board.bossFoodX).toBeGreaterThanOrEqual(0);
-    expect(game.board.bossFoodY).toBeGreaterThanOrEqual(0);
+    expect(game.grid.bossFoodX).toBeGreaterThanOrEqual(0);
+    expect(game.grid.bossFoodY).toBeGreaterThanOrEqual(0);
     expect(game.bossFoodCharge).toBe(0);
   });
 
@@ -1137,10 +1126,10 @@ describe("boss food co-spawn & trigger", () => {
     const hx = game.snake.snakeX[game.snake.headIndex];
     const hy = game.snake.snakeY[game.snake.headIndex];
     // Place boss food directly ahead, push regular food out of the way
-    game.board.bossFoodX = hx + game.snake.dirX;
-    game.board.bossFoodY = hy + game.snake.dirY;
-    game.board.foodX = 0;
-    game.board.foodY = 0;
+    game.grid.bossFoodX = hx + game.snake.dirX;
+    game.grid.bossFoodY = hy + game.snake.dirY;
+    game.grid.foodX = 0;
+    game.grid.foodY = 0;
     const scoreBefore = game.score;
     const foodEatenBefore = game.foodEaten;
     game.lastTickTime = 0;
@@ -1153,38 +1142,38 @@ describe("boss food co-spawn & trigger", () => {
   it("eating regular food despawns boss food and resets charge", () => {
     // Set up state where boss food is present and charge is non-zero
     game.bossFoodCharge = 5;
-    game.board.bossFoodX = 0;
-    game.board.bossFoodY = 0;
+    game.grid.bossFoodX = 0;
+    game.grid.bossFoodY = 0;
     feedOnce(game);
-    expect(game.board.bossFoodX).toBe(-1);
-    expect(game.board.bossFoodY).toBe(-1);
+    expect(game.grid.bossFoodX).toBe(-1);
+    expect(game.grid.bossFoodY).toBe(-1);
     expect(game.bossFoodCharge).toBe(0);
   });
 
   it("bossFoodCharge resets on new run", () => {
     game.bossFoodCharge = 7;
-    game.board.bossFoodX = 5;
-    game.board.bossFoodY = 5;
+    game.grid.bossFoodX = 5;
+    game.grid.bossFoodY = 5;
     game.startRun();
     expect(game.bossFoodCharge).toBe(0);
-    expect(game.board.bossFoodX).toBe(-1);
-    expect(game.board.bossFoodY).toBe(-1);
+    expect(game.grid.bossFoodX).toBe(-1);
+    expect(game.grid.bossFoodY).toBe(-1);
   });
 });
 
 describe("boss fight", () => {
   let game;
 
-  function simpleBoardSetup(g) {
-    g.board.clearMasks("wall");
-    g.board.clearMasks("snake");
-    g.board.clearMasks("reserved");
-    g.board.terrain.fill(0);
-    const cx = Math.floor(Game.BOARD_W / 2);
-    const cy = Math.floor(Game.BOARD_H / 2);
-    g.snake.init(g.board, cx, cy, g.snake.snakeLength, 1, 0);
-    g.board.foodX = cx + g.snake.snakeLength + 1;
-    g.board.foodY = cy;
+  function simpleGridSetup(g) {
+    g.grid.clearMasks("wall");
+    g.grid.clearMasks("snake");
+    g.grid.clearMasks("reserved");
+    g.grid.terrain.fill(0);
+    const cx = Math.floor(Game.GRID_W / 2);
+    const cy = Math.floor(Game.GRID_H / 2);
+    g.snake.init(g.grid, cx, cy, g.snake.snakeLength, 1, 0);
+    g.grid.foodX = cx + g.snake.snakeLength + 1;
+    g.grid.foodY = cy;
   }
 
   // Forces one full boss tick (both movement + boss sub-ticks) regardless of time gate
@@ -1197,12 +1186,12 @@ describe("boss fight", () => {
   beforeEach(() => {
     game = new Game();
     game.manifest = buildTestManifest();
-    game.generateBoard = simpleBoardSetup;
-    game.advanceBoard = (g) => {
+    game.generateGrid = simpleGridSetup;
+    game.advanceGrid = (g) => {
       const hx = g.snake.snakeX[g.snake.headIndex];
       const hy = g.snake.snakeY[g.snake.headIndex];
-      g.board.foodX = hx + g.snake.dirX;
-      g.board.foodY = hy + g.snake.dirY;
+      g.grid.foodX = hx + g.snake.dirX;
+      g.grid.foodY = hy + g.snake.dirY;
     };
     game.startRun();
   });
@@ -1211,15 +1200,15 @@ describe("boss fight", () => {
     game._enterBossFight();
     expect(game.state).toBe(Game.STATE_BOSS);
     expect(game._boss).not.toBeNull();
-    expect(game.board.playerX).toBeGreaterThanOrEqual(0);
-    expect(game.board.playerY).toBeGreaterThanOrEqual(0);
-    expect(game.board.playerX).toBeLessThan(Game.BOARD_W);
-    expect(game.board.playerY).toBeLessThan(Game.BOARD_H);
+    expect(game.grid.playerX).toBeGreaterThanOrEqual(0);
+    expect(game.grid.playerY).toBeGreaterThanOrEqual(0);
+    expect(game.grid.playerX).toBeLessThan(Game.GRID_W);
+    expect(game.grid.playerY).toBeLessThan(Game.GRID_H);
   });
 
   it("crystalline default boss is Traffic Jam", () => {
-    // After startRun the worldMode is 'crystalline', which maps to Traffic Jam
-    expect(game.upgrades.worldMode).toBe("crystalline");
+    // After startRun the mutation is 'crystalline', which maps to Traffic Jam
+    expect(game.upgrades.mutation).toBe("crystalline");
     game._enterBossFight();
     expect(game._boss.name).toBe("Traffic Jam");
   });
@@ -1247,44 +1236,44 @@ describe("boss fight", () => {
 
   it("player does not move when no key held", () => {
     game._enterBossFight();
-    const px = game.board.playerX;
-    const py = game.board.playerY;
+    const px = game.grid.playerX;
+    const py = game.grid.playerY;
     bossTick(game);
     expect(game.state).toBe(Game.STATE_BOSS);
-    expect(game.board.playerX).toBe(px);
-    expect(game.board.playerY).toBe(py);
+    expect(game.grid.playerX).toBe(px);
+    expect(game.grid.playerY).toBe(py);
   });
 
   it("player moves one cell per tick when key held", () => {
     game._enterBossFight();
-    const px = game.board.playerX;
-    const py = game.board.playerY;
+    const px = game.grid.playerX;
+    const py = game.grid.playerY;
     // Move right (horizontal movement allowed in bullet-hell mode)
     game.onInput(1, 0);
     bossTick(game);
     expect(game.state).toBe(Game.STATE_BOSS);
-    expect(game.board.playerX).toBe(px + 1);
-    expect(game.board.playerY).toBe(py);
+    expect(game.grid.playerX).toBe(px + 1);
+    expect(game.grid.playerY).toBe(py);
   });
 
   it("player stops when key released", () => {
     game._enterBossFight();
     game.onInput(1, 0);
     bossTick(game);
-    const px = game.board.playerX;
-    const py = game.board.playerY;
+    const px = game.grid.playerX;
+    const py = game.grid.playerY;
     game.onInputRelease(1, 0);
     expect(game._heldDirection).toBeNull();
     bossTick(game);
-    expect(game.board.playerX).toBe(px);
-    expect(game.board.playerY).toBe(py);
+    expect(game.grid.playerX).toBe(px);
+    expect(game.grid.playerY).toBe(py);
   });
 
   it("player dies on wall collision during boss fight", () => {
     game._enterBossFight();
     // Place player one cell from the east wall
-    game.board.playerX = Game.BOARD_W - 2;
-    game.board.playerY = Math.floor(Game.BOARD_H / 2);
+    game.grid.playerX = Game.GRID_W - 2;
+    game.grid.playerY = Math.floor(Game.GRID_H / 2);
     game.onInput(1, 0); // move right into east wall
     bossTick(game);
     expect(game.state).toBe(Game.STATE_DEAD);
@@ -1296,8 +1285,8 @@ describe("boss fight", () => {
     const boss = game._boss;
     // Find a non-weak body cell and position player to walk into it
     const target = boss.cells.find((c) => !c.weak);
-    game.board.playerX = target.x - 1;
-    game.board.playerY = target.y;
+    game.grid.playerX = target.x - 1;
+    game.grid.playerY = target.y;
     game.onInput(1, 0); // move right into boss body cell
     bossTick(game);
     expect(game.state).toBe(Game.STATE_DEAD);
@@ -1427,16 +1416,16 @@ describe("boss fight", () => {
 describe("bullet-hell movement", () => {
   let game;
 
-  function simpleBoardSetup(g) {
-    g.board.clearMasks("wall");
-    g.board.clearMasks("snake");
-    g.board.clearMasks("reserved");
-    g.board.terrain.fill(0);
-    const cx = Math.floor(Game.BOARD_W / 2);
-    const cy = Math.floor(Game.BOARD_H / 2);
-    g.snake.init(g.board, cx, cy, g.snake.snakeLength, 1, 0);
-    g.board.foodX = cx + g.snake.snakeLength + 1;
-    g.board.foodY = cy;
+  function simpleGridSetup(g) {
+    g.grid.clearMasks("wall");
+    g.grid.clearMasks("snake");
+    g.grid.clearMasks("reserved");
+    g.grid.terrain.fill(0);
+    const cx = Math.floor(Game.GRID_W / 2);
+    const cy = Math.floor(Game.GRID_H / 2);
+    g.snake.init(g.grid, cx, cy, g.snake.snakeLength, 1, 0);
+    g.grid.foodX = cx + g.snake.snakeLength + 1;
+    g.grid.foodY = cy;
   }
 
   function bossTick(g) {
@@ -1448,12 +1437,12 @@ describe("bullet-hell movement", () => {
   beforeEach(() => {
     game = new Game();
     game.manifest = buildTestManifest();
-    game.generateBoard = simpleBoardSetup;
-    game.advanceBoard = (g) => {
+    game.generateGrid = simpleGridSetup;
+    game.advanceGrid = (g) => {
       const hx = g.snake.snakeX[g.snake.headIndex];
       const hy = g.snake.snakeY[g.snake.headIndex];
-      g.board.foodX = hx + g.snake.dirX;
-      g.board.foodY = hy + g.snake.dirY;
+      g.grid.foodX = hx + g.snake.dirX;
+      g.grid.foodY = hy + g.snake.dirY;
     };
     game.startRun();
   });
@@ -1505,7 +1494,7 @@ describe("bullet-hell movement", () => {
     // Force vertical input by directly setting _heldDirection
     game._heldDirection = { dx: 0, dy: -1 };
     bossTick(game);
-    expect(game.board.playerY).toBe(spawnY);
+    expect(game.grid.playerY).toBe(spawnY);
   });
 
   it("snake_hungry allows vertical movement within range", () => {
@@ -1517,7 +1506,7 @@ describe("bullet-hell movement", () => {
     for (let i = 0; i < HUNGRY_VERTICAL_RANGE; i++) {
       bossTick(game);
     }
-    expect(game.board.playerY).toBe(spawnY - HUNGRY_VERTICAL_RANGE);
+    expect(game.grid.playerY).toBe(spawnY - HUNGRY_VERTICAL_RANGE);
   });
 
   it("snake_hungry vertical movement is clamped at range limit", () => {
@@ -1530,7 +1519,7 @@ describe("bullet-hell movement", () => {
       bossTick(game);
     }
     // Clamped to range
-    expect(game.board.playerY).toBe(spawnY - HUNGRY_VERTICAL_RANGE);
+    expect(game.grid.playerY).toBe(spawnY - HUNGRY_VERTICAL_RANGE);
   });
 
   it("_playerFacing is always {dx:0, dy:-1} during boss fight", () => {
@@ -1638,16 +1627,16 @@ describe("player plane shape", () => {
 describe("projectile system", () => {
   let game;
 
-  function simpleBoardSetup(g) {
-    g.board.clearMasks("wall");
-    g.board.clearMasks("snake");
-    g.board.clearMasks("reserved");
-    g.board.terrain.fill(0);
-    const cx = Math.floor(Game.BOARD_W / 2);
-    const cy = Math.floor(Game.BOARD_H / 2);
-    g.snake.init(g.board, cx, cy, g.snake.snakeLength, 1, 0);
-    g.board.foodX = cx + g.snake.snakeLength + 1;
-    g.board.foodY = cy;
+  function simpleGridSetup(g) {
+    g.grid.clearMasks("wall");
+    g.grid.clearMasks("snake");
+    g.grid.clearMasks("reserved");
+    g.grid.terrain.fill(0);
+    const cx = Math.floor(Game.GRID_W / 2);
+    const cy = Math.floor(Game.GRID_H / 2);
+    g.snake.init(g.grid, cx, cy, g.snake.snakeLength, 1, 0);
+    g.grid.foodX = cx + g.snake.snakeLength + 1;
+    g.grid.foodY = cy;
   }
 
   function bossTick(g) {
@@ -1659,12 +1648,12 @@ describe("projectile system", () => {
   beforeEach(() => {
     game = new Game();
     game.manifest = buildTestManifest();
-    game.generateBoard = simpleBoardSetup;
-    game.advanceBoard = (g) => {
+    game.generateGrid = simpleGridSetup;
+    game.advanceGrid = (g) => {
       const hx = g.snake.snakeX[g.snake.headIndex];
       const hy = g.snake.snakeY[g.snake.headIndex];
-      g.board.foodX = hx + g.snake.dirX;
-      g.board.foodY = hy + g.snake.dirY;
+      g.grid.foodX = hx + g.snake.dirX;
+      g.grid.foodY = hy + g.snake.dirY;
     };
     game.startRun();
   });
@@ -1713,7 +1702,7 @@ describe("projectile system", () => {
 
   it("projectile despawns on wall contact", () => {
     game._enterBossFight();
-    // East arena wall is at x = BOARD_W - 1 = 30
+    // East arena wall is at x = GRID_W - 1 = 30
     game._projectiles.push({ x: 29, y: 5, dx: 1, dy: 0 });
     bossTick(game);
     // Projectile moved to (30, 5) = east wall → removed
@@ -1724,8 +1713,8 @@ describe("projectile system", () => {
 
   it("projectile at tip cell kills player", () => {
     game._enterBossFight();
-    const px = game.board.playerX; // 15
-    const py = game.board.playerY; // 28
+    const px = game.grid.playerX; // 15
+    const py = game.grid.playerY; // 28
     // Place projectile one cell left of tip, moving right — lands on tip next tick
     game._projectiles.push({ x: px - 1, y: py, dx: 1, dy: 0 });
     bossTick(game);
@@ -1736,8 +1725,8 @@ describe("projectile system", () => {
   it("projectile at wing cell kills player", () => {
     game._enterBossFight();
     // Move player to centre of arena so back cells clear walls
-    game.board.playerX = 15;
-    game.board.playerY = 15;
+    game.grid.playerX = 15;
+    game.grid.playerY = 15;
     // _playerFacing = { dx:0, dy:-1 } (facing up)
     // Wing B = (14, 16).  Place projectile one cell left, moving right.
     game._projectiles.push({ x: 13, y: 16, dx: 1, dy: 0 });
@@ -1749,8 +1738,8 @@ describe("projectile system", () => {
   it("projectile at tail cell kills player", () => {
     game._enterBossFight();
     // Move player to centre; facing up → tail = (15, 17)
-    game.board.playerX = 15;
-    game.board.playerY = 15;
+    game.grid.playerX = 15;
+    game.grid.playerY = 15;
     // Place projectile one cell above tail, moving down
     game._projectiles.push({ x: 15, y: 16, dx: 0, dy: 1 });
     bossTick(game);
@@ -1775,16 +1764,16 @@ describe("projectile system", () => {
   describe("boss fight phases (Step 6)", () => {
     let game;
 
-    function simpleBoardSetup(g) {
-      g.board.clearMasks("wall");
-      g.board.clearMasks("snake");
-      g.board.clearMasks("reserved");
-      g.board.terrain.fill(0);
-      const cx = Math.floor(Game.BOARD_W / 2);
-      const cy = Math.floor(Game.BOARD_H / 2);
-      g.snake.init(g.board, cx, cy, g.snake.snakeLength, 1, 0);
-      g.board.foodX = cx + g.snake.snakeLength + 1;
-      g.board.foodY = cy;
+    function simpleGridSetup(g) {
+      g.grid.clearMasks("wall");
+      g.grid.clearMasks("snake");
+      g.grid.clearMasks("reserved");
+      g.grid.terrain.fill(0);
+      const cx = Math.floor(Game.GRID_W / 2);
+      const cy = Math.floor(Game.GRID_H / 2);
+      g.snake.init(g.grid, cx, cy, g.snake.snakeLength, 1, 0);
+      g.grid.foodX = cx + g.snake.snakeLength + 1;
+      g.grid.foodY = cy;
     }
 
     function bossTick(g) {
@@ -1804,12 +1793,12 @@ describe("projectile system", () => {
     beforeEach(() => {
       game = new Game();
       game.manifest = buildTestManifest();
-      game.generateBoard = simpleBoardSetup;
-      game.advanceBoard = (g) => {
+      game.generateGrid = simpleGridSetup;
+      game.advanceGrid = (g) => {
         const hx = g.snake.snakeX[g.snake.headIndex];
         const hy = g.snake.snakeY[g.snake.headIndex];
-        g.board.foodX = hx + g.snake.dirX;
-        g.board.foodY = hy + g.snake.dirY;
+        g.grid.foodX = hx + g.snake.dirX;
+        g.grid.foodY = hy + g.snake.dirY;
       };
       game.startRun();
     });
@@ -1839,8 +1828,8 @@ describe("projectile system", () => {
 
     it("_fight is null after boss death", () => {
       game._enterBossFight();
-      game.board.playerX = Game.BOARD_W - 2;
-      game.board.playerY = Math.floor(Game.BOARD_H / 2);
+      game.grid.playerX = Game.GRID_W - 2;
+      game.grid.playerY = Math.floor(Game.GRID_H / 2);
       game.onInput(1, 0);
       bossTick(game);
       expect(game._fight).toBeNull();
@@ -1982,16 +1971,16 @@ describe("projectile system", () => {
 describe("contraband system (Step 7)", () => {
   let game;
 
-  function simpleBoardSetup(g) {
-    g.board.clearMasks("wall");
-    g.board.clearMasks("snake");
-    g.board.clearMasks("reserved");
-    g.board.terrain.fill(0);
-    const cx = Math.floor(Game.BOARD_W / 2);
-    const cy = Math.floor(Game.BOARD_H / 2);
-    g.snake.init(g.board, cx, cy, g.snake.snakeLength, 1, 0);
-    g.board.foodX = cx + g.snake.snakeLength + 1;
-    g.board.foodY = cy;
+  function simpleGridSetup(g) {
+    g.grid.clearMasks("wall");
+    g.grid.clearMasks("snake");
+    g.grid.clearMasks("reserved");
+    g.grid.terrain.fill(0);
+    const cx = Math.floor(Game.GRID_W / 2);
+    const cy = Math.floor(Game.GRID_H / 2);
+    g.snake.init(g.grid, cx, cy, g.snake.snakeLength, 1, 0);
+    g.grid.foodX = cx + g.snake.snakeLength + 1;
+    g.grid.foodY = cy;
   }
 
   function defeatBoss(g) {
@@ -2002,12 +1991,12 @@ describe("contraband system (Step 7)", () => {
   beforeEach(() => {
     game = new Game();
     game.manifest = buildTestManifest();
-    game.generateBoard = simpleBoardSetup;
-    game.advanceBoard = (g) => {
+    game.generateGrid = simpleGridSetup;
+    game.advanceGrid = (g) => {
       const hx = g.snake.snakeX[g.snake.headIndex];
       const hy = g.snake.snakeY[g.snake.headIndex];
-      g.board.foodX = hx + g.snake.dirX;
-      g.board.foodY = hy + g.snake.dirY;
+      g.grid.foodX = hx + g.snake.dirX;
+      g.grid.foodY = hy + g.snake.dirY;
     };
     game.startRun();
   });
@@ -2132,13 +2121,14 @@ describe("contraband system (Step 7)", () => {
     expect(game.state).toBe(stateBefore);
   });
 
-  it("all 6 contraband items have id, name, desc, and apply", async () => {
+  it("all 6 contraband items have id, apply, and labels", async () => {
     const { CONTRABAND_DEFS } = await import("../src/core/upgrades/contraband/index.js");
+    const { LABELS } = await import("../src/text/labels.js");
     for (const item of CONTRABAND_DEFS) {
       expect(typeof item.id).toBe("string");
-      expect(typeof item.name).toBe("string");
-      expect(typeof item.desc).toBe("string");
       expect(typeof item.apply).toBe("function");
+      expect(typeof LABELS.upgrades[item.id].name).toBe("string");
+      expect(typeof LABELS.upgrades[item.id].desc).toBe("string");
     }
   });
 });
@@ -2146,16 +2136,16 @@ describe("contraband system (Step 7)", () => {
 describe("player invulnerability (Step 5)", () => {
   let game;
 
-  function simpleBoardSetup(g) {
-    g.board.clearMasks("wall");
-    g.board.clearMasks("snake");
-    g.board.clearMasks("reserved");
-    g.board.terrain.fill(0);
-    const cx = Math.floor(Game.BOARD_W / 2);
-    const cy = Math.floor(Game.BOARD_H / 2);
-    g.snake.init(g.board, cx, cy, g.snake.snakeLength, 1, 0);
-    g.board.foodX = cx + g.snake.snakeLength + 1;
-    g.board.foodY = cy;
+  function simpleGridSetup(g) {
+    g.grid.clearMasks("wall");
+    g.grid.clearMasks("snake");
+    g.grid.clearMasks("reserved");
+    g.grid.terrain.fill(0);
+    const cx = Math.floor(Game.GRID_W / 2);
+    const cy = Math.floor(Game.GRID_H / 2);
+    g.snake.init(g.grid, cx, cy, g.snake.snakeLength, 1, 0);
+    g.grid.foodX = cx + g.snake.snakeLength + 1;
+    g.grid.foodY = cy;
   }
 
   function bossTick(g) {
@@ -2167,12 +2157,12 @@ describe("player invulnerability (Step 5)", () => {
   beforeEach(() => {
     game = new Game();
     game.manifest = buildTestManifest();
-    game.generateBoard = simpleBoardSetup;
-    game.advanceBoard = (g) => {
+    game.generateGrid = simpleGridSetup;
+    game.advanceGrid = (g) => {
       const hx = g.snake.snakeX[g.snake.headIndex];
       const hy = g.snake.snakeY[g.snake.headIndex];
-      g.board.foodX = hx + g.snake.dirX;
-      g.board.foodY = hy + g.snake.dirY;
+      g.grid.foodX = hx + g.snake.dirX;
+      g.grid.foodY = hy + g.snake.dirY;
     };
     game.startRun();
   });
@@ -2207,13 +2197,13 @@ describe("player invulnerability (Step 5)", () => {
         boss.hitBodyCell(startX, wp.y);
       }
     }
-    game.board.playerX = startX;
-    game.board.playerY = wp.y;
+    game.grid.playerX = startX;
+    game.grid.playerY = wp.y;
     game._playerSpawnY = wp.y;
     game.onInput(1, 0);
     bossTick(game);
     // Player moves into the weak-point cell, boss takes no damage
-    expect(game.board.playerX).toBe(wp.x);
+    expect(game.grid.playerX).toBe(wp.x);
     expect(boss.hp).toBeGreaterThan(0);
     expect(game.state).toBe(Game.STATE_BOSS);
   });
@@ -2237,8 +2227,8 @@ describe("player invulnerability (Step 5)", () => {
   it("projectile does not kill player during invulnerability", () => {
     game._enterBossFight();
     game._playerInvulTicks = Game.BOSS_INVUL_TICKS;
-    const px = game.board.playerX;
-    const py = game.board.playerY;
+    const px = game.grid.playerX;
+    const py = game.grid.playerY;
     // Place projectile one cell left of tip, moving right — would normally kill
     game._projectiles.push({ x: px - 1, y: py, dx: 1, dy: 0 });
     bossTick(game);
@@ -2250,8 +2240,8 @@ describe("player invulnerability (Step 5)", () => {
     // Run down the invulnerability window
     game._playerInvulTicks = 1;
     // Place projectile one tick away from the tip
-    const px = game.board.playerX;
-    const py = game.board.playerY;
+    const px = game.grid.playerX;
+    const py = game.grid.playerY;
     game._projectiles.push({ x: px - 1, y: py, dx: 1, dy: 0 });
     // First tick: invul decrements to 0, projectile moves — lands on tip, but
     // the collision check runs after the decrement so invul is now 0 → death
@@ -2278,27 +2268,27 @@ describe("player invulnerability (Step 5)", () => {
 describe("renderer support (Step 9)", () => {
   let game;
 
-  function simpleBoardSetup(g) {
-    g.board.clearMasks("wall");
-    g.board.clearMasks("snake");
-    g.board.clearMasks("reserved");
-    g.board.terrain.fill(0);
-    const cx = Math.floor(Game.BOARD_W / 2);
-    const cy = Math.floor(Game.BOARD_H / 2);
-    g.snake.init(g.board, cx, cy, g.snake.snakeLength, 1, 0);
-    g.board.foodX = cx + g.snake.snakeLength + 1;
-    g.board.foodY = cy;
+  function simpleGridSetup(g) {
+    g.grid.clearMasks("wall");
+    g.grid.clearMasks("snake");
+    g.grid.clearMasks("reserved");
+    g.grid.terrain.fill(0);
+    const cx = Math.floor(Game.GRID_W / 2);
+    const cy = Math.floor(Game.GRID_H / 2);
+    g.snake.init(g.grid, cx, cy, g.snake.snakeLength, 1, 0);
+    g.grid.foodX = cx + g.snake.snakeLength + 1;
+    g.grid.foodY = cy;
   }
 
   beforeEach(() => {
     game = new Game();
     game.manifest = buildTestManifest();
-    game.generateBoard = simpleBoardSetup;
-    game.advanceBoard = (g) => {
+    game.generateGrid = simpleGridSetup;
+    game.advanceGrid = (g) => {
       const hx = g.snake.snakeX[g.snake.headIndex];
       const hy = g.snake.snakeY[g.snake.headIndex];
-      g.board.foodX = hx + g.snake.dirX;
-      g.board.foodY = hy + g.snake.dirY;
+      g.grid.foodX = hx + g.snake.dirX;
+      g.grid.foodY = hy + g.snake.dirY;
     };
     game.startRun();
   });
@@ -2404,46 +2394,46 @@ describe("renderer support (Step 9)", () => {
 describe("biome boss selection (Step 10)", () => {
   let game;
 
-  function simpleBoardSetup(g) {
-    g.board.clearMasks("wall");
-    g.board.clearMasks("snake");
-    g.board.clearMasks("reserved");
-    g.board.terrain.fill(0);
-    const cx = Math.floor(Game.BOARD_W / 2);
-    const cy = Math.floor(Game.BOARD_H / 2);
-    g.snake.init(g.board, cx, cy, g.snake.snakeLength, 1, 0);
-    g.board.foodX = cx + g.snake.snakeLength + 1;
-    g.board.foodY = cy;
+  function simpleGridSetup(g) {
+    g.grid.clearMasks("wall");
+    g.grid.clearMasks("snake");
+    g.grid.clearMasks("reserved");
+    g.grid.terrain.fill(0);
+    const cx = Math.floor(Game.GRID_W / 2);
+    const cy = Math.floor(Game.GRID_H / 2);
+    g.snake.init(g.grid, cx, cy, g.snake.snakeLength, 1, 0);
+    g.grid.foodX = cx + g.snake.snakeLength + 1;
+    g.grid.foodY = cy;
   }
 
   beforeEach(() => {
     game = new Game();
     game.manifest = buildTestManifest();
-    game.generateBoard = simpleBoardSetup;
-    game.advanceBoard = (g) => {
+    game.generateGrid = simpleGridSetup;
+    game.advanceGrid = (g) => {
       const hx = g.snake.snakeX[g.snake.headIndex];
       const hy = g.snake.snakeY[g.snake.headIndex];
-      g.board.foodX = hx + g.snake.dirX;
-      g.board.foodY = hy + g.snake.dirY;
+      g.grid.foodX = hx + g.snake.dirX;
+      g.grid.foodY = hy + g.snake.dirY;
     };
     game.startRun();
   });
 
-  it("crystalline worldMode spawns Traffic Jam", () => {
-    // Default worldMode after startRun is crystalline
-    expect(game.upgrades.worldMode).toBe("crystalline");
+  it("crystalline mutation spawns Traffic Jam", () => {
+    // Default mutation after startRun is crystalline
+    expect(game.upgrades.mutation).toBe("crystalline");
     game._enterBossFight();
     expect(game._boss.name).toBe("Traffic Jam");
   });
 
-  it("wildlands worldMode spawns The Algorithm", () => {
-    game.upgrades.worldMode = "wildlands";
+  it("wildlands mutation spawns The Algorithm", () => {
+    game.upgrades.mutation = "wildlands";
     game._enterBossFight();
     expect(game._boss.name).toBe("The Algorithm");
   });
 
-  it("unknown worldMode falls back to Absolute Unit", () => {
-    game.upgrades.worldMode = "dream"; // not yet implemented
+  it("unknown mutation falls back to Absolute Unit", () => {
+    game.upgrades.mutation = "dream"; // not yet implemented
     game._enterBossFight();
     expect(game._boss.name).toBe("Absolute Unit");
   });
@@ -2454,7 +2444,7 @@ describe("biome boss selection (Step 10)", () => {
   });
 
   it("The Algorithm is 5 cells tall", () => {
-    game.upgrades.worldMode = "wildlands";
+    game.upgrades.mutation = "wildlands";
     game._enterBossFight();
     expect(game._boss.height).toBe(5);
   });
@@ -2466,7 +2456,7 @@ describe("biome boss selection (Step 10)", () => {
     expect(anchorCentreX).toBe(15);
 
     // Wildlands: 5-wide boss should also centre at x=15
-    game.upgrades.worldMode = "wildlands";
+    game.upgrades.mutation = "wildlands";
     game._enterBossFight();
     const sovereignCentreX = game._boss.x + Math.floor(game._boss.width / 2);
     expect(sovereignCentreX).toBe(15);
@@ -2496,7 +2486,7 @@ describe("biome boss selection (Step 10)", () => {
     const boss = game._boss;
     // Force the boss to move right a few ticks so x changes
     boss._tickCounter = 2; // one more tick to trigger move
-    boss.update(Game.BOARD_W);
+    boss.update(Game.GRID_W);
     const wp = boss.getWeakPoint();
     expect(wp.x).toBe(boss.x + boss._weakX);
     expect(wp.y).toBe(boss.y + boss._weakY);
@@ -2510,7 +2500,7 @@ describe("biome boss selection (Step 10)", () => {
   });
 
   it("player can defeat The Algorithm via bullet", () => {
-    game.upgrades.worldMode = "wildlands";
+    game.upgrades.mutation = "wildlands";
     game._enterBossFight();
     game._boss.hp = 0;
     game._exitBossVictory();
@@ -2520,22 +2510,22 @@ describe("biome boss selection (Step 10)", () => {
   it("Traffic Jam (crystalline) loads the Pillars arena with interior walls", () => {
     game._enterBossFight();
     // Pillars arena has interior pillar walls — col 5, row 4 is the top-left of one
-    expect(game.board.isWallCell(5, 4)).toBe(true);
+    expect(game.grid.isWallCell(5, 4)).toBe(true);
   });
 
   it("The Algorithm (wildlands) loads the Box arena without interior walls", () => {
-    game.upgrades.worldMode = "wildlands";
+    game.upgrades.mutation = "wildlands";
     game._enterBossFight();
     // Box arena has no interior obstacles at the same position
-    expect(game.board.isWallCell(5, 4)).toBe(false);
+    expect(game.grid.isWallCell(5, 4)).toBe(false);
   });
 
   it("falls back to first arena when boss def arena name is not in manifest", () => {
     const emptyArena = {
       name: "Empty",
-      width: Game.BOARD_W,
-      height: Game.BOARD_H,
-      walls: Array.from({ length: Game.BOARD_H }, () => Array(Game.BOARD_W).fill(false)),
+      width: Game.GRID_W,
+      height: Game.GRID_H,
+      walls: Array.from({ length: Game.GRID_H }, () => Array(Game.GRID_W).fill(false)),
       bossSpawn: { x: 15, y: 5 },
       snakeSpawn: { x: 15, y: 25 },
     };
@@ -2546,24 +2536,24 @@ describe("biome boss selection (Step 10)", () => {
     // crystalline boss def references arena "Pillars", which isn't in this manifest
     game._enterBossFight();
     expect(game.state).toBe(Game.STATE_BOSS);
-    expect(game.board.playerX).toBe(15);
-    expect(game.board.playerY).toBe(25);
+    expect(game.grid.playerX).toBe(15);
+    expect(game.grid.playerY).toBe(25);
   });
 });
 
 describe("boss special abilities", () => {
   let game;
 
-  function simpleBoardSetup(g) {
-    g.board.clearMasks("wall");
-    g.board.clearMasks("snake");
-    g.board.clearMasks("reserved");
-    g.board.terrain.fill(0);
-    const cx = Math.floor(Game.BOARD_W / 2);
-    const cy = Math.floor(Game.BOARD_H / 2);
-    g.snake.init(g.board, cx, cy, g.snake.snakeLength, 1, 0);
-    g.board.foodX = cx + g.snake.snakeLength + 1;
-    g.board.foodY = cy;
+  function simpleGridSetup(g) {
+    g.grid.clearMasks("wall");
+    g.grid.clearMasks("snake");
+    g.grid.clearMasks("reserved");
+    g.grid.terrain.fill(0);
+    const cx = Math.floor(Game.GRID_W / 2);
+    const cy = Math.floor(Game.GRID_H / 2);
+    g.snake.init(g.grid, cx, cy, g.snake.snakeLength, 1, 0);
+    g.grid.foodX = cx + g.snake.snakeLength + 1;
+    g.grid.foodY = cy;
   }
 
   function bossTick(g) {
@@ -2592,12 +2582,12 @@ describe("boss special abilities", () => {
   beforeEach(() => {
     game = new Game();
     game.manifest = buildTestManifest();
-    game.generateBoard = simpleBoardSetup;
-    game.advanceBoard = (g) => {
+    game.generateGrid = simpleGridSetup;
+    game.advanceGrid = (g) => {
       const hx = g.snake.snakeX[g.snake.headIndex];
       const hy = g.snake.snakeY[g.snake.headIndex];
-      g.board.foodX = hx + g.snake.dirX;
-      g.board.foodY = hy + g.snake.dirY;
+      g.grid.foodX = hx + g.snake.dirX;
+      g.grid.foodY = hy + g.snake.dirY;
     };
     game.startRun();
   });
@@ -2618,13 +2608,13 @@ describe("boss special abilities", () => {
     expect(locks.length).toBeGreaterThan(0);
   });
 
-  it("Anchor: lock cells are added to the board wall bitmask", () => {
+  it("Anchor: lock cells are added to the grid wall bitmask", () => {
     game._enterBossFight();
     triggerSpecial(game);
     const lock = game._bossModifiers.find((m) => m.type === "anchor_lock");
     if (lock && lock.cells.length > 0) {
       const cell = lock.cells[0];
-      expect(game.board.isWallCell(cell.x, cell.y)).toBe(true);
+      expect(game.grid.isWallCell(cell.x, cell.y)).toBe(true);
     }
   });
 
@@ -2638,14 +2628,14 @@ describe("boss special abilities", () => {
 
     // Position player one cell to the left of a lock cell, moving right
     const lockCell = lock.cells[0];
-    game.board.playerX = lockCell.x - 1;
-    game.board.playerY = lockCell.y;
+    game.grid.playerX = lockCell.x - 1;
+    game.grid.playerY = lockCell.y;
     game.onInput(1, 0);
     bossTick(game);
 
     // Player should survive and the lock cell should be cleared
     expect(game.state).toBe(Game.STATE_BOSS);
-    expect(game.board.isWallCell(lockCell.x, lockCell.y)).toBe(false);
+    expect(game.grid.isWallCell(lockCell.x, lockCell.y)).toBe(false);
   });
 
   it("Anchor: lock modifier expires after its duration", () => {
@@ -2665,7 +2655,7 @@ describe("boss special abilities", () => {
     expect(game._bossModifiers.filter((m) => m.type === "anchor_lock")).toHaveLength(0);
   });
 
-  it("Anchor: wall cells are cleared from board when lock expires", () => {
+  it("Anchor: wall cells are cleared from grid when lock expires", () => {
     game._enterBossFight();
     triggerSpecial(game);
     const lock = game._bossModifiers.find((m) => m.type === "anchor_lock");
@@ -2680,7 +2670,7 @@ describe("boss special abilities", () => {
     }
 
     for (const cell of trackedCells) {
-      expect(game.board.isWallCell(cell.x, cell.y)).toBe(false);
+      expect(game.grid.isWallCell(cell.x, cell.y)).toBe(false);
     }
   });
 
@@ -2706,21 +2696,21 @@ describe("boss special abilities", () => {
     const trackedCells = [...lock.cells];
 
     // Force a death to exit the boss fight
-    game.board.playerX = Game.BOARD_W - 2;
-    game.board.playerY = Math.floor(Game.BOARD_H / 2);
+    game.grid.playerX = Game.GRID_W - 2;
+    game.grid.playerY = Math.floor(Game.GRID_H / 2);
     game.onInput(1, 0);
     bossTick(game);
     expect(game.state).toBe(Game.STATE_DEAD);
 
-    // All lock cells must have been removed from the board
+    // All lock cells must have been removed from the grid
     for (const cell of trackedCells) {
-      expect(game.board.isWallCell(cell.x, cell.y)).toBe(false);
+      expect(game.grid.isWallCell(cell.x, cell.y)).toBe(false);
     }
     expect(game._bossModifiers).toHaveLength(0);
   });
 
   it("Absolute Unit: has no special (no modifiers ever placed)", () => {
-    game.upgrades.worldMode = "dream"; // unmapped → Absolute Unit fallback
+    game.upgrades.mutation = "dream"; // unmapped → Absolute Unit fallback
     game._enterBossFight();
     triggerSpecial(game);
     // No modifiers should have been placed
@@ -2730,7 +2720,7 @@ describe("boss special abilities", () => {
   // ── Current Sovereign (wildlands) ──────────────────────────────
 
   it("Sovereign: places sovereign_current modifier after BOSS_SPECIAL_INTERVAL ticks", () => {
-    game.upgrades.worldMode = "wildlands";
+    game.upgrades.mutation = "wildlands";
     game._enterBossFight();
     triggerSpecial(game);
     const currents = game._bossModifiers.filter((m) => m.type === "sovereign_current");
@@ -2738,7 +2728,7 @@ describe("boss special abilities", () => {
   });
 
   it("Sovereign: current zone cells are not in the wall bitmask (passable)", () => {
-    game.upgrades.worldMode = "wildlands";
+    game.upgrades.mutation = "wildlands";
     game._enterBossFight();
     triggerSpecial(game);
     const current = game._bossModifiers.find((m) => m.type === "sovereign_current");
@@ -2746,12 +2736,12 @@ describe("boss special abilities", () => {
       return;
     }
     for (const cell of current.cells) {
-      expect(game.board.isWallCell(cell.x, cell.y)).toBe(false);
+      expect(game.grid.isWallCell(cell.x, cell.y)).toBe(false);
     }
   });
 
   it("Sovereign: player standing in current zone is pushed each tick", () => {
-    game.upgrades.worldMode = "wildlands";
+    game.upgrades.mutation = "wildlands";
     game._enterBossFight();
     triggerSpecial(game);
     const current = game._bossModifiers.find((m) => m.type === "sovereign_current");
@@ -2761,26 +2751,26 @@ describe("boss special abilities", () => {
 
     // Place player on a current zone cell
     const zoneCell = current.cells[0];
-    game.board.playerX = zoneCell.x;
-    game.board.playerY = zoneCell.y;
+    game.grid.playerX = zoneCell.x;
+    game.grid.playerY = zoneCell.y;
     // Set spawn Y so Y clamp allows vertical push
     game._playerSpawnY = zoneCell.y;
-    const beforeX = game.board.playerX;
-    const beforeY = game.board.playerY;
+    const beforeX = game.grid.playerX;
+    const beforeY = game.grid.playerY;
 
     // Tick without holding a key — current should push player
     bossTick(game);
 
     // Player should have moved in the current direction (dx / dy)
-    const movedX = game.board.playerX - beforeX;
-    const movedY = game.board.playerY - beforeY;
+    const movedX = game.grid.playerX - beforeX;
+    const movedY = game.grid.playerY - beforeY;
     // Push is horizontal (dx=±1, dy=0) or vertical (dx=0, dy=±1)
     // We just verify movement happened in the right axis
     expect(movedX === current.dx && movedY === current.dy).toBe(true);
   });
 
   it("Sovereign: current modifier expires after its duration", () => {
-    game.upgrades.worldMode = "wildlands";
+    game.upgrades.mutation = "wildlands";
     game._enterBossFight();
     triggerSpecial(game);
     const current = game._bossModifiers.find((m) => m.type === "sovereign_current");
@@ -2825,8 +2815,8 @@ describe("player bullets", () => {
 
   describe("spawnPlayerBullet", () => {
     it("spawns a bullet one cell ahead of the player tip", () => {
-      game.board.playerX = 15;
-      game.board.playerY = 25;
+      game.grid.playerX = 15;
+      game.grid.playerY = 25;
       game._playerFacing = { dx: 0, dy: -1 };
       game._playerBullets = [];
 
@@ -2841,8 +2831,8 @@ describe("player bullets", () => {
     });
 
     it("spawns bullet in the correct direction when facing right", () => {
-      game.board.playerX = 10;
-      game.board.playerY = 15;
+      game.grid.playerX = 10;
+      game.grid.playerY = 15;
       game._playerFacing = { dx: 1, dy: 0 };
       game._playerBullets = [];
 
@@ -2860,7 +2850,7 @@ describe("player bullets", () => {
     it("advances bullets by their velocity each call", () => {
       game._playerBullets = [{ x: 15, y: 20, dx: 0, dy: -1 }];
 
-      updatePlayerBullets(game._playerBullets, game.board);
+      updatePlayerBullets(game._playerBullets, game.grid);
 
       expect(game._playerBullets[0].x).toBe(15);
       expect(game._playerBullets[0].y).toBe(19);
@@ -2870,7 +2860,7 @@ describe("player bullets", () => {
       // Place bullet at top edge heading up — next step goes out of bounds
       game._playerBullets = [{ x: 15, y: 0, dx: 0, dy: -1 }];
 
-      updatePlayerBullets(game._playerBullets, game.board);
+      updatePlayerBullets(game._playerBullets, game.grid);
 
       expect(game._playerBullets).toHaveLength(0);
     });
@@ -2879,7 +2869,7 @@ describe("player bullets", () => {
       // Place bullet so next position is a wall cell (arena border at y=0 is wall)
       game._playerBullets = [{ x: 15, y: 1, dx: 0, dy: -1 }];
 
-      updatePlayerBullets(game._playerBullets, game.board);
+      updatePlayerBullets(game._playerBullets, game.grid);
 
       // y=0 is the arena wall — bullet should be removed
       expect(game._playerBullets).toHaveLength(0);
@@ -2975,16 +2965,16 @@ describe("player bullets", () => {
 describe("destructible boss body", () => {
   let game;
 
-  function simpleBoardSetup(g) {
-    g.board.clearMasks("wall");
-    g.board.clearMasks("snake");
-    g.board.clearMasks("reserved");
-    g.board.terrain.fill(0);
-    const cx = Math.floor(Game.BOARD_W / 2);
-    const cy = Math.floor(Game.BOARD_H / 2);
-    g.snake.init(g.board, cx, cy, g.snake.snakeLength, 1, 0);
-    g.board.foodX = cx + g.snake.snakeLength + 1;
-    g.board.foodY = cy;
+  function simpleGridSetup(g) {
+    g.grid.clearMasks("wall");
+    g.grid.clearMasks("snake");
+    g.grid.clearMasks("reserved");
+    g.grid.terrain.fill(0);
+    const cx = Math.floor(Game.GRID_W / 2);
+    const cy = Math.floor(Game.GRID_H / 2);
+    g.snake.init(g.grid, cx, cy, g.snake.snakeLength, 1, 0);
+    g.grid.foodX = cx + g.snake.snakeLength + 1;
+    g.grid.foodY = cy;
   }
 
   function bossTick(g) {
@@ -2996,12 +2986,12 @@ describe("destructible boss body", () => {
   beforeEach(() => {
     game = new Game();
     game.manifest = buildTestManifest();
-    game.generateBoard = simpleBoardSetup;
-    game.advanceBoard = (g) => {
+    game.generateGrid = simpleGridSetup;
+    game.advanceGrid = (g) => {
       const hx = g.snake.snakeX[g.snake.headIndex];
       const hy = g.snake.snakeY[g.snake.headIndex];
-      g.board.foodX = hx + g.snake.dirX;
-      g.board.foodY = hy + g.snake.dirY;
+      g.grid.foodX = hx + g.snake.dirX;
+      g.grid.foodY = hy + g.snake.dirY;
     };
     game.startRun();
     game._enterBossFight();

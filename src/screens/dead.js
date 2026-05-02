@@ -1,18 +1,20 @@
 // dead.js — Game over screen
 
+import { LABELS } from "../text/labels.js";
+
 export const deadScreen = {
   draw(renderer, game) {
     renderer.clear();
     const cause = game.snake.deathCause || "unknown";
     renderer.drawScreen("dead", [
-      "G A M E   O V E R",
+      LABELS.dead.title,
       "",
-      "Cause: " + cause,
-      "Score: " + game.score,
-      "Level: " + game.level,
-      "Time: " + game.constructor.formatTime(game.runTime),
+      `${LABELS.dead.cause}: ${cause}`,
+      `${LABELS.hud.score}: ${game.score}`,
+      `${LABELS.hud.act}: ${game.actIndex}`,
+      `${LABELS.hud.time}: ${game.constructor.formatTime(game.runTime)}`,
       "",
-      "Press Space or Enter to restart",
+      LABELS.dead.restart,
     ]);
     renderer.flush();
   },

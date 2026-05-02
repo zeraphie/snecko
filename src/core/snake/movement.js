@@ -24,10 +24,10 @@ export function setNextDirection(dx, dy) {
  * Advances the snake one cell in the current direction. Handles wrapping,
  * collision detection, food consumption, and growth.
  *
- * @param {import('../board/index.js').Board} board
+ * @param {import('../grid/index.js').Grid} grid
  * @returns {"ok"|"food"|"boss-food"|"wall"|"self"|"dead"} — outcome of the step
  */
-export function step(board) {
+export function step(grid) {
   if (!this.alive) {
     return "dead";
   }
@@ -42,17 +42,17 @@ export function step(board) {
 
   // Wrap around edges
   if (nx < 0) {
-    nx = board.width - 1;
-  } else if (nx >= board.width) {
+    nx = grid.width - 1;
+  } else if (nx >= grid.width) {
     nx = 0;
   }
   if (ny < 0) {
-    ny = board.height - 1;
-  } else if (ny >= board.height) {
+    ny = grid.height - 1;
+  } else if (ny >= grid.height) {
     ny = 0;
   }
 
-  if (board.isWallCell(nx, ny)) {
+  if (grid.isWallCell(nx, ny)) {
     this.alive = false;
     this.deathCause = DEATH_WALL;
     return "wall";
@@ -62,38 +62,38 @@ export function step(board) {
   const tailY = this.snakeY[this.tailIndex];
   const tailWillVacate = !this.growing && nx === tailX && ny === tailY;
 
-  if (board.isSnakeCell(nx, ny) && !tailWillVacate) {
+  if (grid.isSnakeCell(nx, ny) && !tailWillVacate) {
     this.alive = false;
     this.deathCause = DEATH_SELF;
     return "self";
   }
 
-  const ateFood = nx === board.foodX && ny === board.foodY;
-  const ateBossFood = nx === board.bossFoodX && ny === board.bossFoodY;
+  const ateFood = nx === grid.foodX && ny === grid.foodY;
+  const ateBossFood = nx === grid.bossFoodX && ny === grid.bossFoodY;
 
   this.headIndex = (this.headIndex + 1) % MAX_CELLS;
   this.snakeX[this.headIndex] = nx;
   this.snakeY[this.headIndex] = ny;
-  board.setCell("snake", nx, ny);
+  grid.setCell("snake", nx, ny);
 
   if (this.growing) {
     this.growing = false;
     this.snakeLength++;
   } else {
-    board.clearCell("snake", tailX, tailY);
+    grid.clearCell("snake", tailX, tailY);
     this.tailIndex = (this.tailIndex + 1) % MAX_CELLS;
   }
 
   if (ateBossFood) {
-    board.bossFoodX = -1;
-    board.bossFoodY = -1;
+    grid.bossFoodX = -1;
+    grid.bossFoodY = -1;
     return "boss-food";
   }
 
   if (ateFood) {
     this.growing = true;
-    board.foodX = -1;
-    board.foodY = -1;
+    grid.foodX = -1;
+    grid.foodY = -1;
     return "food";
   }
 

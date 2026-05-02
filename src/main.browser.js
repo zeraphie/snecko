@@ -1,17 +1,17 @@
 // main.browser.js — Browser entry point with game loop
 
 import { Game } from "./core/game/index.js";
-import { generateBoard, advanceBoard } from "./core/generation/index.js";
+import { generateGrid, advanceGrid } from "./core/generation/index.js";
 import { CanvasRenderer } from "./render/canvas/index.js";
 import { loadAssets, getLoaderDots } from "./core/loader.js";
 import { KeyboardBrowserController } from "./input/KeyboardBrowserController.js";
 
 const CELL_SIZE = 20;
 const game = new Game();
-game.generateBoard = generateBoard;
-game.advanceBoard = advanceBoard;
+game.generateGrid = generateGrid;
+game.advanceGrid = advanceGrid;
 const canvas = document.getElementById("game");
-game.renderer = new CanvasRenderer(canvas, CELL_SIZE, Game.BOARD_W, Game.BOARD_H);
+game.renderer = new CanvasRenderer(canvas, CELL_SIZE, Game.GRID_W, Game.GRID_H);
 
 const controller = new KeyboardBrowserController();
 controller.attach(game);

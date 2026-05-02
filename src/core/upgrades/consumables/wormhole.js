@@ -28,13 +28,13 @@ export function moveWormholeCursor(game, dx, dy) {
   let nx = game._wormholeCursor.x + dx;
   let ny = game._wormholeCursor.y + dy;
   if (nx < 0) {
-    nx = game.board.width - 1;
-  } else if (nx >= game.board.width) {
+    nx = game.grid.width - 1;
+  } else if (nx >= game.grid.width) {
     nx = 0;
   }
   if (ny < 0) {
-    ny = game.board.height - 1;
-  } else if (ny >= game.board.height) {
+    ny = game.grid.height - 1;
+  } else if (ny >= game.grid.height) {
     ny = 0;
   }
   game._wormholeCursor.x = nx;
@@ -50,13 +50,13 @@ export function moveWormholeCursor(game, dx, dy) {
  * @returns {boolean}
  */
 export function isValidPortalCell(game, x, y) {
-  if (game.board.isWallCell(x, y)) {
+  if (game.grid.isWallCell(x, y)) {
     return false;
   }
-  if (game.board.isSnakeCell(x, y)) {
+  if (game.grid.isSnakeCell(x, y)) {
     return false;
   }
-  if (x === game.board.foodX && y === game.board.foodY) {
+  if (x === game.grid.foodX && y === game.grid.foodY) {
     return false;
   }
   return true;
@@ -141,8 +141,8 @@ export function applyWormholeTeleport(game) {
   }
 
   // Move the head to the destination
-  game.board.clearCell("snake", hx, hy);
+  game.grid.clearCell("snake", hx, hy);
   game.snake.snakeX[game.snake.headIndex] = destX;
   game.snake.snakeY[game.snake.headIndex] = destY;
-  game.board.setCell("snake", destX, destY);
+  game.grid.setCell("snake", destX, destY);
 }

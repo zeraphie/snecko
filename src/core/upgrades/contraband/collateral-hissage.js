@@ -5,9 +5,8 @@
 /**
  * @type {import('./index.js').ContrabandDef}
  */
+// Player-facing name/desc lives in src/text/labels.js (LABELS.upgrades.collateral_hissage).
 export default {
   id: "collateral_hissage",
-  name: "Collateral hissage",
-  desc: "One hit, three problems. Not your problems.",
   apply: (_game) => {}, // Checked at hit time in boss-tick.js — no apply-time setup needed
 };

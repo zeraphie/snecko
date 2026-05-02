@@ -1,16 +1,17 @@
 // hud.js — Canvas HUD, boss info, and boss intro overlay
 
 import { TEXT_COLOR } from "./colors.js";
+import { LABELS } from "../../text/labels.js";
 
 export function drawHUD(
   score,
-  board,
+  actIndex,
   time,
-  level,
   foodEaten,
   foodRequired,
   passives,
   consumables,
+  bites,
   selectedConsumable
 ) {
   const ctx = this._ctx;
@@ -22,7 +23,7 @@ export function drawHUD(
   const secs = String(Math.floor(time % 60)).padStart(2, "0");
   ctx.fillStyle = TEXT_COLOR;
   ctx.fillText(
-    `Lv ${level}  Food: ${foodEaten}/${foodRequired}  Score: ${score}  Time: ${mins}:${secs}`,
+    `${LABELS.hud.act} ${actIndex}  ${LABELS.hud.progress}: ${foodEaten}/${foodRequired}  ${LABELS.hud.score}: ${score}  ${LABELS.hud.time}: ${mins}:${secs}`,
     8,
     y1
   );
@@ -31,18 +32,22 @@ export function drawHUD(
   const parts = [];
   if (passives && passives.length > 0) {
     for (const p of passives) {
-      if (p.remainingFood !== undefined) {
-        parts.push(`${p.id}(${p.remainingFood}fd)`);
-      } else {
-        parts.push(`${p.id}(${p.remainingLevels}Lv)`);
-      }
+      const short = LABELS.upgrades[p.id]?.short ?? p.id;
+      parts.push(`${short} ${p.remainingBites} ${LABELS.hud.bites}`);
+    }
+  }
+  if (bites && bites.length > 0) {
+    for (const b of bites) {
+      const short = LABELS.upgrades[b.id]?.short ?? b.id;
+      parts.push(`${short} ${b.charges} ${LABELS.hud.bites}`);
     }
   }
   if (consumables && consumables.length > 0) {
     for (let i = 0; i < consumables.length; i++) {
       const c = consumables[i];
+      const short = LABELS.upgrades[c.id]?.short ?? c.id;
       const sel = i === selectedConsumable;
-      parts.push(sel ? `[${c.id} x${c.charges}]` : `${c.id} x${c.charges}`);
+      parts.push(sel ? `[${short} x${c.charges}]` : `${short} x${c.charges}`);
     }
   }
   if (parts.length > 0) {
@@ -82,10 +87,9 @@ export function drawBossInfo(name, hp, maxHp, phase) {
   ctx.fillText(`${hp}/${maxHp}`, hpX, y2);
 
   const phaseColors = { 0: "#444", 1: "#ccc", 2: "#f39c12", 3: "#e74c3c" };
-  const phaseLabels = { 0: "warmup", 1: "phase 1", 2: "phase 2", 3: "phase 3" };
   const badgeX = hpX + ctx.measureText(`${hp}/${maxHp}`).width + 10;
   ctx.fillStyle = phaseColors[phase] ?? "#444";
-  ctx.fillText(`[${phaseLabels[phase] ?? ""}]`, badgeX, y2);
+  ctx.fillText(`[${LABELS.boss.phases[phase] ?? ""}]`, badgeX, y2);
 
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
@@ -114,11 +118,11 @@ export function drawBossIntroOverlay(name, ticksLeft, total) {
   ctx.textBaseline = "middle";
   ctx.fillStyle = "#e74c3c";
   ctx.font = "bold 18px monospace";
-  ctx.fillText(`\u26A0  INCOMING: ${name}  \u26A0`, w / 2, panelY + 26);
+  ctx.fillText(`\u26A0  ${LABELS.boss.incoming}: ${name}  \u26A0`, w / 2, panelY + 26);
 
   ctx.fillStyle = "#888";
   ctx.font = "12px monospace";
-  ctx.fillText("hold position...", w / 2, panelY + 54);
+  ctx.fillText(LABELS.boss.holdPosition, w / 2, panelY + 54);
 
   ctx.globalAlpha = 1;
   ctx.textAlign = "left";

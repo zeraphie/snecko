@@ -22,17 +22,17 @@ export function fireAimed(fromX, fromY, toX, toY) {
 
 /**
  * Advances every active projectile by one cell and removes any that leave the
- * board boundary or land on a wall cell.
+ * grid boundary or land on a wall cell.
  *
  * @param {Array<{x:number, y:number, dx:number, dy:number}>} projectiles
- * @param {import('../board/index.js').Board} board
+ * @param {import('../grid/index.js').Grid} grid
  */
-export function updateProjectiles(projectiles, board) {
+export function updateProjectiles(projectiles, grid) {
   for (let i = projectiles.length - 1; i >= 0; i--) {
     const p = projectiles[i];
     p.x += p.dx;
     p.y += p.dy;
-    if (!board.isInBounds(p.x, p.y) || board.isWallCell(p.x, p.y)) {
+    if (!grid.isInBounds(p.x, p.y) || grid.isWallCell(p.x, p.y)) {
       projectiles.splice(i, 1);
     }
   }

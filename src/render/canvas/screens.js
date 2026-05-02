@@ -2,6 +2,25 @@
 
 import { LOGO_PIXELS, LOGO_COLORS, LOGO_WIDTH, LOGO_HEIGHT } from "../../utils/logo.js";
 import { TEXT_COLOR } from "./colors.js";
+import { LABELS } from "../../text/labels.js";
+
+/**
+ * Builds the corner badge for an upgrade card. Passives/bites show duration
+ * or charge count in bites; consumables show a charge count; mutations have
+ * no badge.
+ */
+function upgradeBadge(def) {
+  if (def.type === "passive") {
+    return "+" + def.duration + " " + LABELS.hud.bites;
+  }
+  if (def.type === "bites") {
+    return "x" + def.charges + " " + LABELS.hud.bites;
+  }
+  if (def.type === "consumable") {
+    return "x" + def.charges;
+  }
+  return null;
+}
 
 function _drawLogo(ox, oy, px) {
   const ctx = this._ctx;
@@ -63,7 +82,7 @@ export function drawDraftScreen(choices, mutation, selectedIndex, mutationAccept
 
   ctx.fillStyle = TEXT_COLOR;
   ctx.font = "bold 20px monospace";
-  ctx.fillText("L E V E L   U P", w / 2, 30);
+  ctx.fillText(LABELS.draft.title, w / 2, 30);
 
   const cardW = Math.min(w - 40, 320);
   const cardH = 50;
@@ -75,6 +94,7 @@ export function drawDraftScreen(choices, mutation, selectedIndex, mutationAccept
 
   for (let i = 0; i < choices.length; i++) {
     const def = choices[i];
+    const labels = LABELS.upgrades[def.id] ?? {};
     const y = startY + i * (cardH + gap);
     const selected = i === selectedIndex;
 
@@ -88,22 +108,25 @@ export function drawDraftScreen(choices, mutation, selectedIndex, mutationAccept
     ctx.textAlign = "left";
     ctx.fillStyle = selected ? "#27ae60" : "#666";
     ctx.font = "bold 14px monospace";
-    const label = selected ? "\u25b6 " + def.name : def.name;
+    const label = selected ? "\u25b6 " + labels.name : labels.name;
     ctx.fillText(label, cardX + 10, y + 20);
 
     ctx.textAlign = "right";
     ctx.fillStyle = "#888";
     ctx.font = "11px monospace";
-    const badge = def.type === "passive" ? "+" + def.duration + " Rounds" : "x" + def.charges;
-    ctx.fillText(badge, cardX + cardW - 10, y + 20);
+    const badge = upgradeBadge(def);
+    if (badge) {
+      ctx.fillText(badge, cardX + cardW - 10, y + 20);
+    }
 
     ctx.textAlign = "left";
     ctx.fillStyle = "#aaa";
     ctx.font = "11px monospace";
-    ctx.fillText(def.desc, cardX + 10, y + 38);
+    ctx.fillText(labels.desc ?? "", cardX + 10, y + 38);
   }
 
   if (mutation) {
+    const mLabels = LABELS.upgrades[mutation.id] ?? {};
     const mY = startY + choices.length * (cardH + gap);
 
     ctx.fillStyle = mutationAccepted ? "#3a2040" : "#1a1a2e";
@@ -117,24 +140,20 @@ export function drawDraftScreen(choices, mutation, selectedIndex, mutationAccept
     ctx.fillStyle = mutationAccepted ? "#e74c3c" : "#6a3a3a";
     ctx.font = "bold 14px monospace";
     const mLabel = mutationAccepted
-      ? "\u25b6 MUTATION: " + mutation.name
-      : "MUTATION: " + mutation.name;
+      ? `\u25b6 ${LABELS.draft.mutationPrefix}: ${mLabels.name}`
+      : `${LABELS.draft.mutationPrefix}: ${mLabels.name}`;
     ctx.fillText(mLabel, cardX + 10, mY + 20);
 
     ctx.fillStyle = "#aaa";
     ctx.font = "11px monospace";
-    ctx.fillText(mutation.desc, cardX + 10, mY + 38);
+    ctx.fillText(mLabels.desc ?? "", cardX + 10, mY + 38);
   }
 
   const instrY = startY + totalCards * (cardH + gap) + 10;
   ctx.textAlign = "center";
   ctx.fillStyle = "#666";
   ctx.font = "12px monospace";
-  ctx.fillText(
-    "\u2191\u2193 select" + (mutation ? ", \u2190\u2192 mutation" : "") + ", Enter confirm",
-    w / 2,
-    instrY
-  );
+  ctx.fillText(mutation ? LABELS.draft.selectInstrFull : LABELS.draft.selectInstr, w / 2, instrY);
 
   ctx.textAlign = "left";
 }
@@ -151,11 +170,11 @@ export function drawContrabandScreen(choices, selectedIndex, collected) {
 
   ctx.fillStyle = "#e74c3c";
   ctx.font = "bold 22px monospace";
-  ctx.fillText("C O N T R A B A N D", w / 2, 28);
+  ctx.fillText(LABELS.contraband.title, w / 2, 28);
 
   ctx.fillStyle = "#555";
   ctx.font = "11px monospace";
-  ctx.fillText("These upgrades are not on the flight manifest.", w / 2, 50);
+  ctx.fillText(LABELS.contraband.subtitle, w / 2, 50);
 
   const cardW = Math.min(w - 40, 320);
   const cardH = 52;
@@ -167,6 +186,7 @@ export function drawContrabandScreen(choices, selectedIndex, collected) {
   if (choices) {
     for (let i = 0; i < choices.length; i++) {
       const item = choices[i];
+      const labels = LABELS.upgrades[item.id] ?? {};
       const y = startY + i * (cardH + gap);
       const selected = i === selectedIndex;
 
@@ -180,12 +200,12 @@ export function drawContrabandScreen(choices, selectedIndex, collected) {
       ctx.textAlign = "left";
       ctx.fillStyle = selected ? "#e74c3c" : "#888";
       ctx.font = "bold 13px monospace";
-      const label = selected ? "\u25b6 " + item.name : item.name;
+      const label = selected ? "\u25b6 " + labels.name : labels.name;
       ctx.fillText(label, cardX + 10, y + 18);
 
       ctx.fillStyle = "#666";
       ctx.font = "11px monospace";
-      ctx.fillText(item.desc, cardX + 10, y + 38);
+      ctx.fillText(labels.desc ?? "", cardX + 10, y + 38);
     }
   }
 
@@ -194,11 +214,15 @@ export function drawContrabandScreen(choices, selectedIndex, collected) {
   ctx.textAlign = "center";
   ctx.fillStyle = "#444";
   ctx.font = "11px monospace";
-  ctx.fillText(`In the hold: ${holdCount} item${holdCount !== 1 ? "s" : ""}`, w / 2, stashY);
+  ctx.fillText(
+    `${LABELS.contraband.inHold}: ${holdCount} item${holdCount !== 1 ? "s" : ""}`,
+    w / 2,
+    stashY
+  );
 
   ctx.fillStyle = "#333";
   ctx.font = "12px monospace";
-  ctx.fillText("\u2191\u2193 select, Enter confirm", w / 2, stashY + 20);
+  ctx.fillText(LABELS.contraband.selectInstr, w / 2, stashY + 20);
 
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";

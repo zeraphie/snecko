@@ -1,4 +1,4 @@
-// constants.js — Board constants
+// constants.js — Grid constants
 
 export const CHUNK_BITS = 31; // use 31 bits per chunk (safe for signed 32-bit ints)
 

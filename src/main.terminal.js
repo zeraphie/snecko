@@ -7,10 +7,10 @@ import { TerminalRenderer } from "./render/terminal/index.js";
 import { loadAssets, getLoaderDots } from "./core/loader.js";
 import { KeyboardTerminalController } from "./input/KeyboardTerminalController.js";
 import { Game } from "./core/game/index.js";
-import { generateBoard, advanceBoard } from "./core/generation/index.js";
+import { generateGrid, advanceGrid } from "./core/generation/index.js";
 import {
-  generateWildlandsBoard,
-  advanceWildlandsBoard,
+  generateWildlandsGrid,
+  advanceWildlandsGrid,
 } from "./core/generation/wildlands/generator.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -38,7 +38,7 @@ const projectRoot = resolve(__dirname, "..");
 const mode = process.argv[2] || "";
 const worldArg = process.argv[3] || "";
 
-// The effective world mode: explicit override first, then infer from play mode.
+// The effective mutation: explicit override first, then infer from play mode.
 const effectiveWorld = worldArg || (mode === "wildlands" ? "wildlands" : "");
 
 // ── Generator setup ───────────────────────────────────────────────
@@ -46,19 +46,19 @@ const effectiveWorld = worldArg || (mode === "wildlands" ? "wildlands" : "");
 const game = new Game();
 
 if (mode === "wildlands") {
-  game.generateBoard = generateWildlandsBoard;
-  game.advanceBoard = advanceWildlandsBoard;
+  game.generateGrid = generateWildlandsGrid;
+  game.advanceGrid = advanceWildlandsGrid;
 } else {
-  game.generateBoard = generateBoard;
-  game.advanceBoard = advanceBoard;
+  game.generateGrid = generateGrid;
+  game.advanceGrid = advanceGrid;
 }
 
 // ── startRun patch ────────────────────────────────────────────────
 //
-// startRun() calls upgrades.reset() which resets worldMode to 'crystalline'.
+// startRun() calls upgrades.reset() which resets the mutation to 'crystalline'.
 // Any dev-mode override needs to be re-applied after that reset.
 // This single patch handles:
-//   1. Restoring the effective world mode after reset.
+//   1. Restoring the effective mutation after reset.
 //   2. Entering the boss arena immediately (boss mode only).
 
 if (effectiveWorld || mode === "boss") {
@@ -66,7 +66,7 @@ if (effectiveWorld || mode === "boss") {
   game.startRun = function () {
     _origStartRun();
     if (effectiveWorld) {
-      this.upgrades.worldMode = effectiveWorld;
+      this.upgrades.mutation = effectiveWorld;
     }
     if (mode === "boss") {
       this._enterBossFight();
@@ -76,7 +76,7 @@ if (effectiveWorld || mode === "boss") {
 
 // ── Renderer & screen init ────────────────────────────────────────
 
-game.renderer = new TerminalRenderer(process.stdout, Game.BOARD_W, Game.BOARD_H);
+game.renderer = new TerminalRenderer(process.stdout, Game.GRID_W, Game.GRID_H);
 
 // Clear screen; set terminal tab title for dev modes
 process.stdout.write("\x1b[2J\x1b[H");
@@ -112,11 +112,11 @@ controller.attach(game);
 
   setInterval(function () {
     // Boss mode: whenever the game lands in STATE_PLAYING (e.g. after a boss
-    // victory that didn't trigger a draft), restore the world mode and jump
+    // victory that didn't trigger a draft), restore the mutation and jump
     // straight back into the arena so there's no detour through normal boards.
     if (mode === "boss" && game.state === Game.STATE_PLAYING) {
       if (effectiveWorld) {
-        game.upgrades.worldMode = effectiveWorld;
+        game.upgrades.mutation = effectiveWorld;
       }
       game._enterBossFight();
     }

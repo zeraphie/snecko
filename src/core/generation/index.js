@@ -1,9 +1,9 @@
-// generation.js — Board generation: influence map, shape placement, food
+// generation.js — Grid generation: influence map, shape placement, food
 
 import { Snake } from "../snake/index.js";
 import { buildCrystals, canPlaceStage, placeStage } from "./crystalline/crystals.js";
 import { initLattice, advanceLattice } from "../mechanics/lattice.js";
-import { TERRAIN_TELEGRAPH, TERRAIN_CURRENT } from "../board/constants.js";
+import { TERRAIN_TELEGRAPH, TERRAIN_CURRENT } from "../grid/constants.js";
 
 const CRYSTALS = buildCrystals();
 const SPAWN_BUFFER = 3;
@@ -17,14 +17,14 @@ const RESERVE_RADIUS = 2;
 /**
  * Marks a rectangular zone around the snake's spawn as reserved.
  *
- * @param {import('../board/index.js').Board} board
+ * @param {import('../grid/index.js').Grid} grid
  * @param {number} spawnX
  * @param {number} spawnY
  * @param {number} snakeLength
  * @param {number} dx — spawn direction X
  * @param {number} dy — spawn direction Y
  */
-export function buildReservedSpawnZone(board, spawnX, spawnY, snakeLength, dx, dy) {
+export function buildReservedSpawnZone(grid, spawnX, spawnY, snakeLength, dx, dy) {
   let minX = spawnX - Math.abs(dx) * (snakeLength - 1);
   let minY = spawnY - Math.abs(dy) * (snakeLength - 1);
   let maxX = spawnX;
@@ -60,12 +60,12 @@ export function buildReservedSpawnZone(board, spawnX, spawnY, snakeLength, dx, d
 
   minX = Math.max(0, minX);
   minY = Math.max(0, minY);
-  maxX = Math.min(board.width - 1, maxX);
-  maxY = Math.min(board.height - 1, maxY);
+  maxX = Math.min(grid.width - 1, maxX);
+  maxY = Math.min(grid.height - 1, maxY);
 
   for (let y = minY; y <= maxY; y++) {
     for (let x = minX; x <= maxX; x++) {
-      board.setCell("reserved", x, y);
+      grid.setCell("reserved", x, y);
     }
   }
 }
@@ -73,12 +73,12 @@ export function buildReservedSpawnZone(board, spawnX, spawnY, snakeLength, dx, d
 /**
  * Marks cells around the snake body and ahead of the head as reserved.
  *
- * @param {import('../board/index.js').Board} board
+ * @param {import('../grid/index.js').Grid} grid
  * @param {import('../snake/index.js').Snake} snake
  */
-export function buildReservedAroundSnake(board, snake) {
-  const w = board.width;
-  const h = board.height;
+export function buildReservedAroundSnake(grid, snake) {
+  const w = grid.width;
+  const h = grid.height;
 
   let idx = snake.tailIndex;
   while (true) {
@@ -89,7 +89,7 @@ export function buildReservedAroundSnake(board, snake) {
         const rx = sx + dx;
         const ry = sy + dy;
         if (rx >= 0 && rx < w && ry >= 0 && ry < h) {
-          board.setCell("reserved", rx, ry);
+          grid.setCell("reserved", rx, ry);
         }
       }
     }
@@ -105,7 +105,7 @@ export function buildReservedAroundSnake(board, snake) {
     const ax = hx + snake.dirX * i;
     const ay = hy + snake.dirY * i;
     if (ax >= 0 && ax < w && ay >= 0 && ay < h) {
-      board.setCell("reserved", ax, ay);
+      grid.setCell("reserved", ax, ay);
     }
   }
 }
@@ -115,12 +115,12 @@ export function buildReservedAroundSnake(board, snake) {
 /**
  * Generates a normalised [0,1] influence map using random attractors.
  *
- * @param {import('../board/index.js').Board} board
+ * @param {import('../grid/index.js').Grid} grid
  * @returns {Float32Array}
  */
-export function generateInfluenceMap(board) {
-  const w = board.width;
-  const h = board.height;
+export function generateInfluenceMap(grid) {
+  const w = grid.width;
+  const h = grid.height;
   const map = new Float32Array(w * h);
 
   for (let a = 0; a < INFLUENCE_ATTRACTORS; a++) {
@@ -160,7 +160,7 @@ export function generateInfluenceMap(board) {
 /**
  * Scores a candidate shape placement by influence density + distance from reference point.
  *
- * @param {import('../board/index.js').Board} board
+ * @param {import('../grid/index.js').Grid} grid
  * @param {Float32Array} influenceMap
  * @param {object} shape — rotation with solidRows/width/height
  * @param {number} x
@@ -169,8 +169,8 @@ export function generateInfluenceMap(board) {
  * @param {number} refY
  * @returns {number}
  */
-export function scoreShapePlacement(board, influenceMap, shape, x, y, refX, refY) {
-  const w = board.width;
+export function scoreShapePlacement(grid, influenceMap, shape, x, y, refX, refY) {
+  const w = grid.width;
   let totalInfluence = 0;
   let cellCount = 0;
 
@@ -191,7 +191,7 @@ export function scoreShapePlacement(board, influenceMap, shape, x, y, refX, refY
   const cx = x + shape.width / 2;
   const cy = y + shape.height / 2;
   const dist = Math.sqrt((cx - refX) * (cx - refX) + (cy - refY) * (cy - refY));
-  const maxDist = Math.sqrt(w * w + board.height * board.height);
+  const maxDist = Math.sqrt(w * w + grid.height * grid.height);
   const distBonus = (dist / maxDist) * 0.3;
 
   return avgInfluence + distBonus;
@@ -200,27 +200,27 @@ export function scoreShapePlacement(board, influenceMap, shape, x, y, refX, refY
 /**
  * Tries random candidate positions and returns the highest-scoring valid placement.
  *
- * @param {import('../board/index.js').Board} board
+ * @param {import('../grid/index.js').Grid} grid
  * @param {Float32Array} influenceMap
  * @param {object} shape
  * @param {number} refX
  * @param {number} refY
  * @returns {{ x: number, y: number, score: number }|null}
  */
-export function findBestPlacement(board, influenceMap, shape, refX, refY) {
+export function findBestPlacement(grid, influenceMap, shape, refX, refY) {
   let bestScore = -1;
   let bestX = -1;
   let bestY = -1;
 
   for (let i = 0; i < PLACEMENT_CANDIDATES; i++) {
-    const x = Math.floor(Math.random() * board.width);
-    const y = Math.floor(Math.random() * board.height);
+    const x = Math.floor(Math.random() * grid.width);
+    const y = Math.floor(Math.random() * grid.height);
 
-    if (!canPlaceStage(board, shape, x, y)) {
+    if (!canPlaceStage(grid, shape, x, y)) {
       continue;
     }
 
-    const score = scoreShapePlacement(board, influenceMap, shape, x, y, refX, refY);
+    const score = scoreShapePlacement(grid, influenceMap, shape, x, y, refX, refY);
     if (score > bestScore) {
       bestScore = score;
       bestX = x;
@@ -235,19 +235,19 @@ export function findBestPlacement(board, influenceMap, shape, refX, refY) {
 }
 
 /**
- * Picks a random set of crystal shapes scaled to the current board index.
+ * Picks a random set of crystal shapes scaled to the current act index.
  *
- * @param {number} boardIndex
+ * @param {number} actIndex
  * @returns {object[]}
  */
-export function pickShapesForBoard(boardIndex) {
+export function pickShapesForAct(actIndex) {
   let count;
-  if (boardIndex <= 3) {
+  if (actIndex <= 3) {
     count = 1;
-  } else if (boardIndex <= 8) {
+  } else if (actIndex <= 8) {
     count = 2;
   } else {
-    count = 3 + Math.floor((boardIndex - 9) / 4);
+    count = 3 + Math.floor((actIndex - 9) / 4);
   }
 
   const shapes = [];
@@ -264,92 +264,92 @@ export function pickShapesForBoard(boardIndex) {
 
 // ── Food placement ────────────────────────────────────────────────
 
-function isFoodBlocked(board, x, y) {
-  if (board.isBlockedCell(x, y)) {
+function isFoodBlocked(grid, x, y) {
+  if (grid.isBlockedCell(x, y)) {
     return true;
   }
-  const t = board.terrain[y * board.width + x];
+  const t = grid.terrain[y * grid.width + x];
   return t === TERRAIN_TELEGRAPH || t === TERRAIN_CURRENT;
 }
 
 /**
  * Places food at a random unblocked, non-terrain cell (with fallback full scan).
  *
- * @param {import('../board/index.js').Board} board
+ * @param {import('../grid/index.js').Grid} grid
  */
-export function placeFood(board) {
+export function placeFood(grid) {
   for (let attempts = 0; attempts < 200; attempts++) {
-    const x = Math.floor(Math.random() * board.width);
-    const y = Math.floor(Math.random() * board.height);
-    if (!isFoodBlocked(board, x, y)) {
-      board.foodX = x;
-      board.foodY = y;
+    const x = Math.floor(Math.random() * grid.width);
+    const y = Math.floor(Math.random() * grid.height);
+    if (!isFoodBlocked(grid, x, y)) {
+      grid.foodX = x;
+      grid.foodY = y;
       return;
     }
   }
-  for (let y = 0; y < board.height; y++) {
-    for (let x = 0; x < board.width; x++) {
-      if (!isFoodBlocked(board, x, y)) {
-        board.foodX = x;
-        board.foodY = y;
+  for (let y = 0; y < grid.height; y++) {
+    for (let x = 0; x < grid.width; x++) {
+      if (!isFoodBlocked(grid, x, y)) {
+        grid.foodX = x;
+        grid.foodY = y;
         return;
       }
     }
   }
 }
 
-// ── Board generation ──────────────────────────────────────────────
+// ── Grid generation ──────────────────────────────────────────────
 
 /**
- * Generates a fresh crystalline board: clears masks, places shapes, spawns snake and food.
+ * Generates a fresh crystalline grid: clears masks, places shapes, spawns snake and food.
  *
  * @param {import('../game/index.js').Game} game
  */
-export function generateBoard(game) {
-  const board = game.board;
+export function generateGrid(game) {
+  const grid = game.grid;
 
-  board.clearMasks("wall");
-  board.clearMasks("snake");
-  board.clearMasks("reserved");
-  board.terrain.fill(0);
+  grid.clearMasks("wall");
+  grid.clearMasks("snake");
+  grid.clearMasks("reserved");
+  grid.terrain.fill(0);
 
-  const spawnX = Math.floor(board.width / 2);
-  const spawnY = Math.floor(board.height / 2);
+  const spawnX = Math.floor(grid.width / 2);
+  const spawnY = Math.floor(grid.height / 2);
   const dx = 1;
   const dy = 0;
 
   const snakeLen = game.snake.snakeLength > 0 ? game.snake.snakeLength : 3;
 
-  buildReservedSpawnZone(board, spawnX, spawnY, snakeLen, dx, dy);
+  buildReservedSpawnZone(grid, spawnX, spawnY, snakeLen, dx, dy);
 
-  const influenceMap = generateInfluenceMap(board);
+  const influenceMap = generateInfluenceMap(grid);
 
-  const shapes = pickShapesForBoard(game.boardIndex);
+  const shapes = pickShapesForAct(game.actIndex);
   for (let i = 0; i < shapes.length; i++) {
-    const placement = findBestPlacement(board, influenceMap, shapes[i], spawnX, spawnY);
+    const placement = findBestPlacement(grid, influenceMap, shapes[i], spawnX, spawnY);
     if (placement) {
-      placeStage(board, shapes[i], placement.x, placement.y);
+      placeStage(grid, shapes[i], placement.x, placement.y);
     }
   }
 
-  board.clearMasks("reserved");
+  grid.clearMasks("reserved");
 
-  game.snake.init(board, spawnX, spawnY, snakeLen, dx, dy);
+  game.snake.init(grid, spawnX, spawnY, snakeLen, dx, dy);
 
-  placeFood(board);
+  placeFood(grid);
 
   initLattice(game);
 }
 
 /**
- * Advances the crystalline board by one step (lattice growth + food placement).
+ * Advances the crystalline grid by one step (lattice growth + food placement).
  *
  * @param {import('../game/index.js').Game} game
  */
-export function advanceBoard(game) {
-  const board = game.board;
+export function advanceGrid(game) {
+  const grid = game.grid;
 
   advanceLattice(game);
 
-  placeFood(board);
+  placeFood(grid);
 }

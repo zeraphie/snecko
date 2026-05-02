@@ -1,7 +1,7 @@
 // crystal.test.js — tests for crystalline shape placement and telegraph mechanics
 
 import { describe, it, expect } from "vitest";
-import { Board } from "../src/core/board";
+import { Grid } from "../src/core/grid";
 import {
   buildCrystals,
   canPlaceStage,
@@ -9,7 +9,7 @@ import {
   placeTelegraph,
   clearTelegraph,
 } from "../src/core/generation/crystalline/crystals";
-import { TERRAIN_TELEGRAPH, TERRAIN_NONE } from "../src/core/board/constants.js";
+import { TERRAIN_TELEGRAPH, TERRAIN_NONE } from "../src/core/grid/constants.js";
 
 const CRYSTALS = buildCrystals();
 
@@ -72,66 +72,66 @@ describe("buildCrystals", () => {
 
 describe("canPlaceStage", () => {
   it("allows placement in empty space", () => {
-    const board = new Board(21, 21);
+    const grid = new Grid(21, 21);
     const seed = CRYSTALS.find((c) => c.name === "Seed");
     const stage = seed.stages[0].rotations[0];
-    expect(canPlaceStage(board, stage, 5, 5)).toBe(true);
+    expect(canPlaceStage(grid, stage, 5, 5)).toBe(true);
   });
 
   it("rejects out-of-bounds placement", () => {
-    const board = new Board(10, 10);
+    const grid = new Grid(10, 10);
     const seed = CRYSTALS.find((c) => c.name === "Seed");
     const stage = seed.stages[0].rotations[0]; // 2x1
-    expect(canPlaceStage(board, stage, 9, 0)).toBe(false);
-    expect(canPlaceStage(board, stage, -1, 0)).toBe(false);
+    expect(canPlaceStage(grid, stage, 9, 0)).toBe(false);
+    expect(canPlaceStage(grid, stage, -1, 0)).toBe(false);
   });
 
   it("rejects overlap with walls", () => {
-    const board = new Board(21, 21);
-    board.setCell("wall", 5, 5);
+    const grid = new Grid(21, 21);
+    grid.setCell("wall", 5, 5);
     const seed = CRYSTALS.find((c) => c.name === "Seed");
     const stage = seed.stages[0].rotations[0]; // 2x1
-    expect(canPlaceStage(board, stage, 5, 5)).toBe(false);
+    expect(canPlaceStage(grid, stage, 5, 5)).toBe(false);
   });
 
   it("rejects overlap with reserved zone", () => {
-    const board = new Board(21, 21);
-    board.setCell("reserved", 5, 5);
+    const grid = new Grid(21, 21);
+    grid.setCell("reserved", 5, 5);
     const cluster = CRYSTALS.find((c) => c.name === "Cluster");
     const stage = cluster.stages[0].rotations[0]; // 2x2
-    expect(canPlaceStage(board, stage, 5, 5)).toBe(false);
+    expect(canPlaceStage(grid, stage, 5, 5)).toBe(false);
   });
 
   it("checks both solid and telegraph cells for placement", () => {
-    const board = new Board(21, 21);
+    const grid = new Grid(21, 21);
     // Pillar stage 2 has telegraph cells at top and bottom
     const pillar = CRYSTALS.find((c) => c.name === "Pillar");
     const stage = pillar.stages[1].rotations[0];
     // Place a wall where a telegraph cell would go
-    board.setCell("wall", 1, 0); // telegraph position
-    expect(canPlaceStage(board, stage, 0, 0)).toBe(false);
+    grid.setCell("wall", 1, 0); // telegraph position
+    expect(canPlaceStage(grid, stage, 0, 0)).toBe(false);
   });
 });
 
 describe("placeStage", () => {
   it("stamps solid cells as walls", () => {
-    const board = new Board(21, 21);
+    const grid = new Grid(21, 21);
     const cluster = CRYSTALS.find((c) => c.name === "Cluster");
     const stage = cluster.stages[0].rotations[0]; // 2x2
-    placeStage(board, stage, 5, 5);
+    placeStage(grid, stage, 5, 5);
 
-    expect(board.isWallCell(5, 5)).toBe(true);
-    expect(board.isWallCell(6, 5)).toBe(true);
-    expect(board.isWallCell(5, 6)).toBe(true);
-    expect(board.isWallCell(6, 6)).toBe(true);
-    expect(board.isWallCell(7, 5)).toBe(false);
+    expect(grid.isWallCell(5, 5)).toBe(true);
+    expect(grid.isWallCell(6, 5)).toBe(true);
+    expect(grid.isWallCell(5, 6)).toBe(true);
+    expect(grid.isWallCell(6, 6)).toBe(true);
+    expect(grid.isWallCell(7, 5)).toBe(false);
   });
 
   it("does not stamp telegraph cells as walls", () => {
-    const board = new Board(21, 21);
+    const grid = new Grid(21, 21);
     const pillar = CRYSTALS.find((c) => c.name === "Pillar");
     const stage = pillar.stages[1].rotations[0]; // has telegraph
-    placeStage(board, stage, 5, 5);
+    placeStage(grid, stage, 5, 5);
 
     // Telegraph cells should NOT be walls
     const telegraphCells = [];
@@ -143,24 +143,24 @@ describe("placeStage", () => {
       }
     }
     for (const cell of telegraphCells) {
-      expect(board.isWallCell(cell.x, cell.y)).toBe(false);
+      expect(grid.isWallCell(cell.x, cell.y)).toBe(false);
     }
   });
 });
 
 describe("placeTelegraph", () => {
   it("marks telegraph cells in terrain array", () => {
-    const board = new Board(21, 21);
+    const grid = new Grid(21, 21);
     const pillar = CRYSTALS.find((c) => c.name === "Pillar");
     const stage = pillar.stages[1].rotations[0];
-    placeTelegraph(board, stage, 5, 5);
+    placeTelegraph(grid, stage, 5, 5);
 
-    const w = board.width;
+    const w = grid.width;
     let telegraphCount = 0;
     for (let row = 0; row < stage.height; row++) {
       for (let col = 0; col < stage.width; col++) {
         if (stage.telegraphRows[row] & (1 << col)) {
-          expect(board.terrain[(5 + row) * w + (5 + col)]).toBe(TERRAIN_TELEGRAPH);
+          expect(grid.terrain[(5 + row) * w + (5 + col)]).toBe(TERRAIN_TELEGRAPH);
           telegraphCount++;
         }
       }
@@ -169,18 +169,18 @@ describe("placeTelegraph", () => {
   });
 
   it("does not mark solid cells as telegraph", () => {
-    const board = new Board(21, 21);
+    const grid = new Grid(21, 21);
     const pillar = CRYSTALS.find((c) => c.name === "Pillar");
     const stage = pillar.stages[1].rotations[0];
-    placeTelegraph(board, stage, 5, 5);
+    placeTelegraph(grid, stage, 5, 5);
 
-    const w = board.width;
+    const w = grid.width;
     for (let row = 0; row < stage.height; row++) {
       for (let col = 0; col < stage.width; col++) {
         const isSolid = stage.solidRows[row] & (1 << col);
         const isTelegraph = stage.telegraphRows[row] & (1 << col);
         if (isSolid && !isTelegraph) {
-          expect(board.terrain[(5 + row) * w + (5 + col)]).toBe(TERRAIN_NONE);
+          expect(grid.terrain[(5 + row) * w + (5 + col)]).toBe(TERRAIN_NONE);
         }
       }
     }
@@ -189,26 +189,26 @@ describe("placeTelegraph", () => {
 
 describe("clearTelegraph", () => {
   it("clears all telegraph terrain cells", () => {
-    const board = new Board(21, 21);
-    const w = board.width;
-    board.terrain[5 * w + 3] = TERRAIN_TELEGRAPH;
-    board.terrain[8 * w + 10] = TERRAIN_TELEGRAPH;
+    const grid = new Grid(21, 21);
+    const w = grid.width;
+    grid.terrain[5 * w + 3] = TERRAIN_TELEGRAPH;
+    grid.terrain[8 * w + 10] = TERRAIN_TELEGRAPH;
 
-    clearTelegraph(board);
+    clearTelegraph(grid);
 
-    expect(board.terrain[5 * w + 3]).toBe(TERRAIN_NONE);
-    expect(board.terrain[8 * w + 10]).toBe(TERRAIN_NONE);
+    expect(grid.terrain[5 * w + 3]).toBe(TERRAIN_NONE);
+    expect(grid.terrain[8 * w + 10]).toBe(TERRAIN_NONE);
   });
 
   it("does not clear non-telegraph terrain", () => {
-    const board = new Board(21, 21);
-    const w = board.width;
-    board.terrain[5 * w + 3] = TERRAIN_TELEGRAPH;
-    board.terrain[6 * w + 4] = 2; // some other terrain type
+    const grid = new Grid(21, 21);
+    const w = grid.width;
+    grid.terrain[5 * w + 3] = TERRAIN_TELEGRAPH;
+    grid.terrain[6 * w + 4] = 2; // some other terrain type
 
-    clearTelegraph(board);
+    clearTelegraph(grid);
 
-    expect(board.terrain[5 * w + 3]).toBe(TERRAIN_NONE);
-    expect(board.terrain[6 * w + 4]).toBe(2);
+    expect(grid.terrain[5 * w + 3]).toBe(TERRAIN_NONE);
+    expect(grid.terrain[6 * w + 4]).toBe(2);
   });
 });

@@ -1,14 +1,16 @@
 // start.js — Start/title screen
 
+import { LABELS } from "../text/labels.js";
+
 export const startScreen = {
   draw(renderer, game) {
     renderer.clear();
     renderer.drawScreen("start", [
-      "S N E C K O",
+      LABELS.start.title,
       "",
-      "Arrow keys or WASD to move",
+      LABELS.start.controls,
       "",
-      "Press Space or Enter to start",
+      LABELS.start.begin,
     ]);
     renderer.flush();
   },
