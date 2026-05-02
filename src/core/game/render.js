@@ -30,7 +30,12 @@ import {
   CELL_EXHAUST,
 } from "../../render/renderer.js";
 import { getPlayerCells } from "../boss/player.js";
-import { TERRAIN_LOW, TERRAIN_HIGH, TERRAIN_CURRENT, TERRAIN_TELEGRAPH } from "../grid/constants.js";
+import {
+  TERRAIN_LOW,
+  TERRAIN_HIGH,
+  TERRAIN_CURRENT,
+  TERRAIN_TELEGRAPH,
+} from "../grid/constants.js";
 import { getScreen } from "../../screens/registry.js";
 
 // ── Helpers ────────────────────────────────────────────
@@ -197,11 +202,7 @@ export function _drawBossArena() {
     }
     // Tongue — occasional
     const ey2 = tailY + 2;
-    if (
-      fc % 3 === 0 &&
-      grid.isInBounds(grid.playerX, ey2) &&
-      !grid.isWallCell(grid.playerX, ey2)
-    ) {
+    if (fc % 3 === 0 && grid.isInBounds(grid.playerX, ey2) && !grid.isWallCell(grid.playerX, ey2)) {
       renderer.drawCell(grid.playerX, ey2, CELL_EXHAUST);
     }
 

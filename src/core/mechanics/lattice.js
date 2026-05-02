@@ -197,7 +197,9 @@ function decay(game, c) {
   const w = grid.width;
   for (let row = 0; row < c.ownedSolid.length; row++) {
     const by = c.y + row;
-    if (by < 0 || by >= grid.height) continue;
+    if (by < 0 || by >= grid.height) {
+      continue;
+    }
 
     const stage0Solid = row < stage0Rot.height ? stage0Rot.solidRows[row] : 0;
     const stage0Interior = row < stage0Rot.height ? stage0Rot.interiorRows[row] : 0;
@@ -207,7 +209,9 @@ function decay(game, c) {
 
     for (let col = 0; col < 31; col++) {
       const bx = c.x + col;
-      if (bx < 0 || bx >= grid.width) continue;
+      if (bx < 0 || bx >= grid.width) {
+        continue;
+      }
       if (releaseSolid & (1 << col)) {
         if (grid.isWallCell(bx, by)) {
           grid.clearCell("wall", bx, by);
@@ -233,14 +237,18 @@ function disappear(game, c) {
 
   for (let row = 0; row < c.ownedSolid.length; row++) {
     const by = c.y + row;
-    if (by < 0 || by >= grid.height) continue;
+    if (by < 0 || by >= grid.height) {
+      continue;
+    }
 
     const solidMask = c.ownedSolid[row];
     const interiorMask = c.ownedInterior[row];
 
     for (let col = 0; col < 31; col++) {
       const bx = c.x + col;
-      if (bx < 0 || bx >= grid.width) continue;
+      if (bx < 0 || bx >= grid.width) {
+        continue;
+      }
       if (solidMask & (1 << col)) {
         if (grid.isWallCell(bx, by)) {
           grid.clearCell("wall", bx, by);
@@ -266,7 +274,9 @@ function stamp(grid, c, shape) {
   const w = grid.width;
   for (let row = 0; row < shape.height; row++) {
     const by = c.y + row;
-    if (by < 0 || by >= grid.height) continue;
+    if (by < 0 || by >= grid.height) {
+      continue;
+    }
 
     const solidMask = shape.solidRows[row];
     const interiorMask = shape.interiorRows[row];
@@ -275,16 +285,26 @@ function stamp(grid, c, shape) {
 
     for (let col = 0; col < shape.width; col++) {
       const bx = c.x + col;
-      if (bx < 0 || bx >= grid.width) continue;
+      if (bx < 0 || bx >= grid.width) {
+        continue;
+      }
       if (solidMask & (1 << col)) {
-        if (grid.isSnakeCell(bx, by)) continue;
-        if (grid.isWallCell(bx, by)) continue;
+        if (grid.isSnakeCell(bx, by)) {
+          continue;
+        }
+        if (grid.isWallCell(bx, by)) {
+          continue;
+        }
         grid.setCell("wall", bx, by);
         stampedSolid |= 1 << col;
       } else if (interiorMask & (1 << col)) {
-        if (grid.isWallCell(bx, by) || grid.isSnakeCell(bx, by)) continue;
+        if (grid.isWallCell(bx, by) || grid.isSnakeCell(bx, by)) {
+          continue;
+        }
         const t = grid.terrain[by * w + bx];
-        if (t === TERRAIN_INTERIOR) continue;
+        if (t === TERRAIN_INTERIOR) {
+          continue;
+        }
         grid.terrain[by * w + bx] = TERRAIN_INTERIOR;
         stampedInterior |= 1 << col;
       }
@@ -301,12 +321,18 @@ function clearTelegraphFor(grid, shape, x, y) {
   const w = grid.width;
   for (let row = 0; row < shape.height; row++) {
     const by = y + row;
-    if (by < 0 || by >= grid.height) continue;
+    if (by < 0 || by >= grid.height) {
+      continue;
+    }
     const solidMask = shape.solidRows[row];
     for (let col = 0; col < shape.width; col++) {
-      if (!(solidMask & (1 << col))) continue;
+      if (!(solidMask & (1 << col))) {
+        continue;
+      }
       const bx = x + col;
-      if (bx < 0 || bx >= grid.width) continue;
+      if (bx < 0 || bx >= grid.width) {
+        continue;
+      }
       if (grid.terrain[by * w + bx] === TERRAIN_TELEGRAPH) {
         grid.terrain[by * w + bx] = TERRAIN_NONE;
       }
@@ -344,7 +370,9 @@ function precomputePlacements(game, rand) {
     for (let attempt = 0; attempt < PRECOMPUTE_ATTEMPTS; attempt++) {
       const x = Math.floor(rand() * grid.width);
       const y = Math.floor(rand() * grid.height);
-      if (!canPlaceStage(grid, shape, x, y)) continue;
+      if (!canPlaceStage(grid, shape, x, y)) {
+        continue;
+      }
       const dx = x + shape.width / 2 - hx;
       const dy = y + shape.height / 2 - hy;
       const dist = dx * dx + dy * dy;
@@ -363,7 +391,9 @@ function precomputePlacements(game, rand) {
 function nextPrecomputed(mech, grid, crystals) {
   while (mech.placementCursor < mech.placements.length) {
     const candidate = mech.placements[mech.placementCursor++];
-    if (!candidate) continue;
+    if (!candidate) {
+      continue;
+    }
     const crystal = crystals[candidate.crystalIdx];
     const stage0 = crystal.stages[0];
     const shape = stage0.rotations[candidate.rotation % stage0.rotations.length];
@@ -397,7 +427,9 @@ function liveSearch(game) {
   for (let attempt = 0; attempt < FALLBACK_ATTEMPTS; attempt++) {
     const x = Math.floor(rand() * grid.width);
     const y = Math.floor(rand() * grid.height);
-    if (!canPlaceStage(grid, shape, x, y)) continue;
+    if (!canPlaceStage(grid, shape, x, y)) {
+      continue;
+    }
     const dx = x + shape.width / 2 - hx;
     const dy = y + shape.height / 2 - hy;
     const dist = dx * dx + dy * dy;
@@ -408,6 +440,8 @@ function liveSearch(game) {
     }
   }
 
-  if (bestDist < 0) return null;
+  if (bestDist < 0) {
+    return null;
+  }
   return { crystalIdx, rotation, x: bestX, y: bestY };
 }

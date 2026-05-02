@@ -223,8 +223,12 @@ function _pushEchoZone(game, x, y) {
 function _collectDriftCells(modifiers) {
   let result = null;
   for (const mod of modifiers) {
-    if (!mod.driftActive || !mod.cells) continue;
-    if (!result) result = [];
+    if (!mod.driftActive || !mod.cells) {
+      continue;
+    }
+    if (!result) {
+      result = [];
+    }
     for (const cell of mod.cells) {
       result.push(cell);
     }

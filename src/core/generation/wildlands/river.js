@@ -61,11 +61,19 @@ export function generateRiver({
   const visited = new Set();
 
   const tryPush = (x, y) => {
-    if (x < 0 || x >= w || y < 0 || y >= h) return;
+    if (x < 0 || x >= w || y < 0 || y >= h) {
+      return;
+    }
     const key = x + "," + y;
-    if (visited.has(key)) return;
-    if (grid.isWallCell(x, y)) return;
-    if (grid.isSnakeCell(x, y)) return;
+    if (visited.has(key)) {
+      return;
+    }
+    if (grid.isWallCell(x, y)) {
+      return;
+    }
+    if (grid.isSnakeCell(x, y)) {
+      return;
+    }
     visited.add(key);
     cells.push({ x, y, flowDx, flowDy });
   };

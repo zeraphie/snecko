@@ -54,7 +54,9 @@ export function updatePlayerBullets(bullets, grid, driftCells = null) {
 function findDriftCell(driftCells, x, y) {
   for (let i = 0; i < driftCells.length; i++) {
     const c = driftCells[i];
-    if (c.x === x && c.y === y) return c;
+    if (c.x === x && c.y === y) {
+      return c;
+    }
   }
   return null;
 }

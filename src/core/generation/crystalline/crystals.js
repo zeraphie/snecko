@@ -5,11 +5,7 @@
 // computes the four rotations of every stage. The result is stashed on
 // `manifest.crystals` for the lattice mechanic and the crystalline generator.
 
-import {
-  TERRAIN_TELEGRAPH,
-  TERRAIN_INTERIOR,
-  TERRAIN_NONE,
-} from "../../grid/constants.js";
+import { TERRAIN_TELEGRAPH, TERRAIN_INTERIOR, TERRAIN_NONE } from "../../grid/constants.js";
 
 // ── Shape file parser ────────────────────────────────────────────
 
@@ -93,9 +89,13 @@ function computeInteriorRows(width, height, solidRows) {
   const queue = [];
 
   function seed(x, y) {
-    if (x < 0 || x >= width || y < 0 || y >= height) return;
+    if (x < 0 || x >= width || y < 0 || y >= height) {
+      return;
+    }
     const idx = y * width + x;
-    if (visited[idx] || isSolid(x, y)) return;
+    if (visited[idx] || isSolid(x, y)) {
+      return;
+    }
     visited[idx] = 1;
     queue.push(idx);
   }

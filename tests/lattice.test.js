@@ -8,7 +8,7 @@ import { Grid } from "../src/core/grid";
 import { Snake } from "../src/core/snake";
 import { initLattice, advanceLattice } from "../src/core/mechanics/lattice.js";
 import { buildCrystals } from "../src/core/generation/crystalline/crystals.js";
-import { TERRAIN_TELEGRAPH, TERRAIN_INTERIOR } from "../src/core/grid/constants.js";
+import { TERRAIN_TELEGRAPH } from "../src/core/grid/constants.js";
 
 const SHAPES_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -36,7 +36,9 @@ function countWalls(grid) {
   let count = 0;
   for (let y = 0; y < grid.height; y++) {
     for (let x = 0; x < grid.width; x++) {
-      if (grid.isWallCell(x, y)) count++;
+      if (grid.isWallCell(x, y)) {
+        count++;
+      }
     }
   }
   return count;
@@ -45,7 +47,9 @@ function countWalls(grid) {
 function countTerrain(grid, terrainValue) {
   let count = 0;
   for (let i = 0; i < grid.terrain.length; i++) {
-    if (grid.terrain[i] === terrainValue) count++;
+    if (grid.terrain[i] === terrainValue) {
+      count++;
+    }
   }
   return count;
 }
@@ -189,7 +193,9 @@ describe("crystal-local lifecycle", () => {
     initLattice(game);
 
     // Take crystal 0 through grow.
-    for (let i = 0; i < 3; i++) advanceLattice(game); // bites 1..3: spawn0→place, place→tg_grow, tg_grow→grow
+    for (let i = 0; i < 3; i++) {
+      advanceLattice(game);
+    } // bites 1..3: spawn0→place, place→tg_grow, tg_grow→grow
     const c0 = game.mechanic.crystals[0];
     expect(c0.state).toBe("grow");
     const wallsAfterGrow = countWalls(game.grid);
@@ -208,26 +214,14 @@ describe("crystal-local lifecycle", () => {
     initLattice(game);
 
     // Advance through bite 1..6 to bring c0 to "disappear" state.
-    for (let i = 0; i < 6; i++) advanceLattice(game);
+    for (let i = 0; i < 6; i++) {
+      advanceLattice(game);
+    }
     const c0 = game.mechanic.crystals[0];
     expect(c0.state).toBe("disappear");
 
-    // Snapshot c0's owned cells before disappear.
-    const ownedCells = [];
-    for (let row = 0; row < c0.ownedSolid.length; row++) {
-      const mask = c0.ownedSolid[row];
-      for (let col = 0; col < 31; col++) {
-        if (mask & (1 << col)) ownedCells.push([c0.x + col, c0.y + row]);
-      }
-    }
-
     advanceLattice(game); // bite 7 — c0 disappears (state → _done, then reaped)
 
-    for (const [x, y] of ownedCells) {
-      // Cell may still be a wall if another crystal has stamped it; but in
-      // most cases it should be cleared. At minimum, c0 is reaped.
-      // Verify c0 is no longer in the array.
-    }
     expect(game.mechanic.crystals.includes(c0)).toBe(false);
   });
 });
@@ -278,7 +272,9 @@ describe("snake interaction", () => {
     let targetY = -1;
     for (let row = 0; row < shape.height && targetX < 0; row++) {
       for (let col = 0; col < shape.width; col++) {
-        if (!(shape.solidRows[row] & (1 << col))) continue;
+        if (!(shape.solidRows[row] & (1 << col))) {
+          continue;
+        }
         const bx = c.x + col;
         const by = c.y + row;
         if (!game.grid.isWallCell(bx, by)) {
@@ -301,9 +297,9 @@ describe("snake interaction", () => {
 describe("precomputed placements", () => {
   it("same actSeed produces identical precomputed placements", () => {
     const a = makeGame();
-    a.actSeed = 0xABCDEF12;
+    a.actSeed = 0xabcdef12;
     const b = makeGame();
-    b.actSeed = 0xABCDEF12;
+    b.actSeed = 0xabcdef12;
     initLattice(a);
     initLattice(b);
     expect(a.mechanic.placements).toEqual(b.mechanic.placements);
@@ -358,7 +354,9 @@ describe("telegraph behaviour", () => {
     const totalBites = 14;
     for (let i = 0; i < totalBites; i++) {
       advanceLattice(game);
-      if (countTerrain(game.grid, TERRAIN_TELEGRAPH) > 0) bitesWithTelegraph++;
+      if (countTerrain(game.grid, TERRAIN_TELEGRAPH) > 0) {
+        bitesWithTelegraph++;
+      }
     }
     // Loose lower bound — most bites should have a telegraph showing
     // somewhere on the grid.

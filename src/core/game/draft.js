@@ -1,19 +1,11 @@
 // draft.js — Draft screen methods (selection, mutation, confirm)
 
-import {
-  TYPE_PASSIVE,
-  TYPE_CONSUMABLE,
-  TYPE_BITES,
-  TYPE_MUTATION,
-} from "../upgrades/defs.js";
+import { TYPE_PASSIVE, TYPE_CONSUMABLE, TYPE_BITES, TYPE_MUTATION } from "../upgrades/defs.js";
 import {
   generateGrid as crystallineGenerate,
   advanceGrid as crystallineAdvance,
 } from "../generation/index.js";
-import {
-  generateWildlandsGrid,
-  advanceWildlandsGrid,
-} from "../generation/wildlands/generator.js";
+import { generateWildlandsGrid, advanceWildlandsGrid } from "../generation/wildlands/generator.js";
 import {
   STATE_DRAFT,
   STATE_PLAYING,

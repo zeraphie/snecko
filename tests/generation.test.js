@@ -26,7 +26,7 @@ function makeGame() {
     snake,
     score: 0,
     actIndex: 1,
-    actSeed: 0xCAFEBABE,
+    actSeed: 0xcafebabe,
     manifest: { crystals: CRYSTALS },
   };
 }
@@ -61,7 +61,9 @@ describe("generateGrid", () => {
     let wallCount = 0;
     for (let y = 0; y < game.grid.height; y++) {
       for (let x = 0; x < game.grid.width; x++) {
-        if (game.grid.isWallCell(x, y)) wallCount++;
+        if (game.grid.isWallCell(x, y)) {
+          wallCount++;
+        }
       }
     }
     expect(wallCount).toBe(0);
@@ -131,7 +133,9 @@ describe("advanceGrid", () => {
           const sx = game.snake.snakeX[idx];
           const sy = game.snake.snakeY[idx];
           expect(game.grid.isWallCell(sx, sy)).toBe(false);
-          if (idx === game.snake.headIndex) break;
+          if (idx === game.snake.headIndex) {
+            break;
+          }
           idx = (idx + 1) % Snake.MAX_CELLS;
         }
       }

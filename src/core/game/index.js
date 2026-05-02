@@ -394,7 +394,11 @@ export class Game {
 
   /** Handles confirm action (start game, restart, confirm bomb/wormhole). */
   confirm() {
-    if (this.state === STATE_START || this.state === STATE_DEAD || this.state === STATE_SEED_INPUT) {
+    if (
+      this.state === STATE_START ||
+      this.state === STATE_DEAD ||
+      this.state === STATE_SEED_INPUT
+    ) {
       // Always start a fresh crystalline run when the player confirms from
       // the start screen, after death, or from the custom-seed input,
       // regardless of any generators that may have been set by a previous

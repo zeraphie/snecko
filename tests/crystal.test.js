@@ -12,11 +12,7 @@ import {
   placeTelegraph,
   clearTelegraph,
 } from "../src/core/generation/crystalline/crystals";
-import {
-  TERRAIN_TELEGRAPH,
-  TERRAIN_NONE,
-  TERRAIN_INTERIOR,
-} from "../src/core/grid/constants.js";
+import { TERRAIN_TELEGRAPH, TERRAIN_NONE, TERRAIN_INTERIOR } from "../src/core/grid/constants.js";
 
 const SHAPES_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -217,7 +213,9 @@ describe("hollow-interior detection", () => {
     const stack = [[0, 0]];
     while (stack.length > 0) {
       const [x, y] = stack.pop();
-      if (!isSolid(x, y) || visited[y * w + x]) continue;
+      if (!isSolid(x, y) || visited[y * w + x]) {
+        continue;
+      }
       visited[y * w + x] = 1;
       stack.push([x + 1, y], [x - 1, y], [x, y + 1], [x, y - 1]);
     }
