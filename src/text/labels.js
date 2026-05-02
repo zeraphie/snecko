@@ -106,6 +106,19 @@ export const LABELS = {
     controls: "Arrow keys or WASD to move",
     begin: "Press Space or Enter to start",
   },
+  seedInput: {
+    title: "C U S T O M   S E E D",
+    prompt: "Type a seed and press Enter",
+    hint: "Esc to cancel, Backspace to edit",
+  },
+  menu: {
+    title: "M E N U",
+    // Per-item labels are looked up by item.id at render time.
+    begin: "Begin run",
+    restart: "Restart",
+    seed: "Custom seed",
+    hint: "↑↓ select, Enter confirm, Esc close",
+  },
   draft: {
     // "L E V E L   U P" was the old wording before level → act; "Upgrade" is
     // the closest direct description of what's happening. Easy to swap.

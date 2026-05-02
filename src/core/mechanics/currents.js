@@ -2,6 +2,8 @@
 
 import { createPermTable, fbm2 } from "../generation/wildlands/noise.js";
 import { TERRAIN_CURRENT, TERRAIN_NONE } from "../grid/constants.js";
+import { mixSeeds, splitmix32 } from "../rng.js";
+import { SUBSEED_CURRENTS } from "../seed-streams.js";
 
 const STATE_TELEGRAPH = 0;
 const STATE_FLOW = 1;
@@ -146,17 +148,19 @@ function generateRiver(game) {
   const h = grid.height;
   const mech = game.mechanic;
 
-  // Seed noise from game state
-  const seed = Date.now() ^ (game.actIndex * 3571);
+  // Seed noise + axis/lateral picks from the act seed so two runs at
+  // the same act produce identical rivers.
+  const seed = mixSeeds(game.actSeed, SUBSEED_CURRENTS);
   const perm = createPermTable(seed);
+  const rand = splitmix32(seed);
 
-  // Pick random axis and flow direction
-  const axis = Math.random() < 0.5 ? 0 : 1;
+  // Pick axis and flow direction
+  const axis = rand() < 0.5 ? 0 : 1;
   const flowDx = axis === 0 ? 1 : 0;
   const flowDy = axis === 1 ? 1 : 0;
 
   // Lateral parameters
-  const startLateral = axis === 0 ? Math.floor(Math.random() * h) : Math.floor(Math.random() * w);
+  const startLateral = axis === 0 ? Math.floor(rand() * h) : Math.floor(rand() * w);
   const maxSteps = axis === 0 ? w : h;
   const lateralSize = axis === 0 ? h : w;
   const amplitude = lateralSize * 0.4;

@@ -2133,6 +2133,207 @@ describe("contraband system (Step 7)", () => {
   });
 });
 
+describe("menu", () => {
+  let game;
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+  });
+
+  it("openMenu from start populates begin/seed items", () => {
+    game.openMenu();
+    expect(game.state).toBe("menu");
+    expect(game._menuItems.map((i) => i.id)).toEqual(["begin", "seed"]);
+    expect(game._menuSelection).toBe(0);
+  });
+
+  it("openMenu from dead populates restart/seed items", () => {
+    game.state = Game.STATE_DEAD;
+    game.openMenu();
+    expect(game.state).toBe("menu");
+    expect(game._menuItems.map((i) => i.id)).toEqual(["restart", "seed"]);
+  });
+
+  it("openMenu is a no-op outside start/dead", () => {
+    game.startRun();
+    game.openMenu();
+    expect(game.state).toBe(Game.STATE_PLAYING);
+  });
+
+  it("selectMenu clamps to bounds", () => {
+    game.openMenu();
+    game.selectMenu(-5);
+    expect(game._menuSelection).toBe(0);
+    game.selectMenu(99);
+    expect(game._menuSelection).toBe(game._menuItems.length - 1);
+  });
+
+  it("closeMenu returns to the originating state", () => {
+    game.openMenu();
+    game.closeMenu();
+    expect(game.state).toBe(Game.STATE_START);
+
+    game.state = Game.STATE_DEAD;
+    game.openMenu();
+    game.closeMenu();
+    expect(game.state).toBe(Game.STATE_DEAD);
+  });
+
+  it("confirmMenu on 'begin' starts a run", () => {
+    game.openMenu();
+    game.selectMenu(0);
+    game.confirmMenu();
+    expect(game.state).toBe(Game.STATE_PLAYING);
+  });
+
+  it("confirmMenu on 'seed' enters seed input", () => {
+    game.openMenu();
+    game.selectMenu(1);
+    game.confirmMenu();
+    expect(game.state).toBe("seed_input");
+    expect(game._seedInput).toBe("");
+  });
+});
+
+describe("seed-driven crystalline determinism", () => {
+  /** Builds a Game with optional explicit runSeed and runs a full startRun. */
+  function runWithSeed(runSeed) {
+    const game = new Game();
+    game.manifest = buildTestManifest();
+    if (runSeed !== undefined) {
+      game._pendingRunSeed = runSeed;
+    }
+    game.startRun();
+    return game;
+  }
+
+  /** Snapshot of a generated act layout — wall masks, food, snake head. */
+  function snapshot(game) {
+    return {
+      runSeed: game.runSeed,
+      walls: Array.from(game.grid.wallMasks),
+      foodX: game.grid.foodX,
+      foodY: game.grid.foodY,
+      headX: game.snake.snakeX[game.snake.headIndex],
+      headY: game.snake.snakeY[game.snake.headIndex],
+    };
+  }
+
+  it("random seeds produce different layouts (high-probability)", () => {
+    const a = snapshot(runWithSeed());
+    const b = snapshot(runWithSeed());
+    // runSeed comes from Math.random; collisions vanishingly unlikely.
+    expect(a.runSeed).not.toBe(b.runSeed);
+    // Walls almost certainly differ; if they don't, food positions will.
+    const wallsEqual = a.walls.every((v, i) => v === b.walls[i]);
+    const foodEqual = a.foodX === b.foodX && a.foodY === b.foodY;
+    expect(wallsEqual && foodEqual).toBe(false);
+  });
+
+  it("same explicit runSeed produces identical layouts", () => {
+    const a = snapshot(runWithSeed(0xdeadbeef));
+    const b = snapshot(runWithSeed(0xdeadbeef));
+    expect(a).toEqual(b);
+  });
+
+  it("different explicit runSeeds produce different layouts", () => {
+    const a = snapshot(runWithSeed(0x11111111));
+    const b = snapshot(runWithSeed(0x22222222));
+    const wallsEqual = a.walls.every((v, i) => v === b.walls[i]);
+    expect(wallsEqual).toBe(false);
+  });
+
+  it("custom seed string 'test' produces identical layouts across runs", async () => {
+    const { hashString } = await import("../src/core/rng.js");
+    const seed = hashString("test");
+    const a = snapshot(runWithSeed(seed));
+    const b = snapshot(runWithSeed(seed));
+    expect(a).toEqual(b);
+  });
+
+  it("different custom seed strings produce different layouts", async () => {
+    const { hashString } = await import("../src/core/rng.js");
+    const a = snapshot(runWithSeed(hashString("test")));
+    const b = snapshot(runWithSeed(hashString("foo")));
+    const wallsEqual = a.walls.every((v, i) => v === b.walls[i]);
+    expect(wallsEqual).toBe(false);
+  });
+});
+
+describe("custom seed input", () => {
+  let game;
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+  });
+
+  it("enterSeedInput transitions from start to seed_input", () => {
+    expect(game.state).toBe(Game.STATE_START);
+    game.enterSeedInput();
+    expect(game.state).toBe("seed_input");
+    expect(game._seedInput).toBe("");
+  });
+
+  it("enterSeedInput is a no-op outside start/dead", () => {
+    game.startRun();
+    expect(game.state).toBe(Game.STATE_PLAYING);
+    game.enterSeedInput();
+    expect(game.state).toBe(Game.STATE_PLAYING);
+  });
+
+  it("appendSeedChar appends printable characters", () => {
+    game.enterSeedInput();
+    game.appendSeedChar("a");
+    game.appendSeedChar("b");
+    game.appendSeedChar("1");
+    expect(game._seedInput).toBe("ab1");
+  });
+
+  it("appendSeedChar enforces max length", () => {
+    game.enterSeedInput();
+    for (let i = 0; i < 100; i++) {
+      game.appendSeedChar("x");
+    }
+    expect(game._seedInput.length).toBeLessThanOrEqual(48);
+  });
+
+  it("backspaceSeedInput removes last char and is safe at empty", () => {
+    game.enterSeedInput();
+    game.appendSeedChar("a");
+    game.appendSeedChar("b");
+    game.backspaceSeedInput();
+    expect(game._seedInput).toBe("a");
+    game.backspaceSeedInput();
+    game.backspaceSeedInput();
+    expect(game._seedInput).toBe("");
+  });
+
+  it("cancelSeedInput returns to start and clears buffer", () => {
+    game.enterSeedInput();
+    game.appendSeedChar("x");
+    game.cancelSeedInput();
+    expect(game.state).toBe(Game.STATE_START);
+    expect(game._seedInput).toBe("");
+  });
+
+  it("confirmSeedInput with non-empty buffer hashes to runSeed", async () => {
+    const { hashString } = await import("../src/core/rng.js");
+    game.enterSeedInput();
+    "snecko-2024".split("").forEach((c) => game.appendSeedChar(c));
+    game.confirmSeedInput();
+    expect(game.state).toBe(Game.STATE_PLAYING);
+    expect(game.runSeed).toBe(hashString("snecko-2024"));
+  });
+
+  it("confirmSeedInput with empty buffer rolls a random runSeed", () => {
+    game.enterSeedInput();
+    game.confirmSeedInput();
+    expect(game.state).toBe(Game.STATE_PLAYING);
+    // runSeed should be set (non-zero is overwhelmingly likely from Math.random)
+    expect(typeof game.runSeed).toBe("number");
+  });
+});
+
 describe("player invulnerability (Step 5)", () => {
   let game;
 

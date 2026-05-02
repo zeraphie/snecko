@@ -3,6 +3,8 @@
 import { Grid } from "../grid/index.js";
 import { Snake } from "../snake/index.js";
 import { UpgradeState } from "../upgrades/state.js";
+import { mixSeeds, hashString, splitmix32 } from "../rng.js";
+import { SUBSEED_FOOD } from "../seed-streams.js";
 import { moveCursor, confirmBomb } from "../upgrades/consumables/bomb.js";
 import { moveWormholeCursor, confirmWormholePlacement } from "../upgrades/consumables/wormhole.js";
 import {
@@ -18,6 +20,8 @@ import {
   STATE_DEAD,
   STATE_BOSS,
   STATE_CONTRABAND,
+  STATE_SEED_INPUT,
+  STATE_MENU,
   GRID_W,
   GRID_H,
   INITIAL_SNAKE_LENGTH,
@@ -43,6 +47,9 @@ import {
   BOSS_SPECIAL_INTERVAL,
 } from "./constants.js";
 import { selectContraband, confirmContraband } from "./contraband-draft.js";
+
+/** Maximum length of the custom-seed input buffer. */
+const MAX_SEED_INPUT_LENGTH = 48;
 
 // Method imports — attached to prototype below
 import {
@@ -76,6 +83,24 @@ export class Game {
     this.tickMs = BASE_TICK_MS;
     this.lastTickTime = 0;
     this.startTime = 0;
+    /** 32-bit deterministic seed for the run; rolled at startRun. */
+    this.runSeed = 0;
+    /** Per-act seed derived from runSeed + actIndex via mixSeeds. */
+    this.actSeed = 0;
+    /** Stateful PRNG for food placement; re-seeded each act from actSeed. */
+    this.foodRand = null;
+    /** Optional override for runSeed — used by the custom-seed input path.
+     *  Set externally before calling startRun(); cleared after consumption. */
+    this._pendingRunSeed = null;
+    /** Buffer for the custom-seed input UI (STATE_SEED_INPUT). */
+    this._seedInput = "";
+    /** Menu items shown in STATE_MENU — array of `{ id }` objects. Labels
+     *  resolved at render time from `LABELS.menu[id]`. */
+    this._menuItems = [];
+    /** Highlighted index in `_menuItems`. */
+    this._menuSelection = 0;
+    /** State to return to when the menu is dismissed (Esc). */
+    this._menuFrom = null;
     this.upgrades = new UpgradeState();
     this._draftPool = null;
     this._draftSelection = 0;
@@ -123,6 +148,16 @@ export class Game {
     this.actIndex = 1;
     this.foodEaten = 0;
     this.foodRequired = FOOD_REQUIRED_BASE + FOOD_REQUIRED_PER_ACT;
+    // Roll a fresh runSeed unless the custom-seed path stashed one.
+    // Stored unsigned so the value matches hashString / mixSeeds output.
+    if (this._pendingRunSeed !== null) {
+      this.runSeed = this._pendingRunSeed >>> 0;
+      this._pendingRunSeed = null;
+    } else {
+      this.runSeed = ((Math.random() * 0x100000000) | 0) >>> 0;
+    }
+    this.actSeed = mixSeeds(this.runSeed, this.actIndex);
+    this.foodRand = splitmix32(mixSeeds(this.actSeed, SUBSEED_FOOD));
     this.upgrades.reset();
     // Only install the default crystalline generators when none have been pre-set.
     // Tests that stub these before calling startRun() will have their stubs preserved.
@@ -226,12 +261,144 @@ export class Game {
     }
   }
 
+  /**
+   * Opens the in-game menu from the start or dead screen. The menu items
+   * shown vary by context; future expansions (resume, language, keybindings)
+   * just add entries here.
+   */
+  openMenu() {
+    if (this.state !== STATE_START && this.state !== STATE_DEAD) {
+      return;
+    }
+    this._menuFrom = this.state;
+    this._menuItems =
+      this.state === STATE_DEAD
+        ? [{ id: "restart" }, { id: "seed" }]
+        : [{ id: "begin" }, { id: "seed" }];
+    this._menuSelection = 0;
+    this.state = STATE_MENU;
+  }
+
+  /** Closes the menu and returns to the screen it was opened from. */
+  closeMenu() {
+    if (this.state !== STATE_MENU) {
+      return;
+    }
+    this.state = this._menuFrom ?? STATE_START;
+    this._menuFrom = null;
+  }
+
+  /**
+   * Sets the highlighted menu index, clamped to the items array.
+   *
+   * @param {number} index
+   */
+  selectMenu(index) {
+    if (this.state !== STATE_MENU) {
+      return;
+    }
+    if (this._menuItems.length === 0) {
+      return;
+    }
+    this._menuSelection = Math.max(0, Math.min(index, this._menuItems.length - 1));
+  }
+
+  /** Activates the highlighted menu item. */
+  confirmMenu() {
+    if (this.state !== STATE_MENU) {
+      return;
+    }
+    const item = this._menuItems[this._menuSelection];
+    if (!item) {
+      return;
+    }
+    switch (item.id) {
+      case "begin":
+      case "restart":
+        // Reset generators to crystalline (matches confirm() behaviour
+        // when starting from start/dead screens).
+        this.generateGrid = crystallineGenerate;
+        this.advanceGrid = crystallineAdvance;
+        this.startRun();
+        break;
+      case "seed":
+        this._seedInput = "";
+        this.state = STATE_SEED_INPUT;
+        break;
+    }
+  }
+
+  /**
+   * Enters the custom-seed input mode directly. Used by the menu's
+   * "Custom seed" action; not normally bound to a key.
+   */
+  enterSeedInput() {
+    if (this.state !== STATE_START && this.state !== STATE_DEAD && this.state !== STATE_MENU) {
+      return;
+    }
+    this._seedInput = "";
+    this.state = STATE_SEED_INPUT;
+  }
+
+  /** Cancels seed input and returns to the start screen. */
+  cancelSeedInput() {
+    if (this.state !== STATE_SEED_INPUT) {
+      return;
+    }
+    this._seedInput = "";
+    this.state = STATE_START;
+  }
+
+  /**
+   * Confirms the typed seed and starts the run. An empty buffer is treated
+   * as "no custom seed" (rolls a random one); a non-empty buffer is hashed
+   * via FNV-1a into a 32-bit runSeed.
+   */
+  confirmSeedInput() {
+    if (this.state !== STATE_SEED_INPUT) {
+      return;
+    }
+    if (this._seedInput.length > 0) {
+      this._pendingRunSeed = hashString(this._seedInput);
+    }
+    this._seedInput = "";
+    this.confirm();
+  }
+
+  /**
+   * Appends a single printable character to the seed buffer. Capped at
+   * MAX_SEED_INPUT_LENGTH to keep the rendered string within screen width.
+   *
+   * @param {string} ch — single ASCII printable character
+   */
+  appendSeedChar(ch) {
+    if (this.state !== STATE_SEED_INPUT) {
+      return;
+    }
+    if (typeof ch !== "string" || ch.length !== 1) {
+      return;
+    }
+    if (this._seedInput.length >= MAX_SEED_INPUT_LENGTH) {
+      return;
+    }
+    this._seedInput += ch;
+  }
+
+  /** Removes the last character from the seed buffer. */
+  backspaceSeedInput() {
+    if (this.state !== STATE_SEED_INPUT) {
+      return;
+    }
+    this._seedInput = this._seedInput.slice(0, -1);
+  }
+
   /** Handles confirm action (start game, restart, confirm bomb/wormhole). */
   confirm() {
-    if (this.state === STATE_START || this.state === STATE_DEAD) {
+    if (this.state === STATE_START || this.state === STATE_DEAD || this.state === STATE_SEED_INPUT) {
       // Always start a fresh crystalline run when the player confirms from
-      // the start screen or after death, regardless of any generators that
-      // may have been set by a previous run's mutation draft.
+      // the start screen, after death, or from the custom-seed input,
+      // regardless of any generators that may have been set by a previous
+      // run's mutation draft.
       this.generateGrid = crystallineGenerate;
       this.advanceGrid = crystallineAdvance;
       this.startRun();

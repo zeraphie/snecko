@@ -1,33 +1,26 @@
 // noise.js — Zero-dep 2D Perlin noise + fractal Brownian motion
 
+import { splitmix32 } from "../../rng.js";
+
 // ── Permutation table ──────────────────────────────────
 
 /**
- * Creates a deterministic 512-entry permutation table from a seed (splitmix32 + Fisher-Yates).
+ * Creates a deterministic 512-entry permutation table from a seed
+ * (splitmix32 + Fisher-Yates).
  *
  * @param {number} seed
  * @returns {Uint8Array}
  */
 export function createPermTable(seed) {
-  const perm = new Uint8Array(512);
+  const perm = new Uint8Array(256);
 
   // Fill 0..255
   for (let i = 0; i < 256; i++) {
     perm[i] = i;
   }
 
-  // splitmix32 PRNG for deterministic shuffle
-  let s = seed | 0;
-  function rand() {
-    s = (s + 0x9e3779b9) | 0;
-    let z = s;
-    z = Math.imul(z ^ (z >>> 16), 0x85ebca6b);
-    z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35);
-    z = (z ^ (z >>> 16)) >>> 0;
-    return z / 0x100000000;
-  }
-
-  // Fisher-Yates shuffle
+  // Fisher-Yates shuffle with seeded PRNG
+  const rand = splitmix32(seed);
   for (let i = 255; i > 0; i--) {
     const j = (rand() * (i + 1)) | 0;
     const tmp = perm[i];
@@ -35,12 +28,11 @@ export function createPermTable(seed) {
     perm[j] = tmp;
   }
 
-  // Duplicate into upper half
-  for (let i = 0; i < 256; i++) {
-    perm[i + 256] = perm[i];
-  }
-
-  return perm;
+  // Duplicate into upper half so callers can index 0..510 without wrapping
+  const full = new Uint8Array(512);
+  full.set(perm, 0);
+  full.set(perm, 256);
+  return full;
 }
 
 // ── Gradient helpers ───────────────────────────────────

@@ -101,9 +101,35 @@ export class KeyboardTerminalController extends Controller {
       return;
     }
 
-    // Quit
-    if ((key.ctrl && key.name === "c") || key.name === "q") {
+    // Quit (always Ctrl+C; 'q' only outside seed input so it can be typed)
+    if (key.ctrl && key.name === "c") {
       this._onQuit();
+      return;
+    }
+    if (key.name === "q" && game.state !== "seed_input") {
+      this._onQuit();
+      return;
+    }
+
+    // Custom-seed input mode: capture raw text input, bypass action mapping.
+    if (game.state === "seed_input") {
+      if (key.name === "return") {
+        game.confirmSeedInput();
+      } else if (key.name === "escape") {
+        game.cancelSeedInput();
+      } else if (key.name === "backspace") {
+        game.backspaceSeedInput();
+      } else if (ch && ch.length === 1 && ch >= " " && ch <= "~") {
+        game.appendSeedChar(ch);
+      }
+      return;
+    }
+
+    // Esc on start/dead opens the in-game menu (containing seed input,
+    // restart, etc.). Inside the menu, Esc closes — handled by the
+    // dispatcher's menu branch.
+    if (key.name === "escape" && (game.state === "start" || game.state === "dead")) {
+      game.openMenu();
       return;
     }
 

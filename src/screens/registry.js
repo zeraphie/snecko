@@ -11,6 +11,8 @@ import { contrabandScreen } from "./contraband.js";
 import { bossScreen } from "./boss.js";
 import { targetingScreen } from "./targeting.js";
 import { wormholeScreen } from "./wormhole.js";
+import { seedInputScreen } from "./seedInput.js";
+import { menuScreen } from "./menu.js";
 
 /** @type {Map<string, { draw(renderer: object, game: object): void }>} */
 const SCREENS = new Map();
@@ -45,3 +47,5 @@ registerScreen("contraband", contrabandScreen);
 registerScreen("boss", bossScreen);
 registerScreen("targeting", targetingScreen);
 registerScreen("wormhole", wormholeScreen);
+registerScreen("seed_input", seedInputScreen);
+registerScreen("menu", menuScreen);

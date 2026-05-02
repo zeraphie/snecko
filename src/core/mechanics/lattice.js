@@ -7,6 +7,8 @@ import {
   placeTelegraph,
   clearTelegraph,
 } from "../generation/crystalline/crystals.js";
+import { mixSeeds, splitmix32 } from "../rng.js";
+import { SUBSEED_LATTICE } from "../seed-streams.js";
 
 const CRYSTALS = buildCrystals();
 
@@ -20,6 +22,9 @@ export function initLattice(game) {
     type: "lattice",
     activeCrystal: null, // { crystalIdx, rotation, stageIdx, x, y }
     state: "place", // "place" | "telegraph" | "growth"
+    // Stateful PRNG seeded from the act seed so two runs at the same act
+    // pick the same crystals in the same order.
+    rand: splitmix32(mixSeeds(game.actSeed | 0, SUBSEED_LATTICE)),
   };
 }
 
@@ -61,12 +66,13 @@ export function advanceLattice(game) {
 function placeNewCrystal(game) {
   const mech = game.mechanic;
   const grid = game.grid;
+  const rand = mech.rand ?? Math.random;
 
   // Pick a random crystal and rotation
-  const crystalIdx = Math.floor(Math.random() * CRYSTALS.length);
+  const crystalIdx = Math.floor(rand() * CRYSTALS.length);
   const crystal = CRYSTALS[crystalIdx];
   const stage0 = crystal.stages[0];
-  const rotation = Math.floor(Math.random() * stage0.rotations.length);
+  const rotation = Math.floor(rand() * stage0.rotations.length);
   const shape = stage0.rotations[rotation];
 
   // Find placement position (try random positions, away from snake)
@@ -79,8 +85,8 @@ function placeNewCrystal(game) {
   let bestDist = -1;
 
   for (let attempt = 0; attempt < 60; attempt++) {
-    const x = Math.floor(Math.random() * grid.width);
-    const y = Math.floor(Math.random() * grid.height);
+    const x = Math.floor(rand() * grid.width);
+    const y = Math.floor(rand() * grid.height);
     if (!canPlaceStage(grid, shape, x, y)) {
       continue;
     }

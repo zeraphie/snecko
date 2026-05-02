@@ -4,6 +4,8 @@ import { Snake } from "../snake/index.js";
 import { buildCrystals, canPlaceStage, placeStage } from "./crystalline/crystals.js";
 import { initLattice, advanceLattice } from "../mechanics/lattice.js";
 import { TERRAIN_TELEGRAPH, TERRAIN_CURRENT } from "../grid/constants.js";
+import { mixSeeds, splitmix32 } from "../rng.js";
+import { SUBSEED_CRYSTALLINE } from "../seed-streams.js";
 
 const CRYSTALS = buildCrystals();
 const SPAWN_BUFFER = 3;
@@ -116,18 +118,19 @@ export function buildReservedAroundSnake(grid, snake) {
  * Generates a normalised [0,1] influence map using random attractors.
  *
  * @param {import('../grid/index.js').Grid} grid
+ * @param {() => number} [rand=Math.random]
  * @returns {Float32Array}
  */
-export function generateInfluenceMap(grid) {
+export function generateInfluenceMap(grid, rand = Math.random) {
   const w = grid.width;
   const h = grid.height;
   const map = new Float32Array(w * h);
 
   for (let a = 0; a < INFLUENCE_ATTRACTORS; a++) {
-    const ax = Math.random() * w;
-    const ay = Math.random() * h;
-    const strength = 0.5 + Math.random() * 0.5;
-    const radius = Math.max(w, h) * (0.3 + Math.random() * 0.3);
+    const ax = rand() * w;
+    const ay = rand() * h;
+    const strength = 0.5 + rand() * 0.5;
+    const radius = Math.max(w, h) * (0.3 + rand() * 0.3);
 
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
@@ -205,16 +208,17 @@ export function scoreShapePlacement(grid, influenceMap, shape, x, y, refX, refY)
  * @param {object} shape
  * @param {number} refX
  * @param {number} refY
+ * @param {() => number} [rand=Math.random]
  * @returns {{ x: number, y: number, score: number }|null}
  */
-export function findBestPlacement(grid, influenceMap, shape, refX, refY) {
+export function findBestPlacement(grid, influenceMap, shape, refX, refY, rand = Math.random) {
   let bestScore = -1;
   let bestX = -1;
   let bestY = -1;
 
   for (let i = 0; i < PLACEMENT_CANDIDATES; i++) {
-    const x = Math.floor(Math.random() * grid.width);
-    const y = Math.floor(Math.random() * grid.height);
+    const x = Math.floor(rand() * grid.width);
+    const y = Math.floor(rand() * grid.height);
 
     if (!canPlaceStage(grid, shape, x, y)) {
       continue;
@@ -238,9 +242,10 @@ export function findBestPlacement(grid, influenceMap, shape, refX, refY) {
  * Picks a random set of crystal shapes scaled to the current act index.
  *
  * @param {number} actIndex
+ * @param {() => number} [rand=Math.random]
  * @returns {object[]}
  */
-export function pickShapesForAct(actIndex) {
+export function pickShapesForAct(actIndex, rand = Math.random) {
   let count;
   if (actIndex <= 3) {
     count = 1;
@@ -252,11 +257,11 @@ export function pickShapesForAct(actIndex) {
 
   const shapes = [];
   for (let i = 0; i < count; i++) {
-    const crystalIdx = Math.floor(Math.random() * CRYSTALS.length);
+    const crystalIdx = Math.floor(rand() * CRYSTALS.length);
     const crystal = CRYSTALS[crystalIdx];
     // Use stage 1 (index 0) for initial placement
     const stage0 = crystal.stages[0];
-    const rotIdx = Math.floor(Math.random() * stage0.rotations.length);
+    const rotIdx = Math.floor(rand() * stage0.rotations.length);
     shapes.push(stage0.rotations[rotIdx]);
   }
   return shapes;
@@ -276,11 +281,12 @@ function isFoodBlocked(grid, x, y) {
  * Places food at a random unblocked, non-terrain cell (with fallback full scan).
  *
  * @param {import('../grid/index.js').Grid} grid
+ * @param {() => number} [rand=Math.random]
  */
-export function placeFood(grid) {
+export function placeFood(grid, rand = Math.random) {
   for (let attempts = 0; attempts < 200; attempts++) {
-    const x = Math.floor(Math.random() * grid.width);
-    const y = Math.floor(Math.random() * grid.height);
+    const x = Math.floor(rand() * grid.width);
+    const y = Math.floor(rand() * grid.height);
     if (!isFoodBlocked(grid, x, y)) {
       grid.foodX = x;
       grid.foodY = y;
@@ -313,6 +319,11 @@ export function generateGrid(game) {
   grid.clearMasks("reserved");
   grid.terrain.fill(0);
 
+  // One-shot PRNG for the initial layout — derived from the act seed so
+  // two runs at the same act produce identical crystal placements.
+  const rand = splitmix32(mixSeeds(game.actSeed, SUBSEED_CRYSTALLINE));
+  const foodRand = game.foodRand ?? rand;
+
   const spawnX = Math.floor(grid.width / 2);
   const spawnY = Math.floor(grid.height / 2);
   const dx = 1;
@@ -322,11 +333,11 @@ export function generateGrid(game) {
 
   buildReservedSpawnZone(grid, spawnX, spawnY, snakeLen, dx, dy);
 
-  const influenceMap = generateInfluenceMap(grid);
+  const influenceMap = generateInfluenceMap(grid, rand);
 
-  const shapes = pickShapesForAct(game.actIndex);
+  const shapes = pickShapesForAct(game.actIndex, rand);
   for (let i = 0; i < shapes.length; i++) {
-    const placement = findBestPlacement(grid, influenceMap, shapes[i], spawnX, spawnY);
+    const placement = findBestPlacement(grid, influenceMap, shapes[i], spawnX, spawnY, rand);
     if (placement) {
       placeStage(grid, shapes[i], placement.x, placement.y);
     }
@@ -336,7 +347,7 @@ export function generateGrid(game) {
 
   game.snake.init(grid, spawnX, spawnY, snakeLen, dx, dy);
 
-  placeFood(grid);
+  placeFood(grid, foodRand);
 
   initLattice(game);
 }
@@ -351,5 +362,5 @@ export function advanceGrid(game) {
 
   advanceLattice(game);
 
-  placeFood(grid);
+  placeFood(grid, game.foodRand ?? Math.random);
 }

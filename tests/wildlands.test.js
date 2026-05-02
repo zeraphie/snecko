@@ -160,3 +160,34 @@ describe("advanceWildlandsGrid", () => {
     expect(game.grid.foodY).toBeGreaterThanOrEqual(0);
   });
 });
+
+describe("wildlands determinism", () => {
+  it("same actSeed produces identical wall layout", () => {
+    const a = makeGame();
+    const b = makeGame();
+    a.snake.snakeLength = 3;
+    b.snake.snakeLength = 3;
+    a.actSeed = 0x12345678;
+    b.actSeed = 0x12345678;
+
+    generateWildlandsGrid(a);
+    generateWildlandsGrid(b);
+
+    expect(Array.from(a.grid.wallMasks)).toEqual(Array.from(b.grid.wallMasks));
+    expect(Array.from(a.grid.terrain)).toEqual(Array.from(b.grid.terrain));
+  });
+
+  it("different actSeed produces different layouts", () => {
+    const a = makeGame();
+    const b = makeGame();
+    a.snake.snakeLength = 3;
+    b.snake.snakeLength = 3;
+    a.actSeed = 0x11111111;
+    b.actSeed = 0x22222222;
+
+    generateWildlandsGrid(a);
+    generateWildlandsGrid(b);
+
+    expect(Array.from(a.grid.wallMasks)).not.toEqual(Array.from(b.grid.wallMasks));
+  });
+});

@@ -21,6 +21,8 @@ import {
   FOOD_REQUIRED_PER_ACT,
   INITIAL_SNAKE_LENGTH,
 } from "./constants.js";
+import { mixSeeds, splitmix32 } from "../rng.js";
+import { SUBSEED_FOOD } from "../seed-streams.js";
 
 const GENERATORS = {
   crystalline: { generate: crystallineGenerate, advance: crystallineAdvance },
@@ -92,6 +94,8 @@ export function confirmDraft() {
 
   // Advance to next act
   this.actIndex++;
+  this.actSeed = mixSeeds(this.runSeed, this.actIndex);
+  this.foodRand = splitmix32(mixSeeds(this.actSeed, SUBSEED_FOOD));
   this.foodEaten = 0;
   this.mechanic = null;
   this._wormholeA = null;

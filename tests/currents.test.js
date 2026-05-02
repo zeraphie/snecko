@@ -317,3 +317,29 @@ describe("applyCurrentDrift", () => {
     expect(game.snake.snakeX[game.snake.headIndex]).toBe(hx);
   });
 });
+
+describe("currents determinism", () => {
+  it("same actSeed produces identical river cells", () => {
+    const a = makeGame();
+    const b = makeGame();
+    a.actSeed = 0xcafebabe;
+    b.actSeed = 0xcafebabe;
+
+    initCurrents(a);
+    initCurrents(b);
+
+    expect(a.mechanic.cells).toEqual(b.mechanic.cells);
+  });
+
+  it("different actSeed produces different rivers", () => {
+    const a = makeGame();
+    const b = makeGame();
+    a.actSeed = 0x11111111;
+    b.actSeed = 0xffffffff;
+
+    initCurrents(a);
+    initCurrents(b);
+
+    expect(a.mechanic.cells).not.toEqual(b.mechanic.cells);
+  });
+});

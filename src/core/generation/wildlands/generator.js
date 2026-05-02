@@ -4,6 +4,8 @@ import { createPermTable, fbm2 } from "./noise.js";
 import { bfsReachable } from "../common/solvability.js";
 import { TERRAIN_NONE, TERRAIN_LOW, TERRAIN_HIGH, TERRAIN_CURRENT } from "../../grid/constants.js";
 import { initCurrents, advanceCurrents } from "../../mechanics/currents.js";
+import { mixSeeds } from "../../rng.js";
+import { SUBSEED_WILDLANDS } from "../../seed-streams.js";
 
 const SPAWN_CLEAR_RADIUS = 4;
 const LOW_THRESHOLD = 0.15; // fbm > this → low wall
@@ -28,8 +30,7 @@ export function generateWildlandsGrid(game) {
   grid.clearMasks("reserved");
   grid.terrain.fill(TERRAIN_NONE);
 
-  const seed = Date.now() ^ (game.actIndex * 7919);
-  const perm = createPermTable(seed);
+  const perm = createPermTable(mixSeeds(game.actSeed, SUBSEED_WILDLANDS));
 
   const spawnX = Math.floor(w / 2);
   const spawnY = Math.floor(h / 2);
@@ -61,7 +62,7 @@ export function generateWildlandsGrid(game) {
   game.snake.init(grid, spawnX, spawnY, snakeLen, 1, 0);
 
   // Place food with solvability check
-  placeWildlandsFood(grid, spawnX, spawnY);
+  placeWildlandsFood(grid, spawnX, spawnY, game.foodRand ?? Math.random);
 
   // Initialize currents mechanic
   initCurrents(game);
@@ -80,14 +81,14 @@ export function advanceWildlandsGrid(game) {
   const snake = game.snake;
   const hx = snake.snakeX[snake.headIndex];
   const hy = snake.snakeY[snake.headIndex];
-  placeWildlandsFood(game.grid, hx, hy);
+  placeWildlandsFood(game.grid, hx, hy, game.foodRand ?? Math.random);
 }
 
-function placeWildlandsFood(grid, fromX, fromY) {
+function placeWildlandsFood(grid, fromX, fromY, rand = Math.random) {
   // Try random positions, verify reachable via BFS
   for (let attempts = 0; attempts < 200; attempts++) {
-    const x = Math.floor(Math.random() * grid.width);
-    const y = Math.floor(Math.random() * grid.height);
+    const x = Math.floor(rand() * grid.width);
+    const y = Math.floor(rand() * grid.height);
     if (grid.isBlockedCell(x, y)) {
       continue;
     }

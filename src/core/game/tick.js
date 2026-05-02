@@ -135,10 +135,11 @@ export function _recalcTickMs() {
 
 /** Places food at a random unblocked cell (simple fallback, no influence map). */
 export function _placeRandomFood() {
+  const rand = this.foodRand ?? Math.random;
   let x, y;
   do {
-    x = Math.floor(Math.random() * this.grid.width);
-    y = Math.floor(Math.random() * this.grid.height);
+    x = Math.floor(rand() * this.grid.width);
+    y = Math.floor(rand() * this.grid.height);
   } while (this.grid.isBlockedCell(x, y));
   this.grid.foodX = x;
   this.grid.foodY = y;
@@ -216,7 +217,8 @@ export function _placeBossFood() {
   if (pool.length === 0) {
     return;
   }
-  const [x, y] = pool[Math.floor(Math.random() * pool.length)];
+  const rand = this.foodRand ?? Math.random;
+  const [x, y] = pool[Math.floor(rand() * pool.length)];
   grid.bossFoodX = x;
   grid.bossFoodY = y;
 }

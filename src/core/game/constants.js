@@ -8,6 +8,8 @@ export const STATE_WORMHOLE = "wormhole";
 export const STATE_DEAD = "dead";
 export const STATE_BOSS = "boss";
 export const STATE_CONTRABAND = "contraband";
+export const STATE_SEED_INPUT = "seed_input";
+export const STATE_MENU = "menu";
 
 // ── Death causes ──────────────────────────────────────────────────
 export const DEATH_WALL = "wall";
