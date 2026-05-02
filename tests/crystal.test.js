@@ -16,7 +16,7 @@ import { TERRAIN_TELEGRAPH, TERRAIN_NONE, TERRAIN_INTERIOR } from "../src/core/g
 
 const SHAPES_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  "../src/core/generation/crystalline/crystals.shapes"
+  "../assets/shapes/crystals.shapes"
 );
 const CRYSTALS = buildCrystals(readFileSync(SHAPES_PATH, "utf-8"));
 

@@ -14,7 +14,7 @@ import { TERRAIN_TELEGRAPH, TERRAIN_CURRENT } from "../src/core/grid/constants.j
 
 const SHAPES_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
-  "../src/core/generation/crystalline/crystals.shapes"
+  "../assets/shapes/crystals.shapes"
 );
 const CRYSTALS = buildCrystals(readFileSync(SHAPES_PATH, "utf-8"));
 

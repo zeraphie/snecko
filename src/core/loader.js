@@ -10,15 +10,15 @@ import { buildCrystals } from "./generation/crystalline/crystals.js";
 
 const MIN_LOAD_MS = 300;
 
-const ARENA_FILES = ["src/core/boss/arenas/default.arena"];
+const ARENA_FILES = ["assets/arenas/default.arena"];
 
 const BOSS_SHAPE_FILES = [
-  "src/core/boss/bosses/absolute-unit.boss",
-  "src/core/boss/bosses/traffic-jam.boss",
-  "src/core/boss/bosses/the-algorithm.boss",
+  "assets/bosses/absolute-unit.boss",
+  "assets/bosses/traffic-jam.boss",
+  "assets/bosses/the-algorithm.boss",
 ];
 
-const CRYSTAL_SHAPES_FILE = "src/core/generation/crystalline/crystals.shapes";
+const CRYSTAL_SHAPES_FILE = "assets/shapes/crystals.shapes";
 
 // ── Spiral order for the 3×3 dot grid ─────────────────────────────
 //

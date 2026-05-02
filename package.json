@@ -1,6 +1,6 @@
 {
   "name": "snecko",
-  "version": "0.6.0",
+  "version": "0.7.0",
   "private": true,
   "description": "Snake + Roguelike game",
   "type": "module",
@@ -15,7 +15,7 @@
     "check": "bun run format:check && bun run lint && bun run test",
     "play": "node src/main.terminal.js",
     "serve": "npx --yes serve .",
-    "upload:build": "bun build ./index.html --outdir ./dist --production --minify && mkdir -p dist/src/core/boss/arenas dist/src/core/boss/bosses && cp src/core/boss/arenas/*.arena dist/src/core/boss/arenas/ && cp src/core/boss/bosses/*.boss dist/src/core/boss/bosses/",
+    "upload:build": "bun build ./index.html --outdir ./dist --production --minify && cp -R assets dist/assets",
     "upload:serve": "npx --yes serve ./dist"
   },
   "devDependencies": {

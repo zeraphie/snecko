@@ -37,13 +37,13 @@ function readAsset(path) {
  */
 function buildTestManifest() {
   return {
-    arenas: parseArenaFile(readAsset("src/core/boss/arenas/default.arena")),
+    arenas: parseArenaFile(readAsset("assets/arenas/default.arena")),
     bossShapes: {
-      "absolute-unit": parseBossShape(readAsset("src/core/boss/bosses/absolute-unit.boss")),
-      "traffic-jam": parseBossShape(readAsset("src/core/boss/bosses/traffic-jam.boss")),
-      "the-algorithm": parseBossShape(readAsset("src/core/boss/bosses/the-algorithm.boss")),
+      "absolute-unit": parseBossShape(readAsset("assets/bosses/absolute-unit.boss")),
+      "traffic-jam": parseBossShape(readAsset("assets/bosses/traffic-jam.boss")),
+      "the-algorithm": parseBossShape(readAsset("assets/bosses/the-algorithm.boss")),
     },
-    crystals: buildCrystals(readAsset("src/core/generation/crystalline/crystals.shapes")),
+    crystals: buildCrystals(readAsset("assets/shapes/crystals.shapes")),
   };
 }
 
