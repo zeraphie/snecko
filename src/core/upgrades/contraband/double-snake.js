@@ -8,9 +8,8 @@
 /**
  * @type {import('./index.js').ContrabandDef}
  */
+// Player-facing name/desc lives in src/text/labels.js (LABELS.upgrades.double_snake).
 export default {
   id: "double_snake",
-  name: "Double snake? Double snake!",
-  desc: "What's better than one snake? That's right, three.",
   apply: (_game) => {}, // Checked at movement + damage time in boss-tick.js
 };

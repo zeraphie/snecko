@@ -36,10 +36,6 @@ test-watch:
 test-coverage:
   {{nvm}} && bun run test:coverage
 
-# Generate crystal bitmasks from .shapes file
-gen-shapes:
-  {{nvm}} && node scripts/gen-shapes.js
-
 # Play in terminal
 # mode:  boss (skip to boss arena) | wildlands (wildlands terrain)
 # world: wildlands | crystalline   (sets the boss biome; inferred from mode if omitted)

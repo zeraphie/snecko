@@ -1,6 +1,6 @@
 // absolute-unit.js — Absolute Unit (fallback / test placeholder)
 //
-// Used when the world mode has no dedicated boss entry yet.
+// Used when the mutation has no dedicated boss entry yet.
 // No special ability — clean slate for future modes to build on.
 
 /**
@@ -8,7 +8,6 @@
  */
 export default {
   id: "absolute_unit",
-  name: "Absolute Unit",
   maxHp: 12,
   width: 0,
   height: 0,

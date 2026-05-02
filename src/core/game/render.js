@@ -1,9 +1,11 @@
-// render.js — Board drawing and frame rendering
+// render.js — Grid drawing and frame rendering
 
 import { Snake } from "../snake/index.js";
 import {
   CELL_WALL,
   CELL_WALL_LOW,
+  CELL_WALL_LOW_EDIBLE,
+  CELL_WALL_HIGH,
   CELL_FOOD,
   CELL_SNAKE,
   CELL_CURRENT_RIGHT,
@@ -28,7 +30,12 @@ import {
   CELL_EXHAUST,
 } from "../../render/renderer.js";
 import { getPlayerCells } from "../boss/player.js";
-import { TERRAIN_LOW, TERRAIN_CURRENT, TERRAIN_TELEGRAPH } from "../board/constants.js";
+import {
+  TERRAIN_LOW,
+  TERRAIN_HIGH,
+  TERRAIN_CURRENT,
+  TERRAIN_TELEGRAPH,
+} from "../grid/constants.js";
 import { getScreen } from "../../screens/registry.js";
 
 // ── Helpers ────────────────────────────────────────────
@@ -59,7 +66,7 @@ function currentCellType(mechanic, x, y) {
 
 /**
  * Draws the boss arena: arena walls, boss body/weak cells, projectiles, and
- * the player plane at board.playerX / board.playerY facing _playerFacing.
+ * the player plane at grid.playerX / grid.playerY facing _playerFacing.
  *
  * Draw order (back-to-front):
  *   1. Arena walls
@@ -68,12 +75,12 @@ function currentCellType(mechanic, x, y) {
  *   4. Player plane body cells (CELL_SNAKE)
  *   5. Player tip (drawSnakeHead) — always on top
  *
- * Body cells (indices 1-5) are skipped if they fall outside the board or on a
+ * Body cells (indices 1-5) are skipped if they fall outside the grid or on a
  * wall — handles the spawn position near the south wall gracefully.
  */
 export function _drawBossArena() {
   const renderer = this.renderer;
-  const board = this.board;
+  const grid = this.grid;
 
   // 1. Arena walls — anchor-lock cells (tracked in _bossModifiers) render as
   //    CELL_ANCHOR_LOCK (amber) instead of CELL_WALL_ARENA so the player can
@@ -88,46 +95,53 @@ export function _drawBossArena() {
     }
   }
 
-  for (let y = 0; y < board.height; y++) {
-    for (let x = 0; x < board.width; x++) {
-      if (board.isWallCell(x, y)) {
+  for (let y = 0; y < grid.height; y++) {
+    for (let x = 0; x < grid.width; x++) {
+      if (grid.isWallCell(x, y)) {
         const cellType = lockCellSet.has(lockCellKey(x, y)) ? CELL_ANCHOR_LOCK : CELL_WALL_ARENA;
         renderer.drawCell(x, y, cellType);
       }
     }
   }
 
-  // 1b. Sovereign current zones — draw as directional current arrows so the
-  //     player can read the push direction at a glance.
+  // 1b. Algorithm current — telegraph cells render as warning, flow cells
+  //     render as per-cell directional arrows so the player can read each
+  //     cell's push direction (the river winds, so neighbours can differ).
   for (const mod of this._bossModifiers) {
-    if (mod.type !== "sovereign_current") {
+    if (mod.type !== "algorithm_current") {
       continue;
     }
-    const cellType =
-      mod.dx === 1
-        ? CELL_CURRENT_RIGHT
-        : mod.dx === -1
-          ? CELL_CURRENT_LEFT
-          : mod.dy === 1
-            ? CELL_CURRENT_DOWN
-            : CELL_CURRENT_UP;
     for (const cell of mod.cells) {
-      if (board.isInBounds(cell.x, cell.y) && !board.isWallCell(cell.x, cell.y)) {
-        renderer.drawCell(cell.x, cell.y, cellType);
+      if (!grid.isInBounds(cell.x, cell.y) || grid.isWallCell(cell.x, cell.y)) {
+        continue;
       }
+      let cellType;
+      if (mod.state === "telegraph") {
+        cellType = CELL_TELEGRAPH;
+      } else {
+        cellType =
+          cell.flowDx === 1
+            ? CELL_CURRENT_RIGHT
+            : cell.flowDx === -1
+              ? CELL_CURRENT_LEFT
+              : cell.flowDy === 1
+                ? CELL_CURRENT_DOWN
+                : CELL_CURRENT_UP;
+      }
+      renderer.drawCell(cell.x, cell.y, cellType);
     }
   }
 
   // 1c. Danger trail cells
   for (const mod of this._bossModifiers) {
-    if (mod.type === "danger_trail" && board.isInBounds(mod.x, mod.y)) {
+    if (mod.type === "danger_trail" && grid.isInBounds(mod.x, mod.y)) {
       renderer.drawCell(mod.x, mod.y, CELL_DANGER_TRAIL);
     }
   }
 
   // 1d. Echo zone cells
   for (const mod of this._bossModifiers) {
-    if (mod.type === "echo_zone" && board.isInBounds(mod.x, mod.y)) {
+    if (mod.type === "echo_zone" && grid.isInBounds(mod.x, mod.y)) {
       renderer.drawCell(mod.x, mod.y, CELL_ECHO_ZONE);
     }
   }
@@ -155,79 +169,84 @@ export function _drawBossArena() {
 
   // 3. Projectiles
   for (const p of this._projectiles) {
-    if (board.isInBounds(p.x, p.y)) {
+    if (grid.isInBounds(p.x, p.y)) {
       renderer.drawCell(p.x, p.y, CELL_PROJECTILE);
     }
   }
 
   // 3b. Player bullets
   for (const pb of this._playerBullets) {
-    if (board.isInBounds(pb.x, pb.y)) {
+    if (grid.isInBounds(pb.x, pb.y)) {
       renderer.drawCell(pb.x, pb.y, CELL_PLAYER_BULLET);
     }
   }
 
   // 4 & 5. Player plane — use invul cell types during the grace window
-  if (board.playerX >= 0 && board.playerY >= 0) {
+  if (grid.playerX >= 0 && grid.playerY >= 0) {
     const dir = this._playerFacing;
-    const cells = getPlayerCells(board.playerX, board.playerY, dir.dx, dir.dy);
+    const cells = getPlayerCells(grid.playerX, grid.playerY, dir.dx, dir.dy);
     const invul = this._playerInvulTicks > 0;
 
     // Exhaust flames below the tail (player always faces up)
-    const tailY = board.playerY + 2;
+    const tailY = grid.playerY + 2;
     const fc = this._playerFireCounter || 0;
     // Primary flame — always visible
     const ey1 = tailY + 1;
-    if (board.isInBounds(board.playerX, ey1) && !board.isWallCell(board.playerX, ey1)) {
-      renderer.drawCell(board.playerX, ey1, CELL_EXHAUST);
+    if (grid.isInBounds(grid.playerX, ey1) && !grid.isWallCell(grid.playerX, ey1)) {
+      renderer.drawCell(grid.playerX, ey1, CELL_EXHAUST);
     }
     // Wing flames — alternate sides
-    const wingX = fc % 2 === 0 ? board.playerX - 1 : board.playerX + 1;
-    if (fc % 3 !== 0 && board.isInBounds(wingX, ey1) && !board.isWallCell(wingX, ey1)) {
+    const wingX = fc % 2 === 0 ? grid.playerX - 1 : grid.playerX + 1;
+    if (fc % 3 !== 0 && grid.isInBounds(wingX, ey1) && !grid.isWallCell(wingX, ey1)) {
       renderer.drawCell(wingX, ey1, CELL_EXHAUST);
     }
     // Tongue — occasional
     const ey2 = tailY + 2;
-    if (
-      fc % 3 === 0 &&
-      board.isInBounds(board.playerX, ey2) &&
-      !board.isWallCell(board.playerX, ey2)
-    ) {
-      renderer.drawCell(board.playerX, ey2, CELL_EXHAUST);
+    if (fc % 3 === 0 && grid.isInBounds(grid.playerX, ey2) && !grid.isWallCell(grid.playerX, ey2)) {
+      renderer.drawCell(grid.playerX, ey2, CELL_EXHAUST);
     }
 
     // Body cells (indices 1-5): skip invalid positions
     for (let i = 1; i < cells.length; i++) {
       const c = cells[i];
-      if (board.isInBounds(c.x, c.y) && !board.isWallCell(c.x, c.y)) {
+      if (grid.isInBounds(c.x, c.y) && !grid.isWallCell(c.x, c.y)) {
         renderer.drawCell(c.x, c.y, invul ? CELL_PLAYER_INVUL : CELL_SNAKE);
       }
     }
 
     // Tip (index 0): directional head, cyan-flickering when invulnerable
     if (invul) {
-      renderer.drawSnakeHeadInvul(board.playerX, board.playerY, dir.dx, dir.dy);
+      renderer.drawSnakeHeadInvul(grid.playerX, grid.playerY, dir.dx, dir.dy);
     } else {
-      renderer.drawSnakeHead(board.playerX, board.playerY, dir.dx, dir.dy);
+      renderer.drawSnakeHead(grid.playerX, grid.playerY, dir.dx, dir.dy);
     }
   }
 }
 
-/** Draws all board cells (walls, food, terrain, snake, portals) to the renderer. */
-export function _drawBoard() {
+/** Draws all grid cells (walls, food, terrain, snake, portals) to the renderer. */
+export function _drawGrid() {
   const renderer = this.renderer;
-  const board = this.board;
-  for (let y = 0; y < board.height; y++) {
-    for (let x = 0; x < board.width; x++) {
-      if (board.isWallCell(x, y)) {
-        const t = board.terrain[y * board.width + x];
-        renderer.drawCell(x, y, t === TERRAIN_LOW ? CELL_WALL_LOW : CELL_WALL);
-      } else if (x === board.foodX && y === board.foodY) {
+  const grid = this.grid;
+  const ironJawActive = this.upgrades.hasBites("iron_jaw");
+  for (let y = 0; y < grid.height; y++) {
+    for (let x = 0; x < grid.width; x++) {
+      if (grid.isWallCell(x, y)) {
+        const t = grid.terrain[y * grid.width + x];
+        let cell;
+        if (t === TERRAIN_LOW) {
+          cell = ironJawActive ? CELL_WALL_LOW_EDIBLE : CELL_WALL_LOW;
+        } else if (t === TERRAIN_HIGH) {
+          cell = CELL_WALL_HIGH;
+        } else {
+          cell = CELL_WALL;
+        }
+        renderer.drawCell(x, y, cell);
+      } else if (x === grid.foodX && y === grid.foodY) {
         renderer.drawCell(x, y, CELL_FOOD);
-      } else if (x === board.bossFoodX && y === board.bossFoodY) {
+      } else if (x === grid.bossFoodX && y === grid.bossFoodY) {
         renderer.drawCell(x, y, CELL_RED_FOOD);
       } else {
-        const t = board.terrain[y * board.width + x];
+        const t = grid.terrain[y * grid.width + x];
         if (t === TERRAIN_CURRENT) {
           renderer.drawCell(x, y, currentCellType(this.mechanic, x, y));
         } else if (t === TERRAIN_TELEGRAPH) {

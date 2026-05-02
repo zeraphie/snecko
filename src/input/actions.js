@@ -60,6 +60,26 @@ export function dispatchAction(game, action) {
     return;
   }
 
+  // ── Menu ────────────────────────────────────────────────────
+  if (state === "menu") {
+    switch (action) {
+      case ACTION_UP:
+        game.selectMenu(game._menuSelection - 1);
+        break;
+      case ACTION_DOWN:
+        game.selectMenu(game._menuSelection + 1);
+        break;
+      case ACTION_CONFIRM:
+      case ACTION_USE_CONSUMABLE:
+        game.confirmMenu();
+        break;
+      case ACTION_CANCEL:
+        game.closeMenu();
+        break;
+    }
+    return;
+  }
+
   // ── Contraband draft ────────────────────────────────────────
   if (state === "contraband") {
     switch (action) {

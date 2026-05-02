@@ -1,6 +1,7 @@
 // hud.js — HUD, boss info bar, and boss intro overlay
 
 import { GREEN, RED, YELLOW, WHITE, DIM, RESET } from "./palette.js";
+import { LABELS } from "../../text/labels.js";
 
 // ── Main HUD ─────────────────────────────────────────────────────
 
@@ -9,47 +10,51 @@ import { GREEN, RED, YELLOW, WHITE, DIM, RESET } from "./palette.js";
  *
  * @param {import('./terminal-renderer.js').TerminalRenderer} r
  * @param {number} score
- * @param {object} board
+ * @param {number} actIndex
  * @param {number} time
- * @param {number} level
  * @param {number} foodEaten
  * @param {number} foodRequired
  * @param {Array|null} passives
  * @param {Array|null} consumables
+ * @param {Array|null} bites
  * @param {number} selectedConsumable
  */
 export function drawHUD(
   r,
   score,
-  board,
+  actIndex,
   time,
-  level,
   foodEaten,
   foodRequired,
   passives,
   consumables,
+  bites,
   selectedConsumable
 ) {
   const mins = String(Math.floor(time / 60)).padStart(2, "0");
   const secs = String(Math.floor(time % 60)).padStart(2, "0");
-  r._hudLine = `Lv ${level}  Food: ${foodEaten}/${foodRequired}  Score: ${score}  Time: ${mins}:${secs}`;
+  r._hudLine = `${LABELS.hud.act} ${actIndex}  ${LABELS.hud.progress}: ${foodEaten}/${foodRequired}  ${LABELS.hud.score}: ${score}  ${LABELS.hud.time}: ${mins}:${secs}`;
 
   // Build upgrades line
   const parts = [];
   if (passives && passives.length > 0) {
     for (const p of passives) {
-      if (p.remainingFood !== undefined) {
-        parts.push(`${p.id}(${p.remainingFood}fd)`);
-      } else {
-        parts.push(`${p.id}(${p.remainingLevels}Lv)`);
-      }
+      const short = LABELS.upgrades[p.id]?.short ?? p.id;
+      parts.push(`${short} ${p.remainingBites} ${LABELS.hud.bites}`);
+    }
+  }
+  if (bites && bites.length > 0) {
+    for (const b of bites) {
+      const short = LABELS.upgrades[b.id]?.short ?? b.id;
+      parts.push(`${short} ${b.charges} ${LABELS.hud.bites}`);
     }
   }
   if (consumables && consumables.length > 0) {
     for (let i = 0; i < consumables.length; i++) {
       const c = consumables[i];
+      const short = LABELS.upgrades[c.id]?.short ?? c.id;
       const sel = i === selectedConsumable;
-      parts.push(sel ? GREEN + `[${c.id} x${c.charges}]` + RESET : `${c.id} x${c.charges}`);
+      parts.push(sel ? GREEN + `[${short} x${c.charges}]` + RESET : `${short} x${c.charges}`);
     }
   }
   if (parts.length > 0) {
@@ -79,13 +84,9 @@ export function drawBossInfo(r, name, hp, maxHp, phase) {
   const bar =
     RED + "\u2593".repeat(filled) + RESET + DIM + "\u2591".repeat(BAR_LEN - filled) + RESET;
 
-  const phaseLabels = {
-    0: DIM + "[warmup]" + RESET,
-    1: WHITE + "[phase 1]" + RESET,
-    2: YELLOW + "[phase 2]" + RESET,
-    3: RED + "[phase 3]" + RESET,
-  };
-  const badge = phaseLabels[phase] ?? "";
+  const phaseColors = [DIM, WHITE, YELLOW, RED];
+  const label = LABELS.boss.phases[phase];
+  const badge = label ? `${phaseColors[phase] ?? DIM}[${label}]${RESET}` : "";
 
   const line = `${RED}${name}${RESET}  ${bar}  ${hp}/${maxHp}  ${badge}`;
 
@@ -129,8 +130,8 @@ export function renderIntroRow(r, lineIdx) {
 
   const contents = [
     "",
-    `${nameColor}\u26A0  INCOMING: ${name}  \u26A0${RESET}`,
-    `${DIM}hold position...${RESET}`,
+    `${nameColor}\u26A0  ${LABELS.boss.incoming}: ${name}  \u26A0${RESET}`,
+    `${DIM}${LABELS.boss.holdPosition}${RESET}`,
     "",
   ];
   const text = contents[lineIdx] ?? "";

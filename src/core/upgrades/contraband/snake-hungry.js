@@ -6,9 +6,8 @@
 /**
  * @type {import('./index.js').ContrabandDef}
  */
+// Player-facing name/desc lives in src/text/labels.js (LABELS.upgrades.snake_hungry).
 export default {
   id: "snake_hungry",
-  name: "Snake hungry, snake need bigger food",
-  desc: "Unlocks vertical dodging in boss fights (+halved fire cooldown near boss)",
   apply: (_game) => {}, // Checked at movement time in boss-tick.js
 };

@@ -1,4 +1,6 @@
 // entity.js — Boss entity: hitbox, HP, drift motion, phase logic
+
+import { LABELS } from "../../text/labels.js";
 //
 // Each body cell has its own HP (tracked in _cellHp by shape index).
 // Destroyed cells are omitted from the cells array but the damage persists
@@ -9,7 +11,7 @@
 // one in the player's upward line of fire) is destroyed.
 
 /**
- * BossEntity represents the visible boss on the arena board.
+ * BossEntity represents the visible boss on the arena grid.
  *
  * Shape: parsed from a .boss file (non-rectangular cell list) or falls back
  * to a filled rectangle when no shape is provided.
@@ -38,7 +40,7 @@ export class BossEntity {
 
     const shape = config.shape ?? null;
 
-    this.name = config.name ?? "Absolute Unit";
+    this.name = config.name ?? LABELS.bosses[config.id]?.name ?? LABELS.bosses.absolute_unit.name;
     this.width = shape ? shape.width : (config.width ?? 5);
     this.height = shape ? shape.height : (config.height ?? 3);
     this.maxHp = config.maxHp ?? 5;
@@ -147,7 +149,7 @@ export class BossEntity {
    * Moves 1 cell every 3 ticks; reverses direction when it would enter the arena walls.
    * Arena inner-left boundary = x:1, inner-right boundary = boardW-2 (i.e. maxX = boardW-1-width).
    *
-   * @param {number} boardW — current board width (used to compute drift bounds)
+   * @param {number} boardW — current grid width (used to compute drift bounds)
    */
   update(boardW) {
     for (let i = 0; i < this._cellFlashTicks.length; i++) {
@@ -262,7 +264,7 @@ export class BossEntity {
   }
 
   /**
-   * Returns the current board-space position of the weak point.
+   * Returns the current grid-space position of the weak point.
    * Use this instead of hardcoding offsets — the weak point shifts as the
    * boss drifts and differs per boss shape.
    *

@@ -52,7 +52,7 @@ describe("generateDraftPool", () => {
     expect(mutation).toBe(null);
   });
 
-  it("excludes current world mode from mutations", () => {
+  it("excludes current mutation from mutation options", () => {
     const state = new UpgradeState(); // crystalline
     // Force mutation to appear
     const rng = seededRng([0, 0, 0, 0.1, 0]);
@@ -71,7 +71,7 @@ describe("generateDraftPool", () => {
 
   it("includes mode-specific upgrades in correct mode", () => {
     const state = new UpgradeState();
-    state.setWorldMode("wildlands");
+    state.setMutation("wildlands");
     // Run enough times that climber should appear at least once
     let found = false;
     for (let i = 0; i < 50; i++) {

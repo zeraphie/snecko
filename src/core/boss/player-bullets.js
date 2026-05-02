@@ -7,7 +7,7 @@
  * @param {import('../game/index.js').Game} game
  */
 export function spawnPlayerBullet(game) {
-  const { playerX, playerY } = game.board;
+  const { playerX, playerY } = game.grid;
   const { dx, dy } = game._playerFacing;
 
   // Spawn one cell ahead of the tip so it doesn't overlap the plane
@@ -21,20 +21,44 @@ export function spawnPlayerBullet(game) {
 
 /**
  * Advances every player bullet by one cell. Removes bullets that leave the
- * board or hit a wall.
+ * grid or hit a wall. If `driftCells` is provided, a bullet that lands on
+ * one of them takes one extra step in that cell's flow direction —
+ * symmetry with boss projectiles inside The Algorithm's current band.
  *
  * @param {Array<{x: number, y: number, dx: number, dy: number}>} bullets
- * @param {import('../board/index.js').Board} board
+ * @param {import('../grid/index.js').Grid} grid
+ * @param {Array<{x:number, y:number, flowDx:number, flowDy:number}> | null} [driftCells]
  */
-export function updatePlayerBullets(bullets, board) {
+export function updatePlayerBullets(bullets, grid, driftCells = null) {
   for (let i = bullets.length - 1; i >= 0; i--) {
     const b = bullets[i];
     b.x += b.dx;
     b.y += b.dy;
-    if (!board.isInBounds(b.x, b.y) || board.isWallCell(b.x, b.y)) {
+    if (!grid.isInBounds(b.x, b.y) || grid.isWallCell(b.x, b.y)) {
       bullets.splice(i, 1);
+      continue;
+    }
+    if (driftCells) {
+      const drift = findDriftCell(driftCells, b.x, b.y);
+      if (drift) {
+        b.x += drift.flowDx;
+        b.y += drift.flowDy;
+        if (!grid.isInBounds(b.x, b.y) || grid.isWallCell(b.x, b.y)) {
+          bullets.splice(i, 1);
+        }
+      }
     }
   }
+}
+
+function findDriftCell(driftCells, x, y) {
+  for (let i = 0; i < driftCells.length; i++) {
+    const c = driftCells[i];
+    if (c.x === x && c.y === y) {
+      return c;
+    }
+  }
+  return null;
 }
 
 /**

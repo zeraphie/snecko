@@ -17,11 +17,11 @@ export function executeDash(game) {
 
     // Clear wall ahead (dash eats walls)
     const next = game._peekNextCell();
-    if (game.board.isWallCell(next.x, next.y)) {
-      game.board.clearCell("wall", next.x, next.y);
+    if (game.grid.isWallCell(next.x, next.y)) {
+      game.grid.clearCell("wall", next.x, next.y);
     }
 
-    const result = game.snake.step(game.board);
+    const result = game.snake.step(game.grid);
     if (result === "food") {
       game._handleFoodEaten();
     } else if (result !== "ok") {

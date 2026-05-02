@@ -8,6 +8,8 @@ export const STATE_WORMHOLE = "wormhole";
 export const STATE_DEAD = "dead";
 export const STATE_BOSS = "boss";
 export const STATE_CONTRABAND = "contraband";
+export const STATE_SEED_INPUT = "seed_input";
+export const STATE_MENU = "menu";
 
 // ── Death causes ──────────────────────────────────────────────────
 export const DEATH_WALL = "wall";
@@ -16,14 +18,14 @@ export const DEATH_BOSS = "boss";
 export const DEATH_PROJECTILE = "projectile";
 export const DEATH_BOMB = "bomb";
 
-export const BOARD_W = 31;
-export const BOARD_H = 31;
+export const GRID_W = 31;
+export const GRID_H = 31;
 export const INITIAL_SNAKE_LENGTH = 3;
 export const BASE_TICK_MS = 150;
 export const MIN_TICK_MS = 70;
-export const TICK_DECREASE_PER_BOARD = 8;
+export const TICK_DECREASE_PER_ACT = 8;
 export const FOOD_REQUIRED_BASE = 5;
-export const FOOD_REQUIRED_PER_LEVEL = 2;
+export const FOOD_REQUIRED_PER_ACT = 2;
 export const BOSS_FOOD_INTERVAL = 10;
 export const BOSS_TICK_MS = 120;
 export const BOSS_MOVE_MS = 33; // movement sub-tick interval (~30 Hz)

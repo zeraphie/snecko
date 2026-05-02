@@ -7,9 +7,8 @@
 /**
  * @type {import('./index.js').ContrabandDef}
  */
+// Player-facing name/desc lives in src/text/labels.js (LABELS.upgrades.gomu_gomu).
 export default {
   id: "gomu_gomu",
-  name: "Gomu gomu no Snakeskin",
-  desc: "Luffy got nothing on Snake, one free hit.",
   apply: (_game) => {}, // Checked at fight entry + collision time in boss-tick.js
 };

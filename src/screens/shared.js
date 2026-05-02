@@ -9,13 +9,13 @@
 export function drawHUD(renderer, game) {
   renderer.drawHUD(
     game.score,
-    game.boardIndex,
+    game.actIndex,
     game.runTime,
-    game.level,
     game.foodEaten,
     game.foodRequired,
     game.upgrades.passives,
     game.upgrades.consumables,
+    game.upgrades.bites,
     game._selectedConsumable
   );
 }

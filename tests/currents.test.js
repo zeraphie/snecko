@@ -1,23 +1,23 @@
 // currents.test.js — tests for river current generation and drift mechanics
 
 import { describe, it, expect } from "vitest";
-import { Board } from "../src/core/board";
+import { Grid } from "../src/core/grid";
 import { Snake } from "../src/core/snake";
 import {
   initCurrents,
   advanceCurrents,
   applyCurrentDrift,
 } from "../src/core/mechanics/currents.js";
-import { TERRAIN_CURRENT, TERRAIN_NONE } from "../src/core/board/constants.js";
+import { TERRAIN_CURRENT, TERRAIN_NONE } from "../src/core/grid/constants.js";
 
 function makeGame(width = 21, height = 21) {
-  const board = new Board(width, height);
+  const grid = new Grid(width, height);
   const snake = new Snake();
-  snake.init(board, 10, 10, 3, 1, 0);
+  snake.init(grid, 10, 10, 3, 1, 0);
   return {
-    board,
+    grid,
     snake,
-    boardIndex: 1,
+    actIndex: 1,
     mechanic: null,
   };
 }
@@ -27,7 +27,7 @@ describe("initCurrents", () => {
     const game = makeGame();
     initCurrents(game);
     expect(game.mechanic.type).toBe("currents");
-    expect(game.mechanic.phase).toBe(0);
+    expect(game.mechanic.state).toBe(0);
   });
 
   it("generates river cells", () => {
@@ -49,21 +49,21 @@ describe("initCurrents", () => {
   it("paints TERRAIN_CURRENT on river cells", () => {
     const game = makeGame();
     initCurrents(game);
-    const w = game.board.width;
+    const w = game.grid.width;
     for (const cell of game.mechanic.cells) {
-      expect(game.board.terrain[cell.y * w + cell.x]).toBe(TERRAIN_CURRENT);
+      expect(game.grid.terrain[cell.y * w + cell.x]).toBe(TERRAIN_CURRENT);
     }
   });
 
   it("does not place river on wall cells", () => {
     const game = makeGame();
     // Fill a row with walls
-    for (let x = 0; x < game.board.width; x++) {
-      game.board.setCell("wall", x, 5);
+    for (let x = 0; x < game.grid.width; x++) {
+      game.grid.setCell("wall", x, 5);
     }
     initCurrents(game);
     for (const cell of game.mechanic.cells) {
-      expect(game.board.isWallCell(cell.x, cell.y)).toBe(false);
+      expect(game.grid.isWallCell(cell.x, cell.y)).toBe(false);
     }
   });
 
@@ -93,17 +93,17 @@ describe("advanceCurrents", () => {
   it("cycles through phases: telegraph → flow → surge → back to telegraph", () => {
     const game = makeGame();
     initCurrents(game);
-    expect(game.mechanic.phase).toBe(0); // telegraph
+    expect(game.mechanic.state).toBe(0); // telegraph
 
     advanceCurrents(game);
-    expect(game.mechanic.phase).toBe(1); // flow
+    expect(game.mechanic.state).toBe(1); // flow
 
     advanceCurrents(game);
-    expect(game.mechanic.phase).toBe(2); // surge
+    expect(game.mechanic.state).toBe(2); // surge
 
     advanceCurrents(game);
     // shift (3) immediately becomes telegraph (0) of new river
-    expect(game.mechanic.phase).toBe(0); // telegraph again
+    expect(game.mechanic.state).toBe(0); // telegraph again
   });
 
   it("widens river on surge phase", () => {
@@ -139,7 +139,7 @@ describe("advanceCurrents", () => {
   it("clears old terrain before repainting", () => {
     const game = makeGame();
     initCurrents(game);
-    const w = game.board.width;
+    const w = game.grid.width;
 
     // Note a cell from current river
     const oldCell = game.mechanic.cells[0];
@@ -153,7 +153,7 @@ describe("advanceCurrents", () => {
     // Old cell should not have TERRAIN_CURRENT unless new river happens to overlap
     const newCellSet = new Set(game.mechanic.cells.map((c) => c.y * w + c.x));
     if (!newCellSet.has(oldIdx)) {
-      expect(game.board.terrain[oldIdx]).toBe(TERRAIN_NONE);
+      expect(game.grid.terrain[oldIdx]).toBe(TERRAIN_NONE);
     }
   });
 });
@@ -164,7 +164,7 @@ describe("applyCurrentDrift", () => {
     // Manually set up a controlled current mechanic
     game.mechanic = {
       type: "currents",
-      phase: 1, // FLOW
+      state: 1, // FLOW
       cells: [{ x: 11, y: 10, flowDx: 1, flowDy: 0 }],
       contactApplied: false,
     };
@@ -182,12 +182,12 @@ describe("applyCurrentDrift", () => {
     const game = makeGame();
     game.mechanic = {
       type: "currents",
-      phase: 0, // telegraph — no drift
+      state: 0, // telegraph — no drift
       cells: [{ x: 11, y: 10, flowDx: 1, flowDy: 0 }],
       contactApplied: false,
     };
     // Move snake head to (11,10)
-    game.snake.step(game.board);
+    game.snake.step(game.grid);
     const hx = game.snake.snakeX[game.snake.headIndex];
     expect(hx).toBe(11);
 
@@ -199,7 +199,7 @@ describe("applyCurrentDrift", () => {
   it("applies drift when head is on current cell in flow phase", () => {
     const game = makeFlowGame();
     // Move snake head to (11,10) — the current cell
-    game.snake.step(game.board);
+    game.snake.step(game.grid);
     expect(game.snake.snakeX[game.snake.headIndex]).toBe(11);
 
     applyCurrentDrift(game);
@@ -209,9 +209,9 @@ describe("applyCurrentDrift", () => {
 
   it("applies 2 drift steps in surge phase", () => {
     const game = makeFlowGame();
-    game.mechanic.phase = 2; // surge
+    game.mechanic.state = 2; // surge
     // Move snake to (11,10)
-    game.snake.step(game.board);
+    game.snake.step(game.grid);
 
     applyCurrentDrift(game);
     // Drift pushes head right by 2
@@ -220,7 +220,7 @@ describe("applyCurrentDrift", () => {
 
   it("sets contactApplied flag after drift", () => {
     const game = makeFlowGame();
-    game.snake.step(game.board);
+    game.snake.step(game.grid);
 
     applyCurrentDrift(game);
     expect(game.mechanic.contactApplied).toBe(true);
@@ -228,7 +228,7 @@ describe("applyCurrentDrift", () => {
 
   it("does not apply drift twice while contactApplied is true", () => {
     const game = makeFlowGame();
-    game.snake.step(game.board);
+    game.snake.step(game.grid);
 
     applyCurrentDrift(game);
     const hx = game.snake.snakeX[game.snake.headIndex];
@@ -239,12 +239,12 @@ describe("applyCurrentDrift", () => {
 
   it("resets contactApplied when head leaves current cells", () => {
     const game = makeFlowGame();
-    game.snake.step(game.board); // head at (11,10)
+    game.snake.step(game.grid); // head at (11,10)
 
     applyCurrentDrift(game); // drift to (12,10), contactApplied = true
 
     // Now step again — head moves to (13,10), not a current cell
-    game.snake.step(game.board);
+    game.snake.step(game.grid);
     applyCurrentDrift(game);
     // contactApplied should be reset since head is not on a current cell
     expect(game.mechanic.contactApplied).toBe(false);
@@ -253,9 +253,9 @@ describe("applyCurrentDrift", () => {
   it("absorbs drift into wall (no death)", () => {
     const game = makeFlowGame();
     // Place wall at (12,10) — where drift would push
-    game.board.setCell("wall", 12, 10);
+    game.grid.setCell("wall", 12, 10);
 
-    game.snake.step(game.board); // head at (11,10)
+    game.snake.step(game.grid); // head at (11,10)
     applyCurrentDrift(game);
 
     // Head should stay at (11,10) — drift absorbed
@@ -266,9 +266,9 @@ describe("applyCurrentDrift", () => {
   it("absorbs drift into snake body (no death)", () => {
     const game = makeFlowGame();
     // Place snake body at (12,10)
-    game.board.setCell("snake", 12, 10);
+    game.grid.setCell("snake", 12, 10);
 
-    game.snake.step(game.board); // head at (11,10)
+    game.snake.step(game.grid); // head at (11,10)
     applyCurrentDrift(game);
 
     // Head should stay at (11,10) — drift absorbed
@@ -276,17 +276,17 @@ describe("applyCurrentDrift", () => {
     expect(game.snake.alive).toBe(true);
   });
 
-  it("wraps drift around board edges", () => {
+  it("wraps drift around grid edges", () => {
     const game = makeGame();
     game.mechanic = {
       type: "currents",
-      phase: 1,
+      state: 1,
       cells: [{ x: 20, y: 10, flowDx: 1, flowDy: 0 }],
       contactApplied: false,
     };
     // Position snake at right edge heading right
-    game.snake.init(game.board, 19, 10, 3, 1, 0);
-    game.snake.step(game.board); // head at (20,10)
+    game.snake.init(game.grid, 19, 10, 3, 1, 0);
+    game.snake.step(game.grid); // head at (20,10)
 
     applyCurrentDrift(game);
     // Drift should wrap to x=0
@@ -295,11 +295,11 @@ describe("applyCurrentDrift", () => {
 
   it("partial surge — absorbs second step if blocked", () => {
     const game = makeFlowGame();
-    game.mechanic.phase = 2; // surge (2 drift steps)
+    game.mechanic.state = 2; // surge (2 drift steps)
     // Place wall at (13,10) — blocks second drift step
-    game.board.setCell("wall", 13, 10);
+    game.grid.setCell("wall", 13, 10);
 
-    game.snake.step(game.board); // head at (11,10)
+    game.snake.step(game.grid); // head at (11,10)
     applyCurrentDrift(game);
 
     // First drift to (12,10) succeeds, second to (13,10) blocked by wall
@@ -315,5 +315,31 @@ describe("applyCurrentDrift", () => {
 
     applyCurrentDrift(game);
     expect(game.snake.snakeX[game.snake.headIndex]).toBe(hx);
+  });
+});
+
+describe("currents determinism", () => {
+  it("same actSeed produces identical river cells", () => {
+    const a = makeGame();
+    const b = makeGame();
+    a.actSeed = 0xcafebabe;
+    b.actSeed = 0xcafebabe;
+
+    initCurrents(a);
+    initCurrents(b);
+
+    expect(a.mechanic.cells).toEqual(b.mechanic.cells);
+  });
+
+  it("different actSeed produces different rivers", () => {
+    const a = makeGame();
+    const b = makeGame();
+    a.actSeed = 0x11111111;
+    b.actSeed = 0xffffffff;
+
+    initCurrents(a);
+    initCurrents(b);
+
+    expect(a.mechanic.cells).not.toEqual(b.mechanic.cells);
   });
 });

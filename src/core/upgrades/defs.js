@@ -4,33 +4,29 @@
 
 export const TYPE_PASSIVE = "passive";
 export const TYPE_CONSUMABLE = "consumable";
+export const TYPE_BITES = "bites";
 export const TYPE_MUTATION = "mutation";
 
 // ── Catalog ────────────────────────────────────────────
 
+// Player-facing name/desc for each upgrade lives in `src/text/labels.js`
+// under LABELS.upgrades.<id>; defs hold only mechanical config.
 export const UPGRADES = {
   // Passives
   climber: {
     id: "climber",
     type: TYPE_PASSIVE,
-    name: "Parkour!",
-    desc: "Low walls? More like no walls",
     duration: 4,
     modeOnly: "wildlands",
   },
   iron_jaw: {
     id: "iron_jaw",
-    type: TYPE_PASSIVE,
-    name: "Mmm, Crunchy",
-    desc: "Walls are tasty too",
-    duration: 3,
-    durationUnit: "food",
+    type: TYPE_BITES,
+    charges: 3,
   },
   slow_time: {
     id: "slow_time",
     type: TYPE_PASSIVE,
-    name: "Snake.exe has stopped responding",
-    desc: "Everything is slower. You're welcome",
     duration: 3,
   },
 
@@ -38,22 +34,16 @@ export const UPGRADES = {
   bomb: {
     id: "bomb",
     type: TYPE_CONSUMABLE,
-    name: "Who gave the snake a gun?",
-    desc: "Seriously, who did this",
     charges: 2,
   },
   dash: {
     id: "dash",
     type: TYPE_CONSUMABLE,
-    name: "Snek Goes Brrrr",
-    desc: "Zoom through walls at alarming speed",
     charges: 3,
   },
   wormhole: {
     id: "wormhole",
     type: TYPE_CONSUMABLE,
-    name: "Snake Discovered Quantum Mechanics",
-    desc: "Do quantum mechanics things",
     charges: 1,
   },
 
@@ -61,14 +51,10 @@ export const UPGRADES = {
   wildlands: {
     id: "wildlands",
     type: TYPE_MUTATION,
-    name: "Wildlands",
-    desc: "FBM terrain generation",
   },
   crystalline: {
     id: "crystalline",
     type: TYPE_MUTATION,
-    name: "Crystalline",
-    desc: "Crystal growth generation",
   },
 };
 
@@ -94,11 +80,11 @@ export function getUpgradesByType(type) {
 export function getEligibleUpgrades(upgradeState) {
   return Object.values(UPGRADES).filter((u) => {
     // Mode-specific passives only show in their mode
-    if (u.modeOnly && u.modeOnly !== upgradeState.worldMode) {
+    if (u.modeOnly && u.modeOnly !== upgradeState.mutation) {
       return false;
     }
-    // Current world mode excluded from mutation options
-    if (u.type === TYPE_MUTATION && u.id === upgradeState.worldMode) {
+    // Current active mutation excluded from mutation options
+    if (u.type === TYPE_MUTATION && u.id === upgradeState.mutation) {
       return false;
     }
     return true;

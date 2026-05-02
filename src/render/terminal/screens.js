@@ -2,6 +2,25 @@
 
 import { GREEN, RED, DIM, RESET } from "./palette.js";
 import { ESC_HOME } from "./palette.js";
+import { LABELS } from "../../text/labels.js";
+
+/**
+ * Builds the corner badge for an upgrade card. Passives/bites show duration
+ * or charge count in bites; consumables show a charge count; mutations have
+ * no badge.
+ */
+function upgradeBadge(def) {
+  if (def.type === "passive") {
+    return "+" + def.duration + " " + LABELS.hud.bites;
+  }
+  if (def.type === "bites") {
+    return "x" + def.charges + " " + LABELS.hud.bites;
+  }
+  if (def.type === "consumable") {
+    return "x" + def.charges;
+  }
+  return "";
+}
 
 /**
  * Stores a generic screen overlay for rendering during flush.
@@ -28,37 +47,39 @@ export function drawDraftScreen(r, choices, mutation, selectedIndex, mutationAcc
   const lines = [];
 
   lines.push("");
-  lines.push("  L E V E L   U P");
+  lines.push(`  ${LABELS.draft.title}`);
   lines.push("");
 
   for (let i = 0; i < choices.length; i++) {
     const def = choices[i];
+    const labels = LABELS.upgrades[def.id] ?? {};
     const sel = i === selectedIndex;
-    const badge = def.type === "passive" ? "+" + def.duration + " Rounds" : "x" + def.charges;
+    const badge = upgradeBadge(def);
     if (sel) {
-      lines.push(`  ${GREEN}> [${i + 1}] ${def.name}${RESET}  ${DIM}${badge}${RESET}`);
+      lines.push(`  ${GREEN}> [${i + 1}] ${labels.name}${RESET}  ${DIM}${badge}${RESET}`);
     } else {
-      lines.push(`  [${i + 1}] ${def.name}  ${DIM}${badge}${RESET}`);
+      lines.push(`  [${i + 1}] ${labels.name}  ${DIM}${badge}${RESET}`);
     }
-    lines.push(`      ${DIM}${def.desc}${RESET}`);
+    lines.push(`      ${DIM}${labels.desc ?? ""}${RESET}`);
   }
 
   if (mutation) {
+    const mLabels = LABELS.upgrades[mutation.id] ?? {};
     lines.push("");
     const mSel = mutationAccepted;
     const mColor = mSel ? RED : DIM;
     lines.push(
-      `  ${mColor}[4] MUTATION: ${mutation.name}${RESET}${mSel ? RED + " *" + RESET : ""}`
+      `  ${mColor}[4] ${LABELS.draft.mutationPrefix}: ${mLabels.name}${RESET}${mSel ? RED + " *" + RESET : ""}`
     );
-    lines.push(`      ${DIM}${mutation.desc}${RESET}`);
+    lines.push(`      ${DIM}${mLabels.desc ?? ""}${RESET}`);
   }
 
   lines.push("");
   lines.push(
-    `  ${DIM}\u2191\u2193 select${mutation ? ", \u2190\u2192 mutation" : ""}, Enter confirm${RESET}`
+    `  ${DIM}${mutation ? LABELS.draft.selectInstrFull : LABELS.draft.selectInstr}${RESET}`
   );
 
-  // Build output, padded to board height
+  // Build output, padded to grid height
   r._screenOverlay = null;
   let buf = ESC_HOME;
   const padTop = Math.max(0, Math.floor((r._h - lines.length) / 2));
@@ -96,30 +117,33 @@ export function drawContrabandScreen(r, choices, selectedIndex, collected) {
   const lines = [];
 
   lines.push("");
-  lines.push(`  ${RED}C O N T R A B A N D${RESET}`);
-  lines.push(`  ${DIM}These upgrades are not on the flight manifest.${RESET}`);
+  lines.push(`  ${RED}${LABELS.contraband.title}${RESET}`);
+  lines.push(`  ${DIM}${LABELS.contraband.subtitle}${RESET}`);
   lines.push("");
 
   if (!choices || choices.length === 0) {
-    lines.push("  No items available.");
+    lines.push(`  ${LABELS.contraband.none}`);
   } else {
     for (let i = 0; i < choices.length; i++) {
       const item = choices[i];
+      const labels = LABELS.upgrades[item.id] ?? {};
       const sel = i === selectedIndex;
       if (sel) {
-        lines.push(`  ${RED}> [${i + 1}] ${item.name}${RESET}`);
+        lines.push(`  ${RED}> [${i + 1}] ${labels.name}${RESET}`);
       } else {
-        lines.push(`  ${DIM}  [${i + 1}]${RESET} ${item.name}`);
+        lines.push(`  ${DIM}  [${i + 1}]${RESET} ${labels.name}`);
       }
-      lines.push(`        ${DIM}${item.desc}${RESET}`);
+      lines.push(`        ${DIM}${labels.desc ?? ""}${RESET}`);
     }
   }
 
   lines.push("");
   const holdCount = collected ? collected.length : 0;
-  lines.push(`  ${DIM}In the hold: ${holdCount} item${holdCount !== 1 ? "s" : ""}${RESET}`);
+  lines.push(
+    `  ${DIM}${LABELS.contraband.inHold}: ${holdCount} item${holdCount !== 1 ? "s" : ""}${RESET}`
+  );
   lines.push("");
-  lines.push(`  ${DIM}\u2191\u2193 select, Enter confirm${RESET}`);
+  lines.push(`  ${DIM}${LABELS.contraband.selectInstr}${RESET}`);
 
   r._screenOverlay = null;
   let buf = ESC_HOME;

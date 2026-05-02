@@ -3,6 +3,7 @@
 import { applyArena } from "../boss/arena.js";
 import { BossEntity } from "../boss/entity.js";
 import { getBossDef } from "../boss/bosses/index.js";
+import { FLOW_TICKS as ALGORITHM_FLOW_TICKS } from "../boss/bosses/the-algorithm.js";
 import { getPlayerCells } from "../boss/player.js";
 import { updateProjectiles, checkProjectileCollision } from "../boss/projectiles.js";
 import {
@@ -32,7 +33,7 @@ import {
   DANGER_TRAIL_TICKS,
   ECHO_ZONE_TICKS,
   ECHO_ZONE_MAX,
-  BOARD_W,
+  GRID_W,
   DEATH_WALL,
   DEATH_BOSS,
   DEATH_PROJECTILE,
@@ -42,7 +43,7 @@ import {
 
 /**
  * Advances every active arena modifier by one tick.
- * Expired anchor-lock modifiers have their wall cells removed from the board.
+ * Expired anchor-lock modifiers have their wall cells removed from the grid.
  *
  * @param {import('./index.js').Game} game
  */
@@ -50,10 +51,20 @@ function _updateBossModifiers(game) {
   for (let i = game._bossModifiers.length - 1; i >= 0; i--) {
     const mod = game._bossModifiers[i];
     mod.ticksLeft--;
+
+    // algorithm_current runs telegraph → flow → expire. Once the
+    // remaining ticks fall to FLOW_TICKS, switch on the drift.
+    if (mod.type === "algorithm_current" && mod.state === "telegraph") {
+      if (mod.ticksLeft <= ALGORITHM_FLOW_TICKS) {
+        mod.state = "flow";
+        mod.driftActive = true;
+      }
+    }
+
     if (mod.ticksLeft <= 0) {
       if (mod.type === "anchor_lock") {
         for (const cell of mod.cells) {
-          game.board.clearCell("wall", cell.x, cell.y);
+          game.grid.clearCell("wall", cell.x, cell.y);
         }
       }
       game._bossModifiers.splice(i, 1);
@@ -63,7 +74,7 @@ function _updateBossModifiers(game) {
 
 /**
  * Clears all active modifiers and removes any lock walls they placed.
- * Called on boss exit (victory or death) to leave the board clean.
+ * Called on boss exit (victory or death) to leave the grid clean.
  *
  * @param {import('./index.js').Game} game
  */
@@ -71,7 +82,7 @@ function _clearBossModifiers(game) {
   for (const mod of game._bossModifiers) {
     if (mod.type === "anchor_lock") {
       for (const cell of mod.cells) {
-        game.board.clearCell("wall", cell.x, cell.y);
+        game.grid.clearCell("wall", cell.x, cell.y);
       }
     }
   }
@@ -91,10 +102,10 @@ function _clearBossModifiers(game) {
  * @returns {'exit' | 'blocked' | 'moved'}
  */
 function _tryMovePlayer(game) {
-  const board = game.board;
+  const grid = game.grid;
   const { dx, dy } = game._heldDirection;
-  const nx = board.playerX + dx;
-  const ny = board.playerY + dy;
+  const nx = grid.playerX + dx;
+  const ny = grid.playerY + dy;
 
   // Y position lock — block vertical movement outside allowed range
   if (dy !== 0) {
@@ -106,12 +117,12 @@ function _tryMovePlayer(game) {
   }
 
   // Out-of-bounds — always lethal
-  if (!board.isInBounds(nx, ny)) {
+  if (!grid.isInBounds(nx, ny)) {
     game._exitBossDeath(DEATH_WALL);
     return "exit";
   }
 
-  if (board.isWallCell(nx, ny)) {
+  if (grid.isWallCell(nx, ny)) {
     // Anchor lock cell — charging clears it
     let clearedLock = false;
     for (let i = game._bossModifiers.length - 1; i >= 0; i--) {
@@ -121,7 +132,7 @@ function _tryMovePlayer(game) {
       }
       const cellIdx = mod.cells.findIndex((c) => c.x === nx && c.y === ny);
       if (cellIdx >= 0) {
-        board.clearCell("wall", nx, ny);
+        grid.clearCell("wall", nx, ny);
         mod.cells.splice(cellIdx, 1);
         if (mod.cells.length === 0) {
           game._bossModifiers.splice(i, 1);
@@ -139,8 +150,8 @@ function _tryMovePlayer(game) {
 
   if (game._boss.isWeakCell(nx, ny)) {
     // Weak point — pass through (damage dealt by bullets, not ram)
-    board.playerX = nx;
-    board.playerY = ny;
+    grid.playerX = nx;
+    grid.playerY = ny;
     return "moved";
   }
 
@@ -156,8 +167,8 @@ function _tryMovePlayer(game) {
   }
 
   // Open cell — move player
-  board.playerX = nx;
-  board.playerY = ny;
+  grid.playerX = nx;
+  grid.playerY = ny;
   return "moved";
 }
 
@@ -197,6 +208,34 @@ function _pushEchoZone(game, x, y) {
   mods.push({ type: "echo_zone", x, y, ticksLeft: ECHO_ZONE_TICKS });
 }
 
+// ── Drift cells helper ────────────────────────────────────────────
+
+/**
+ * Collects cells from any active drift modifier (e.g. The Algorithm's
+ * `algorithm_current` while in flow phase). Used by both projectile and
+ * player-bullet update passes to bend trajectories that pass through.
+ *
+ * Returns null when no drift is active so the consumers skip the lookup.
+ *
+ * @param {Array<object>} modifiers
+ * @returns {Array<{x:number, y:number, flowDx:number, flowDy:number}> | null}
+ */
+function _collectDriftCells(modifiers) {
+  let result = null;
+  for (const mod of modifiers) {
+    if (!mod.driftActive || !mod.cells) {
+      continue;
+    }
+    if (!result) {
+      result = [];
+    }
+    for (const cell of mod.cells) {
+      result.push(cell);
+    }
+  }
+  return result;
+}
+
 // ── Boss tick (dual timer) ─────────────────────────────────────────
 
 /**
@@ -214,7 +253,7 @@ function _pushEchoZone(game, x, y) {
  */
 export function _bossTick() {
   const now = Date.now();
-  const board = this.board;
+  const grid = this.grid;
 
   // ── Boss sub-tick (120ms) — runs first so countdowns resolve before movement ─
   if (now - this._lastBossTickTime >= BOSS_TICK_MS) {
@@ -239,21 +278,21 @@ export function _bossTick() {
     if (this._fight.shouldFire(this._boss._staggerTicks > 0)) {
       const fireX = this._boss.x + Math.floor(this._boss.width / 2);
       const fireY = this._boss.y + this._boss.height - 1;
-      const shots = this._fight.buildShots(fireX, fireY, board.playerX, board.playerY);
+      const shots = this._fight.buildShots(fireX, fireY, grid.playerX, grid.playerY);
       for (const shot of shots) {
         this._projectiles.push(shot);
       }
     }
 
     // 3. Boss drift
-    this._boss.update(board.width);
+    this._boss.update(grid.width);
 
     // 4. Special ability (after intro ends)
     if (this._fight.phase !== BOSS_PHASE_INTRO) {
       this._bossSpecialCounter++;
       if (this._bossSpecialCounter >= BOSS_SPECIAL_INTERVAL) {
         this._bossSpecialCounter = 0;
-        const def = getBossDef(this.upgrades.worldMode);
+        const def = getBossDef(this.upgrades.mutation);
         if (def.special) {
           def.special(this);
         }
@@ -272,8 +311,8 @@ export function _bossTick() {
     const hasDangerTrail = this._contraband.some((c) => c.id === "danger_noodle");
     const hasEchoZone = this._contraband.some((c) => c.id === "double_snake");
     if (this._playerStaggerTicks === 0 && this._heldDirection) {
-      const prevX = board.playerX;
-      const prevY = board.playerY;
+      const prevX = grid.playerX;
+      const prevY = grid.playerY;
 
       const result = _tryMovePlayer(this);
       if (result === "exit") {
@@ -290,31 +329,33 @@ export function _bossTick() {
       }
 
       if (result === "moved" && hasEchoZone) {
-        _pushEchoZone(this, board.playerX, board.playerY);
+        _pushEchoZone(this, grid.playerX, grid.playerY);
       }
     }
 
-    // 2. Sovereign current push
+    // 2. Algorithm current push — only during the flow phase, only when
+    //    the player is standing on one of the river's cells. Per-cell
+    //    `flowDx/flowDy` lets the river curve.
     for (const mod of this._bossModifiers) {
-      if (mod.type !== "sovereign_current") {
+      if (mod.type !== "algorithm_current" || !mod.driftActive) {
         continue;
       }
-      const inZone = mod.cells.some((c) => c.x === board.playerX && c.y === board.playerY);
-      if (inZone) {
-        const px = board.playerX + mod.dx;
-        const py = board.playerY + mod.dy;
+      const cell = mod.cells.find((c) => c.x === grid.playerX && c.y === grid.playerY);
+      if (cell) {
+        const px = grid.playerX + cell.flowDx;
+        const py = grid.playerY + cell.flowDy;
         const hasHungry = this._contraband.some((c) => c.id === "snake_hungry");
         const vRange = hasHungry ? HUNGRY_VERTICAL_RANGE : 0;
         if (
-          board.isInBounds(px, py) &&
-          !board.isWallCell(px, py) &&
+          grid.isInBounds(px, py) &&
+          !grid.isWallCell(px, py) &&
           !this._boss.isBodyCell(px, py) &&
           !this._boss.isWeakCell(px, py) &&
           py >= this._playerSpawnY - vRange &&
           py <= this._playerSpawnY + vRange
         ) {
-          board.playerX = px;
-          board.playerY = py;
+          grid.playerX = px;
+          grid.playerY = py;
         }
         break;
       }
@@ -364,7 +405,7 @@ export function _bossTick() {
     if (this._contraband.some((c) => c.id === "snake_hungry")) {
       const bossCx = this._boss.x + Math.floor(this._boss.width / 2);
       const bossCy = this._boss.y + Math.floor(this._boss.height / 2);
-      const dist = Math.max(Math.abs(board.playerX - bossCx), Math.abs(board.playerY - bossCy));
+      const dist = Math.max(Math.abs(grid.playerX - bossCx), Math.abs(grid.playerY - bossCy));
       if (dist <= HUNGRY_RANGE) {
         fireInterval = Math.max(1, Math.floor(PLAYER_FIRE_INTERVAL / 2));
       }
@@ -376,11 +417,12 @@ export function _bossTick() {
     }
 
     // 5. Player bullet advance + collision vs boss (throttled by PLAYER_BULLET_INTERVAL)
+    const driftCells = _collectDriftCells(this._bossModifiers);
     this._playerBulletMoveCounter++;
     const advanceBullets = this._playerBulletMoveCounter >= PLAYER_BULLET_INTERVAL;
     if (advanceBullets) {
       this._playerBulletMoveCounter = 0;
-      updatePlayerBullets(this._playerBullets, board);
+      updatePlayerBullets(this._playerBullets, grid, driftCells);
     }
     if (advanceBullets && this._playerBullets.length > 0 && this._boss._staggerTicks === 0) {
       const { weakHits, bodyHits, hitIndices } = checkPlayerBulletCollision(
@@ -411,10 +453,10 @@ export function _bossTick() {
     }
 
     // 6. Boss projectile advance + collision vs player
-    updateProjectiles(this._projectiles, board);
+    updateProjectiles(this._projectiles, grid, driftCells);
     const playerCells = getPlayerCells(
-      board.playerX,
-      board.playerY,
+      grid.playerX,
+      grid.playerY,
       this._playerFacing.dx,
       this._playerFacing.dy
     );
@@ -449,7 +491,7 @@ export function _bossTick() {
  * Called when the snake eats a red food cell.
  */
 export function _enterBossFight() {
-  const def = getBossDef(this.upgrades.worldMode);
+  const def = getBossDef(this.upgrades.mutation);
 
   // Hydrate shape from manifest (idempotent — boss defs are mutated once and reused)
   if (!def.shape) {
@@ -460,18 +502,18 @@ export function _enterBossFight() {
   }
 
   const arena = this.manifest.arenas.find((a) => a.name === def.arena) ?? this.manifest.arenas[0];
-  applyArena(this.board, arena);
+  applyArena(this.grid, arena);
 
-  const innerWidth = BOARD_W - 2;
+  const innerWidth = GRID_W - 2;
   const spawnX = 1 + Math.floor((innerWidth - def.width) / 2);
 
   const boss = new BossEntity(spawnX, arena.bossSpawn.y, def);
 
-  this.board.playerX = arena.snakeSpawn.x;
-  this.board.playerY = arena.snakeSpawn.y;
+  this.grid.playerX = arena.snakeSpawn.x;
+  this.grid.playerY = arena.snakeSpawn.y;
   this._playerSpawnY = arena.snakeSpawn.y;
 
-  this.board.clearMasks("snake");
+  this.grid.clearMasks("snake");
 
   this._boss = boss;
   this._fight = new FightController();

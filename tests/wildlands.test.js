@@ -1,70 +1,70 @@
 // wildlands.test.js — tests for wildlands terrain generation and solvability
 
 import { describe, it, expect } from "vitest";
-import { Board } from "../src/core/board/index.js";
+import { Grid } from "../src/core/grid/index.js";
 import { bfsReachable } from "../src/core/generation/common/solvability.js";
 import {
-  generateWildlandsBoard,
-  advanceWildlandsBoard,
+  generateWildlandsGrid,
+  advanceWildlandsGrid,
 } from "../src/core/generation/wildlands/generator.js";
-import { TERRAIN_LOW, TERRAIN_HIGH } from "../src/core/board/constants.js";
+import { TERRAIN_LOW, TERRAIN_HIGH } from "../src/core/grid/constants.js";
 import { Snake } from "../src/core/snake/index.js";
 
 function makeGame() {
   return {
-    board: new Board(21, 21),
+    grid: new Grid(21, 21),
     snake: new Snake(),
-    boardIndex: 1,
+    actIndex: 1,
   };
 }
 
 describe("bfsReachable", () => {
   it("returns true for adjacent empty cells", () => {
-    const board = new Board(5, 5);
-    expect(bfsReachable(board, 0, 0, 1, 0)).toBe(true);
+    const grid = new Grid(5, 5);
+    expect(bfsReachable(grid, 0, 0, 1, 0)).toBe(true);
   });
 
   it("returns true for distant reachable cells", () => {
-    const board = new Board(5, 5);
-    expect(bfsReachable(board, 0, 0, 4, 4)).toBe(true);
+    const grid = new Grid(5, 5);
+    expect(bfsReachable(grid, 0, 0, 4, 4)).toBe(true);
   });
 
   it("returns false when target is walled off", () => {
-    const board = new Board(5, 5);
+    const grid = new Grid(5, 5);
     // Wall off cell (4,0) by surrounding it
-    board.setCell("wall", 3, 0);
-    board.setCell("wall", 4, 1);
+    grid.setCell("wall", 3, 0);
+    grid.setCell("wall", 4, 1);
     // It can still wrap — wall off wrap edges too
-    board.setCell("wall", 0, 0); // wraps from x=4 to x=0
-    board.setCell("wall", 4, 4); // wraps from y=0 to y=4
-    expect(bfsReachable(board, 0, 1, 4, 0)).toBe(false);
+    grid.setCell("wall", 0, 0); // wraps from x=4 to x=0
+    grid.setCell("wall", 4, 4); // wraps from y=0 to y=4
+    expect(bfsReachable(grid, 0, 1, 4, 0)).toBe(false);
   });
 
-  it("handles wrapping — can reach via board edge", () => {
-    const board = new Board(5, 5);
+  it("handles wrapping — can reach via grid edge", () => {
+    const grid = new Grid(5, 5);
     // Wall a vertical line except via wrapping
     for (let y = 0; y < 5; y++) {
-      board.setCell("wall", 2, y);
+      grid.setCell("wall", 2, y);
     }
     // Can't reach across the wall directly, but can wrap around
-    expect(bfsReachable(board, 0, 0, 4, 0)).toBe(true);
+    expect(bfsReachable(grid, 0, 0, 4, 0)).toBe(true);
   });
 
   it("returns true when start equals target", () => {
-    const board = new Board(5, 5);
-    expect(bfsReachable(board, 2, 2, 2, 2)).toBe(true);
+    const grid = new Grid(5, 5);
+    expect(bfsReachable(grid, 2, 2, 2, 2)).toBe(true);
   });
 });
 
-describe("generateWildlandsBoard", () => {
-  it("places walls on the board", () => {
+describe("generateWildlandsGrid", () => {
+  it("places walls on the grid", () => {
     const game = makeGame();
-    generateWildlandsBoard(game);
+    generateWildlandsGrid(game);
 
     let walls = 0;
     for (let y = 0; y < 21; y++) {
       for (let x = 0; x < 21; x++) {
-        if (game.board.isWallCell(x, y)) {
+        if (game.grid.isWallCell(x, y)) {
           walls++;
         }
       }
@@ -74,15 +74,15 @@ describe("generateWildlandsBoard", () => {
 
   it("sets terrain types for wall cells", () => {
     const game = makeGame();
-    generateWildlandsBoard(game);
+    generateWildlandsGrid(game);
 
     let lowCount = 0;
     let highCount = 0;
-    for (let i = 0; i < game.board.terrain.length; i++) {
-      if (game.board.terrain[i] === TERRAIN_LOW) {
+    for (let i = 0; i < game.grid.terrain.length; i++) {
+      if (game.grid.terrain[i] === TERRAIN_LOW) {
         lowCount++;
       }
-      if (game.board.terrain[i] === TERRAIN_HIGH) {
+      if (game.grid.terrain[i] === TERRAIN_HIGH) {
         highCount++;
       }
     }
@@ -92,13 +92,13 @@ describe("generateWildlandsBoard", () => {
 
   it("leaves spawn area clear", () => {
     const game = makeGame();
-    generateWildlandsBoard(game);
+    generateWildlandsGrid(game);
 
     const cx = 10;
     const cy = 10;
     for (let dy = -4; dy <= 4; dy++) {
       for (let dx = -4; dx <= 4; dx++) {
-        expect(game.board.isWallCell(cx + dx, cy + dy)).toBe(false);
+        expect(game.grid.isWallCell(cx + dx, cy + dy)).toBe(false);
       }
     }
   });
@@ -106,7 +106,7 @@ describe("generateWildlandsBoard", () => {
   it("initializes snake at center", () => {
     const game = makeGame();
     game.snake.snakeLength = 3;
-    generateWildlandsBoard(game);
+    generateWildlandsGrid(game);
 
     expect(game.snake.snakeX[game.snake.headIndex]).toBe(10);
     expect(game.snake.snakeY[game.snake.headIndex]).toBe(10);
@@ -115,40 +115,40 @@ describe("generateWildlandsBoard", () => {
   it("places food that is reachable from snake", () => {
     const game = makeGame();
     game.snake.snakeLength = 3;
-    generateWildlandsBoard(game);
+    generateWildlandsGrid(game);
 
-    expect(game.board.foodX).toBeGreaterThanOrEqual(0);
-    expect(game.board.foodY).toBeGreaterThanOrEqual(0);
+    expect(game.grid.foodX).toBeGreaterThanOrEqual(0);
+    expect(game.grid.foodY).toBeGreaterThanOrEqual(0);
 
     const hx = game.snake.snakeX[game.snake.headIndex];
     const hy = game.snake.snakeY[game.snake.headIndex];
-    expect(bfsReachable(game.board, hx, hy, game.board.foodX, game.board.foodY)).toBe(true);
+    expect(bfsReachable(game.grid, hx, hy, game.grid.foodX, game.grid.foodY)).toBe(true);
   });
 });
 
-describe("advanceWildlandsBoard", () => {
+describe("advanceWildlandsGrid", () => {
   it("places new food without changing walls", () => {
     const game = makeGame();
     game.snake.snakeLength = 3;
-    generateWildlandsBoard(game);
+    generateWildlandsGrid(game);
 
     // Count walls before
     let wallsBefore = 0;
     for (let y = 0; y < 21; y++) {
       for (let x = 0; x < 21; x++) {
-        if (game.board.isWallCell(x, y)) {
+        if (game.grid.isWallCell(x, y)) {
           wallsBefore++;
         }
       }
     }
 
-    advanceWildlandsBoard(game);
+    advanceWildlandsGrid(game);
 
     // Count walls after — should be same
     let wallsAfter = 0;
     for (let y = 0; y < 21; y++) {
       for (let x = 0; x < 21; x++) {
-        if (game.board.isWallCell(x, y)) {
+        if (game.grid.isWallCell(x, y)) {
           wallsAfter++;
         }
       }
@@ -156,7 +156,38 @@ describe("advanceWildlandsBoard", () => {
     expect(wallsAfter).toBe(wallsBefore);
 
     // Food should be placed
-    expect(game.board.foodX).toBeGreaterThanOrEqual(0);
-    expect(game.board.foodY).toBeGreaterThanOrEqual(0);
+    expect(game.grid.foodX).toBeGreaterThanOrEqual(0);
+    expect(game.grid.foodY).toBeGreaterThanOrEqual(0);
+  });
+});
+
+describe("wildlands determinism", () => {
+  it("same actSeed produces identical wall layout", () => {
+    const a = makeGame();
+    const b = makeGame();
+    a.snake.snakeLength = 3;
+    b.snake.snakeLength = 3;
+    a.actSeed = 0x12345678;
+    b.actSeed = 0x12345678;
+
+    generateWildlandsGrid(a);
+    generateWildlandsGrid(b);
+
+    expect(Array.from(a.grid.wallMasks)).toEqual(Array.from(b.grid.wallMasks));
+    expect(Array.from(a.grid.terrain)).toEqual(Array.from(b.grid.terrain));
+  });
+
+  it("different actSeed produces different layouts", () => {
+    const a = makeGame();
+    const b = makeGame();
+    a.snake.snakeLength = 3;
+    b.snake.snakeLength = 3;
+    a.actSeed = 0x11111111;
+    b.actSeed = 0x22222222;
+
+    generateWildlandsGrid(a);
+    generateWildlandsGrid(b);
+
+    expect(Array.from(a.grid.wallMasks)).not.toEqual(Array.from(b.grid.wallMasks));
   });
 });

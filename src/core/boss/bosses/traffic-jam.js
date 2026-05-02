@@ -18,16 +18,16 @@ const PILLAR_HEIGHT = 2;
  * @param {import('../../game/index.js').Game} game
  */
 function special(game) {
-  const board = game.board;
+  const grid = game.grid;
   const boss = game._boss;
   const phase = game._fight.phase;
 
   // -- Crystal pillars (cover) --
   const pillarCount = phase >= BOSS_PHASE_2 ? 3 : 2;
   const minY = boss.y + boss.height + 3;
-  const maxY = board.height - 6;
+  const maxY = grid.height - 6;
   const minX = 3;
-  const maxX = board.width - 4;
+  const maxX = grid.width - 4;
 
   if (minY < maxY && minX < maxX) {
     const cells = [];
@@ -37,12 +37,12 @@ function special(game) {
       for (let h = 0; h < PILLAR_HEIGHT; h++) {
         const cy = py + h;
         if (
-          board.isInBounds(px, cy) &&
-          !board.isWallCell(px, cy) &&
+          grid.isInBounds(px, cy) &&
+          !grid.isWallCell(px, cy) &&
           !boss.isBodyCell(px, cy) &&
           !boss.isWeakCell(px, cy)
         ) {
-          board.setCell("wall", px, cy);
+          grid.setCell("wall", px, cy);
           cells.push({ x: px, y: cy });
         }
       }
@@ -64,7 +64,7 @@ function special(game) {
 
   for (let i = -halfFan; i <= halfFan; i++) {
     const fx = centerX + i;
-    if (board.isInBounds(fx, fireY)) {
+    if (grid.isInBounds(fx, fireY)) {
       game._projectiles.push({ x: fx, y: fireY, dx: 0, dy: 1 });
     }
   }
@@ -75,7 +75,6 @@ function special(game) {
  */
 export default {
   id: "traffic_jam",
-  name: "Traffic Jam",
   maxHp: 12,
   width: 0,
   height: 0,

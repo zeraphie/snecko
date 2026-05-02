@@ -114,6 +114,31 @@ export class KeyboardBrowserController extends Controller {
     if (!game) {
       return;
     }
+
+    // Custom-seed input mode: capture raw text input, bypass action mapping.
+    if (game.state === "seed_input") {
+      if (e.key === "Enter") {
+        game.confirmSeedInput();
+      } else if (e.key === "Escape") {
+        game.cancelSeedInput();
+      } else if (e.key === "Backspace") {
+        game.backspaceSeedInput();
+      } else if (e.key.length === 1 && e.key >= " " && e.key <= "~") {
+        game.appendSeedChar(e.key);
+      }
+      e.preventDefault();
+      return;
+    }
+
+    // Esc on start/dead opens the in-game menu (containing seed input,
+    // restart, etc.). Inside the menu, Esc closes — handled by the
+    // dispatcher's menu branch.
+    if (e.key === "Escape" && (game.state === "start" || game.state === "dead")) {
+      game.openMenu();
+      e.preventDefault();
+      return;
+    }
+
     if (e.key === "Tab") {
       e.preventDefault();
     }

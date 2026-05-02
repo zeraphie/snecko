@@ -2,7 +2,7 @@
 
 import { generateDraftPool } from "../upgrades/draft.js";
 import { applySlowTime } from "../upgrades/passives/slow-time.js";
-import { applyIronJaw } from "../upgrades/passives/iron-jaw.js";
+import { applyIronJaw } from "../upgrades/bites/iron-jaw.js";
 import { applyWormholeTeleport } from "../upgrades/consumables/wormhole.js";
 import { applyCurrentDrift } from "../mechanics/currents.js";
 import {
@@ -12,7 +12,7 @@ import {
   STATE_BOSS,
   BASE_TICK_MS,
   MIN_TICK_MS,
-  TICK_DECREASE_PER_BOARD,
+  TICK_DECREASE_PER_ACT,
   BOSS_FOOD_INTERVAL,
 } from "./constants.js";
 
@@ -37,7 +37,7 @@ export function tick() {
 
   applyIronJaw(this);
 
-  const result = this.snake.step(this.board);
+  const result = this.snake.step(this.grid);
 
   if (result === "boss-food") {
     this.bossFoodCharge = 0;
@@ -57,24 +57,23 @@ export function tick() {
   }
 }
 
-/** Increments score, ticks passives, and transitions to draft or advances the board. */
+/** Increments score, ticks passives, and transitions to draft or advances the grid. */
 export function _handleFoodEaten() {
   this.score++;
   this.foodEaten++;
   this.bossFoodCharge++;
 
-  // Eating regular food while boss food is on the board → boss food despawns,
+  // Eating regular food while boss food is on the grid → boss food despawns,
   // charge resets so the next cycle starts fresh.
-  const bossFoodWasPresent = this.board.bossFoodX !== -1;
+  const bossFoodWasPresent = this.grid.bossFoodX !== -1;
   if (bossFoodWasPresent) {
-    this.board.bossFoodX = -1;
-    this.board.bossFoodY = -1;
+    this.grid.bossFoodX = -1;
+    this.grid.bossFoodY = -1;
     this.bossFoodCharge = 0;
   }
 
-  this.upgrades.tickFoodPassives();
+  this.upgrades.tickBites();
   if (this.foodEaten >= this.foodRequired) {
-    this.upgrades.tickPassives();
     this._draftPool = generateDraftPool(this.upgrades, Math.random, this._draftsSinceMutation);
     if (this._draftPool.mutation) {
       this._draftsSinceMutation = 0;
@@ -87,8 +86,8 @@ export function _handleFoodEaten() {
     return;
   }
 
-  if (this.advanceBoard) {
-    this.advanceBoard(this);
+  if (this.advanceGrid) {
+    this.advanceGrid(this);
   } else {
     this._placeRandomFood();
   }
@@ -112,21 +111,21 @@ export function _peekNextCell() {
   let nx = hx + dx;
   let ny = hy + dy;
   if (nx < 0) {
-    nx = this.board.width - 1;
-  } else if (nx >= this.board.width) {
+    nx = this.grid.width - 1;
+  } else if (nx >= this.grid.width) {
     nx = 0;
   }
   if (ny < 0) {
-    ny = this.board.height - 1;
-  } else if (ny >= this.board.height) {
+    ny = this.grid.height - 1;
+  } else if (ny >= this.grid.height) {
     ny = 0;
   }
   return { x: nx, y: ny };
 }
 
-/** Recalculates tick interval based on board index and slow-time passive. */
+/** Recalculates tick interval based on grid index and slow-time passive. */
 export function _recalcTickMs() {
-  let ms = Math.max(MIN_TICK_MS, BASE_TICK_MS - (this.boardIndex - 1) * TICK_DECREASE_PER_BOARD);
+  let ms = Math.max(MIN_TICK_MS, BASE_TICK_MS - (this.actIndex - 1) * TICK_DECREASE_PER_ACT);
   const mult = applySlowTime(this);
   if (mult !== null) {
     ms = Math.round(ms * mult);
@@ -136,13 +135,14 @@ export function _recalcTickMs() {
 
 /** Places food at a random unblocked cell (simple fallback, no influence map). */
 export function _placeRandomFood() {
+  const rand = this.foodRand ?? Math.random;
   let x, y;
   do {
-    x = Math.floor(Math.random() * this.board.width);
-    y = Math.floor(Math.random() * this.board.height);
-  } while (this.board.isBlockedCell(x, y));
-  this.board.foodX = x;
-  this.board.foodY = y;
+    x = Math.floor(rand() * this.grid.width);
+    y = Math.floor(rand() * this.grid.height);
+  } while (this.grid.isBlockedCell(x, y));
+  this.grid.foodX = x;
+  this.grid.foodY = y;
 }
 
 /**
@@ -154,9 +154,9 @@ export function _placeRandomFood() {
  * no farther-or-equal cell exists.
  */
 export function _placeBossFood() {
-  const board = this.board;
-  const w = board.width;
-  const h = board.height;
+  const grid = this.grid;
+  const w = grid.width;
+  const h = grid.height;
   const hx = this.snake.snakeX[this.snake.headIndex];
   const hy = this.snake.snakeY[this.snake.headIndex];
 
@@ -183,7 +183,7 @@ export function _placeBossFood() {
       if (dist[ni] !== -1) {
         continue;
       }
-      if (board.isBlockedCell(nx, ny)) {
+      if (grid.isBlockedCell(nx, ny)) {
         continue;
       }
       dist[ni] = d + 1;
@@ -191,15 +191,15 @@ export function _placeBossFood() {
     }
   }
 
-  const regularDist = dist[board.foodY * w + board.foodX];
+  const regularDist = dist[grid.foodY * w + grid.foodX];
   const candidates = [];
   const fallback = [];
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      if (x === board.foodX && y === board.foodY) {
+      if (x === grid.foodX && y === grid.foodY) {
         continue;
       }
-      if (board.isBlockedCell(x, y)) {
+      if (grid.isBlockedCell(x, y)) {
         continue;
       }
       const d = dist[y * w + x];
@@ -217,7 +217,8 @@ export function _placeBossFood() {
   if (pool.length === 0) {
     return;
   }
-  const [x, y] = pool[Math.floor(Math.random() * pool.length)];
-  board.bossFoodX = x;
-  board.bossFoodY = y;
+  const rand = this.foodRand ?? Math.random;
+  const [x, y] = pool[Math.floor(rand() * pool.length)];
+  grid.bossFoodX = x;
+  grid.bossFoodY = y;
 }

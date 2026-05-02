@@ -21,7 +21,7 @@ export function selectContraband(index) {
  * Applies the selected Contraband item, stores it in the run's stash, then
  * transitions:
  *   → STATE_DRAFT  if the boss food reward pushed foodEaten ≥ foodRequired
- *   → STATE_PLAYING otherwise (fresh board generated)
+ *   → STATE_PLAYING otherwise (fresh grid generated)
  *
  * No-op outside STATE_CONTRABAND.
  */
@@ -40,7 +40,6 @@ export function confirmContraband() {
 
   if (this.foodEaten >= this.foodRequired) {
     // Food threshold crossed — regular upgrade draft next
-    this.upgrades.tickPassives();
     this._draftPool = generateDraftPool(this.upgrades, Math.random, this._draftsSinceMutation);
     if (this._draftPool.mutation) {
       this._draftsSinceMutation = 0;
@@ -53,10 +52,10 @@ export function confirmContraband() {
   } else {
     // Back to normal gameplay
     this.state = STATE_PLAYING;
-    if (this.generateBoard) {
-      this.generateBoard(this);
+    if (this.generateGrid) {
+      this.generateGrid(this);
     } else {
-      this._resetBoardSimple();
+      this._resetGridSimple();
     }
   }
 }

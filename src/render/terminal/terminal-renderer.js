@@ -116,25 +116,25 @@ export class TerminalRenderer extends Renderer {
 
   drawHUD(
     score,
-    board,
+    actIndex,
     time,
-    level,
     foodEaten,
     foodRequired,
     passives,
     consumables,
+    bites,
     selectedConsumable
   ) {
     drawHUD(
       this,
       score,
-      board,
+      actIndex,
       time,
-      level,
       foodEaten,
       foodRequired,
       passives,
       consumables,
+      bites,
       selectedConsumable
     );
   }

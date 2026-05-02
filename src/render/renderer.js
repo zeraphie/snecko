@@ -28,6 +28,8 @@ export const CELL_ECHO_ZONE = 22;
 export const CELL_PLAYER_BULLET = 23;
 export const CELL_BOSS_DAMAGED = 24;
 export const CELL_EXHAUST = 25;
+export const CELL_WALL_HIGH = 26;
+export const CELL_WALL_LOW_EDIBLE = 27;
 
 // ── Renderer base class ───────────────────────────────────────────────────
 //
@@ -76,24 +78,24 @@ export class Renderer {
   /**
    * Draw the heads-up display.
    * @param {number} score
-   * @param {number} length
-   * @param {object} board
+   * @param {number} actIndex
    * @param {string} time
-   * @param {object} upgrades
    * @param {number} foodEaten
    * @param {number} foodRequired
-   * @param {number} level
+   * @param {Array|null} passives
+   * @param {Array|null} consumables
+   * @param {Array|null} bites
    * @param {number} selectedConsumable
    */
   drawHUD(
     score,
-    length,
-    board,
+    actIndex,
     time,
-    upgrades,
     foodEaten,
     foodRequired,
-    level,
+    passives,
+    consumables,
+    bites,
     selectedConsumable
   ) {
     this._required("drawHUD");

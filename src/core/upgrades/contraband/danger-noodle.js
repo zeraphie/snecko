@@ -7,9 +7,8 @@
 /**
  * @type {import('./index.js').ContrabandDef}
  */
+// Player-facing name/desc lives in src/text/labels.js (LABELS.upgrades.danger_noodle).
 export default {
   id: "danger_noodle",
-  name: "Danger noodle",
-  desc: "Snake hurts",
   apply: (_game) => {}, // Checked at movement + damage time in boss-tick.js
 };

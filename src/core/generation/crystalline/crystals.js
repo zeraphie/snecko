@@ -1,45 +1,135 @@
-// crystals.js — Shape library with precomputed rotations, row-mask format
+// crystals.js — Shape parser, rotation library, and place/grow helpers.
 //
-// BASE_SHAPES is generated from crystals.shapes by: just gen-shapes
-// Do not edit BASE_SHAPES by hand.
+// Authored shapes live in `crystals.shapes` (ASCII grids). The loader reads
+// that file at startup and calls `buildCrystals(text)`, which parses it and
+// computes the four rotations of every stage. The result is stashed on
+// `manifest.crystals` for the lattice mechanic and the crystalline generator.
 
-import { TERRAIN_TELEGRAPH, TERRAIN_NONE } from "../../board/constants.js";
+import { TERRAIN_TELEGRAPH, TERRAIN_INTERIOR, TERRAIN_NONE } from "../../grid/constants.js";
 
-// ── Shape data ────────────────────────────────────────────────────
+// ── Shape file parser ────────────────────────────────────────────
 
-// prettier-ignore
-const BASE_SHAPES = [
-  { name: "Seed", stages: [
-    { width: 2, height: 1, solidRows: [0b11], telegraphRows: [0b00] },
-    { width: 4, height: 4, solidRows: [0b0110, 0b1111, 0b1111, 0b0110], telegraphRows: [0b0000, 0b0000, 0b0000, 0b0000] },
-    { width: 6, height: 4, solidRows: [0b011110, 0b111111, 0b111111, 0b011110], telegraphRows: [0b000000, 0b000000, 0b000000, 0b000000] },
-  ] },
-  { name: "Pillar", stages: [
-    { width: 2, height: 2, solidRows: [0b11, 0b11], telegraphRows: [0b00, 0b00] },
-    { width: 3, height: 4, solidRows: [0b000, 0b111, 0b111, 0b000], telegraphRows: [0b010, 0b000, 0b000, 0b010] },
-    { width: 3, height: 5, solidRows: [0b010, 0b111, 0b111, 0b111, 0b010], telegraphRows: [0b000, 0b000, 0b000, 0b000, 0b000] },
-  ] },
-  { name: "Shard", stages: [
-    { width: 2, height: 2, solidRows: [0b11, 0b01], telegraphRows: [0b00, 0b00] },
-    { width: 3, height: 3, solidRows: [0b110, 0b111, 0b011], telegraphRows: [0b001, 0b000, 0b100] },
-    { width: 4, height: 4, solidRows: [0b1110, 0b1111, 0b1111, 0b0111], telegraphRows: [0b0000, 0b0000, 0b0000, 0b0000] },
-  ] },
-  { name: "Spike", stages: [
-    { width: 2, height: 2, solidRows: [0b01, 0b11], telegraphRows: [0b00, 0b00] },
-    { width: 3, height: 3, solidRows: [0b011, 0b111, 0b010], telegraphRows: [0b100, 0b000, 0b001] },
-    { width: 4, height: 3, solidRows: [0b0111, 0b1111, 0b1110], telegraphRows: [0b0000, 0b0000, 0b0000] },
-  ] },
-  { name: "Cluster", stages: [
-    { width: 2, height: 2, solidRows: [0b11, 0b11], telegraphRows: [0b00, 0b00] },
-    { width: 3, height: 3, solidRows: [0b110, 0b111, 0b011], telegraphRows: [0b001, 0b000, 0b100] },
-    { width: 4, height: 4, solidRows: [0b1110, 0b1111, 0b1111, 0b0111], telegraphRows: [0b0000, 0b0000, 0b0000, 0b0000] },
-  ] },
-  { name: "Facet", stages: [
-    { width: 2, height: 2, solidRows: [0b10, 0b11], telegraphRows: [0b00, 0b00] },
-    { width: 3, height: 3, solidRows: [0b110, 0b111, 0b011], telegraphRows: [0b000, 0b000, 0b000] },
-    { width: 4, height: 4, solidRows: [0b1100, 0b1110, 0b0111, 0b0011], telegraphRows: [0b0000, 0b0000, 0b0000, 0b0000] },
-  ] },
-];
+const CHAR_SOLID = "█"; // █
+// `░` is empty (no bits set). `▓` was used for hand-authored telegraphs
+// in the old three-stage format; telegraphs are now auto-derived from the
+// next stage's solid diff (see `placeTelegraph`), so this character is
+// no longer recognised in shape data.
+
+/**
+ * Parses a `.shapes` file into a flat list of shape definitions, one entry
+ * per crystal. Each block in the file is `Name N` followed by an ASCII grid;
+ * rows use `█` for solid, `░` for empty.
+ *
+ * @param {string} text
+ * @returns {Array<{ name: string, stages: Array<{ width: number, height: number, solidRows: number[] }> }>}
+ */
+export function parseShapesFile(text) {
+  const blocks = text.trim().split(/\n\n+/);
+  /** @type {Map<string, Array<{ stage: number, width: number, height: number, solidRows: number[] }>>} */
+  const crystalMap = new Map();
+
+  for (const block of blocks) {
+    const lines = block.split("\n").filter((l) => l.length > 0);
+    if (lines.length < 2) {
+      continue;
+    }
+
+    const header = lines[0].trim();
+    const parts = header.split(/\s+/);
+    const name = parts[0];
+    const stage = parseInt(parts[1], 10);
+    if (Number.isNaN(stage)) {
+      throw new Error(`crystals.shapes: invalid stage number in header "${header}"`);
+    }
+
+    const grid = lines.slice(1);
+    const height = grid.length;
+    const width = grid[0].length;
+    const solidRows = [];
+
+    for (let y = 0; y < height; y++) {
+      let solidMask = 0;
+      for (let x = 0; x < grid[y].length; x++) {
+        if (grid[y][x] === CHAR_SOLID) {
+          solidMask |= 1 << x;
+        }
+      }
+      solidRows.push(solidMask);
+    }
+
+    const interiorRows = computeInteriorRows(width, height, solidRows);
+    if (!crystalMap.has(name)) {
+      crystalMap.set(name, []);
+    }
+    crystalMap.get(name).push({ stage, width, height, solidRows, interiorRows });
+  }
+
+  const crystals = [];
+  for (const [name, stages] of crystalMap) {
+    stages.sort((a, b) => a.stage - b.stage);
+    crystals.push({ name, stages: stages.map(({ stage: _s, ...rest }) => rest) });
+  }
+  return crystals;
+}
+
+/**
+ * Computes the hollow-interior bitmask for a stage. An interior cell is an
+ * empty cell within the bounding box that's *not* reachable by 4-connected
+ * flood-fill from outside the silhouette. Author shapes describe just the
+ * silhouette; hollows are derived automatically.
+ *
+ * @param {number} width
+ * @param {number} height
+ * @param {number[]} solidRows
+ * @returns {number[]}
+ */
+function computeInteriorRows(width, height, solidRows) {
+  const isSolid = (x, y) => (solidRows[y] & (1 << x)) !== 0;
+  const visited = new Uint8Array(width * height);
+  const queue = [];
+
+  function seed(x, y) {
+    if (x < 0 || x >= width || y < 0 || y >= height) {
+      return;
+    }
+    const idx = y * width + x;
+    if (visited[idx] || isSolid(x, y)) {
+      return;
+    }
+    visited[idx] = 1;
+    queue.push(idx);
+  }
+
+  // BFS from all empty edge cells — flood the "outside" through the bounding box.
+  for (let x = 0; x < width; x++) {
+    seed(x, 0);
+    seed(x, height - 1);
+  }
+  for (let y = 0; y < height; y++) {
+    seed(0, y);
+    seed(width - 1, y);
+  }
+  while (queue.length > 0) {
+    const idx = queue.shift();
+    const x = idx % width;
+    const y = (idx / width) | 0;
+    seed(x + 1, y);
+    seed(x - 1, y);
+    seed(x, y + 1);
+    seed(x, y - 1);
+  }
+
+  // Empty cells not reached from outside are interior.
+  const interiorRows = new Array(height).fill(0);
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      if (!isSolid(x, y) && !visited[y * width + x]) {
+        interiorRows[y] |= 1 << x;
+      }
+    }
+  }
+  return interiorRows;
+}
 
 // ── Rotation / comparison ─────────────────────────────────────────
 
@@ -47,7 +137,7 @@ function rotateStage90(stage) {
   const w = stage.height;
   const h = stage.width;
   const solidRows = Array.from({ length: h }, () => 0);
-  const telegraphRows = Array.from({ length: h }, () => 0);
+  const interiorRows = Array.from({ length: h }, () => 0);
 
   for (let sy = 0; sy < stage.height; sy++) {
     for (let sx = 0; sx < stage.width; sx++) {
@@ -56,13 +146,13 @@ function rotateStage90(stage) {
       if (stage.solidRows[sy] & (1 << sx)) {
         solidRows[ny] |= 1 << nx;
       }
-      if (stage.telegraphRows[sy] & (1 << sx)) {
-        telegraphRows[ny] |= 1 << nx;
+      if (stage.interiorRows[sy] & (1 << sx)) {
+        interiorRows[ny] |= 1 << nx;
       }
     }
   }
 
-  return { width: w, height: h, solidRows, telegraphRows };
+  return { width: w, height: h, solidRows, interiorRows };
 }
 
 function stagesEqual(a, b) {
@@ -74,8 +164,8 @@ function stagesEqual(a, b) {
       return false;
     }
   }
-  for (let i = 0; i < a.telegraphRows.length; i++) {
-    if (a.telegraphRows[i] !== b.telegraphRows[i]) {
+  for (let i = 0; i < a.interiorRows.length; i++) {
+    if (a.interiorRows[i] !== b.interiorRows[i]) {
       return false;
     }
   }
@@ -85,14 +175,17 @@ function stagesEqual(a, b) {
 // ── Public API ────────────────────────────────────────────────────
 
 /**
- * Builds all crystal definitions with precomputed rotations for each stage.
+ * Parses shape text and returns crystal definitions with precomputed unique
+ * rotations for each stage. Called by the loader at startup.
  *
+ * @param {string} shapesText — contents of a `.shapes` file
  * @returns {Array<{ name: string, stages: Array<{ rotations: object[] }> }>}
  */
-export function buildCrystals() {
+export function buildCrystals(shapesText) {
+  const baseShapes = parseShapesFile(shapesText);
   const crystals = [];
 
-  for (const base of BASE_SHAPES) {
+  for (const base of baseShapes) {
     const stages = [];
 
     for (const stage of base.stages) {
@@ -125,38 +218,36 @@ export function buildCrystals() {
 /**
  * Tests whether a crystal stage can be placed at the given position without overlap.
  *
- * @param {import('../../board/index.js').Board} board
- * @param {object} stage — rotation with solidRows/telegraphRows/width/height
+ * @param {import('../../grid/index.js').Grid} grid
+ * @param {object} stage — rotation with solidRows/width/height
  * @param {number} x
  * @param {number} y
  * @returns {boolean}
  */
-export function canPlaceStage(board, stage, x, y) {
+export function canPlaceStage(grid, stage, x, y) {
   for (let row = 0; row < stage.height; row++) {
     const by = y + row;
-    if (by < 0 || by >= board.height) {
+    if (by < 0 || by >= grid.height) {
       return false;
     }
 
     const solidMask = stage.solidRows[row];
-    const telegraphMask = stage.telegraphRows[row];
-    const combined = solidMask | telegraphMask;
 
     for (let col = 0; col < stage.width; col++) {
-      if (!(combined & (1 << col))) {
+      if (!(solidMask & (1 << col))) {
         continue;
       }
       const bx = x + col;
-      if (bx < 0 || bx >= board.width) {
+      if (bx < 0 || bx >= grid.width) {
         return false;
       }
-      if (board.isWallCell(bx, by)) {
+      if (grid.isWallCell(bx, by)) {
         return false;
       }
-      if (board.isSnakeCell(bx, by)) {
+      if (grid.isSnakeCell(bx, by)) {
         return false;
       }
-      if (board.isReservedCell(bx, by)) {
+      if (grid.isReservedCell(bx, by)) {
         return false;
       }
     }
@@ -165,51 +256,71 @@ export function canPlaceStage(board, stage, x, y) {
 }
 
 /**
- * Writes solid cells from a crystal stage into the board's wall layer.
+ * Writes solid cells from a crystal stage into the grid's wall layer, and
+ * tags hollow-interior cells with `TERRAIN_INTERIOR` so food placement and
+ * other terrain-aware code can avoid them.
  *
- * @param {import('../../board/index.js').Board} board
+ * @param {import('../../grid/index.js').Grid} grid
  * @param {object} stage
  * @param {number} x
  * @param {number} y
  */
-export function placeStage(board, stage, x, y) {
+export function placeStage(grid, stage, x, y) {
+  const w = grid.width;
   for (let row = 0; row < stage.height; row++) {
     const by = y + row;
+    if (by < 0 || by >= grid.height) {
+      continue;
+    }
     const solidMask = stage.solidRows[row];
+    const interiorMask = stage.interiorRows[row];
     for (let col = 0; col < stage.width; col++) {
-      if (!(solidMask & (1 << col))) {
+      const bx = x + col;
+      if (bx < 0 || bx >= grid.width) {
         continue;
       }
-      board.setCell("wall", x + col, by);
+      if (solidMask & (1 << col)) {
+        grid.setCell("wall", bx, by);
+      } else if (interiorMask & (1 << col)) {
+        grid.terrain[by * w + bx] = TERRAIN_INTERIOR;
+      }
     }
   }
 }
 
 /**
- * Marks telegraph cells in the terrain array for the next crystal growth stage.
+ * Marks telegraph cells in the terrain array for an upcoming crystal stage.
+ * Auto-derives the telegraph from the stage's solid footprint: every cell
+ * the stage *will* occupy that isn't already a wall is marked as
+ * `TERRAIN_TELEGRAPH`. Out-of-bounds and existing-wall cells are skipped.
  *
- * @param {import('../../board/index.js').Board} board
- * @param {object} stage
- * @param {number} x
- * @param {number} y
+ * @param {import('../../grid/index.js').Grid} grid
+ * @param {object} stage — rotation of the upcoming stage
+ * @param {number} x — top-left x of the stage's footprint
+ * @param {number} y — top-left y of the stage's footprint
  */
-export function placeTelegraph(board, stage, x, y) {
-  const w = board.width;
+export function placeTelegraph(grid, stage, x, y) {
+  const w = grid.width;
   for (let row = 0; row < stage.height; row++) {
     const by = y + row;
-    if (by < 0 || by >= board.height) {
+    if (by < 0 || by >= grid.height) {
       continue;
     }
-    const telegraphMask = stage.telegraphRows[row];
+    const solidMask = stage.solidRows[row];
     for (let col = 0; col < stage.width; col++) {
-      if (!(telegraphMask & (1 << col))) {
+      if (!(solidMask & (1 << col))) {
         continue;
       }
       const bx = x + col;
-      if (bx < 0 || bx >= board.width) {
+      if (bx < 0 || bx >= grid.width) {
         continue;
       }
-      board.terrain[by * w + bx] = TERRAIN_TELEGRAPH;
+      // Already-solid cells were placed by a prior stage of the same crystal —
+      // they don't need a telegraph; the player can already see them.
+      if (grid.isWallCell(bx, by)) {
+        continue;
+      }
+      grid.terrain[by * w + bx] = TERRAIN_TELEGRAPH;
     }
   }
 }
@@ -217,10 +328,10 @@ export function placeTelegraph(board, stage, x, y) {
 /**
  * Resets all telegraph terrain cells back to TERRAIN_NONE.
  *
- * @param {import('../../board/index.js').Board} board
+ * @param {import('../../grid/index.js').Grid} grid
  */
-export function clearTelegraph(board) {
-  const terrain = board.terrain;
+export function clearTelegraph(grid) {
+  const terrain = grid.terrain;
   for (let i = 0; i < terrain.length; i++) {
     if (terrain[i] === TERRAIN_TELEGRAPH) {
       terrain[i] = TERRAIN_NONE;

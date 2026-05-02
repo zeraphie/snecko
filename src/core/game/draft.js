@@ -1,27 +1,26 @@
 // draft.js — Draft screen methods (selection, mutation, confirm)
 
-import { TYPE_PASSIVE, TYPE_CONSUMABLE, TYPE_MUTATION } from "../upgrades/defs.js";
+import { TYPE_PASSIVE, TYPE_CONSUMABLE, TYPE_BITES, TYPE_MUTATION } from "../upgrades/defs.js";
 import {
-  generateBoard as crystallineGenerate,
-  advanceBoard as crystallineAdvance,
+  generateGrid as crystallineGenerate,
+  advanceGrid as crystallineAdvance,
 } from "../generation/index.js";
-import {
-  generateWildlandsBoard,
-  advanceWildlandsBoard,
-} from "../generation/wildlands/generator.js";
+import { generateWildlandsGrid, advanceWildlandsGrid } from "../generation/wildlands/generator.js";
 import {
   STATE_DRAFT,
   STATE_PLAYING,
   FOOD_REQUIRED_BASE,
-  FOOD_REQUIRED_PER_LEVEL,
+  FOOD_REQUIRED_PER_ACT,
   INITIAL_SNAKE_LENGTH,
 } from "./constants.js";
+import { mixSeeds, splitmix32 } from "../rng.js";
+import { SUBSEED_FOOD } from "../seed-streams.js";
 
 const GENERATORS = {
   crystalline: { generate: crystallineGenerate, advance: crystallineAdvance },
   wildlands: {
-    generate: generateWildlandsBoard,
-    advance: advanceWildlandsBoard,
+    generate: generateWildlandsGrid,
+    advance: advanceWildlandsGrid,
   },
 };
 
@@ -56,20 +55,22 @@ export function toggleMutation() {
  */
 export function _applyUpgrade(def) {
   if (def.type === TYPE_PASSIVE) {
-    this.upgrades.addPassive(def.id, def.duration, def.durationUnit);
+    this.upgrades.addPassive(def.id, def.duration);
   } else if (def.type === TYPE_CONSUMABLE) {
     this.upgrades.addConsumable(def.id, def.charges);
+  } else if (def.type === TYPE_BITES) {
+    this.upgrades.addBites(def.id, def.charges);
   } else if (def.type === TYPE_MUTATION) {
-    this.upgrades.setWorldMode(def.id);
+    this.upgrades.setMutation(def.id);
     const gen = GENERATORS[def.id];
     if (gen) {
-      this.generateBoard = gen.generate;
-      this.advanceBoard = gen.advance;
+      this.generateGrid = gen.generate;
+      this.advanceGrid = gen.advance;
     }
   }
 }
 
-/** Confirms the draft selection, applies upgrades, advances level, and regenerates the board. */
+/** Confirms the draft selection, applies upgrades, advances the act, and regenerates the grid. */
 export function confirmDraft() {
   if (this.state !== STATE_DRAFT) {
     return;
@@ -83,21 +84,22 @@ export function confirmDraft() {
     }
   }
 
-  // Apply level-up
-  this.level++;
-  this.boardIndex++;
+  // Advance to next act
+  this.actIndex++;
+  this.actSeed = mixSeeds(this.runSeed, this.actIndex);
+  this.foodRand = splitmix32(mixSeeds(this.actSeed, SUBSEED_FOOD));
   this.foodEaten = 0;
   this.mechanic = null;
   this._wormholeA = null;
   this._wormholeB = null;
-  this.foodRequired = FOOD_REQUIRED_BASE + this.level * FOOD_REQUIRED_PER_LEVEL;
+  this.foodRequired = FOOD_REQUIRED_BASE + this.actIndex * FOOD_REQUIRED_PER_ACT;
   this._recalcTickMs();
   this.snake.snakeLength = INITIAL_SNAKE_LENGTH;
 
-  if (this.generateBoard) {
-    this.generateBoard(this);
+  if (this.generateGrid) {
+    this.generateGrid(this);
   } else {
-    this._resetBoardSimple();
+    this._resetGridSimple();
   }
 
   this._draftPool = null;

@@ -18,7 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - Initial public release
 - Snake + roguelike core gameplay loop
-- Additive board generation with crystalline and wildlands biomes
+- Additive grid generation with crystalline and wildlands biomes
 - Upgrade draft system (passives, consumables, mutations)
 - River currents and lattice growth mechanics
 - Canvas renderer (browser) and terminal renderer (ANSI)
