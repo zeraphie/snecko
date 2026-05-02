@@ -7,6 +7,7 @@ import { describe, it, expect, beforeEach } from "vitest";
 import { Game } from "../src/core/game";
 import { parseArenaFile } from "../src/core/boss/arena.js";
 import { parseBossShape } from "../src/core/boss/boss-shape.js";
+import { buildCrystals } from "../src/core/generation/crystalline/crystals.js";
 import {
   spawnPlayerBullet,
   updatePlayerBullets,
@@ -42,6 +43,7 @@ function buildTestManifest() {
       "traffic-jam": parseBossShape(readAsset("src/core/boss/bosses/traffic-jam.boss")),
       "the-algorithm": parseBossShape(readAsset("src/core/boss/bosses/the-algorithm.boss")),
     },
+    crystals: buildCrystals(readAsset("src/core/generation/crystalline/crystals.shapes")),
   };
 }
 
@@ -1032,6 +1034,7 @@ describe("mechanic lifecycle", () => {
 
   it("mechanic is set after startRun (crystalline default)", () => {
     const game = new Game();
+    game.manifest = buildTestManifest();
     game.startRun();
     expect(game.mechanic).not.toBe(null);
     expect(game.mechanic.type).toBe("lattice");
@@ -1039,6 +1042,7 @@ describe("mechanic lifecycle", () => {
 
   it("mechanic is reset to null on startRun", () => {
     const game = new Game();
+    game.manifest = buildTestManifest();
     game.startRun();
     game.mechanic = { type: "fake" };
     game.startRun();
@@ -1048,6 +1052,7 @@ describe("mechanic lifecycle", () => {
 
   it("mechanic is reset on confirmDraft", () => {
     const game = new Game();
+    game.manifest = buildTestManifest();
     game.startRun();
     game.mechanic = { type: "something_old" };
 
@@ -2207,15 +2212,15 @@ describe("seed-driven crystalline determinism", () => {
     return game;
   }
 
-  /** Snapshot of a generated act layout — wall masks, food, snake head. */
+  /** Snapshot of a generated act — food, snake head, lattice placements. */
   function snapshot(game) {
     return {
       runSeed: game.runSeed,
-      walls: Array.from(game.grid.wallMasks),
       foodX: game.grid.foodX,
       foodY: game.grid.foodY,
       headX: game.snake.snakeX[game.snake.headIndex],
       headY: game.snake.snakeY[game.snake.headIndex],
+      placements: game.mechanic?.placements ?? null,
     };
   }
 
@@ -2224,10 +2229,10 @@ describe("seed-driven crystalline determinism", () => {
     const b = snapshot(runWithSeed());
     // runSeed comes from Math.random; collisions vanishingly unlikely.
     expect(a.runSeed).not.toBe(b.runSeed);
-    // Walls almost certainly differ; if they don't, food positions will.
-    const wallsEqual = a.walls.every((v, i) => v === b.walls[i]);
+    // Lattice placements almost certainly differ; if they don't, food does.
+    const placementsEqual = JSON.stringify(a.placements) === JSON.stringify(b.placements);
     const foodEqual = a.foodX === b.foodX && a.foodY === b.foodY;
-    expect(wallsEqual && foodEqual).toBe(false);
+    expect(placementsEqual && foodEqual).toBe(false);
   });
 
   it("same explicit runSeed produces identical layouts", () => {
@@ -2239,8 +2244,7 @@ describe("seed-driven crystalline determinism", () => {
   it("different explicit runSeeds produce different layouts", () => {
     const a = snapshot(runWithSeed(0x11111111));
     const b = snapshot(runWithSeed(0x22222222));
-    const wallsEqual = a.walls.every((v, i) => v === b.walls[i]);
-    expect(wallsEqual).toBe(false);
+    expect(a.placements).not.toEqual(b.placements);
   });
 
   it("custom seed string 'test' produces identical layouts across runs", async () => {
@@ -2255,8 +2259,7 @@ describe("seed-driven crystalline determinism", () => {
     const { hashString } = await import("../src/core/rng.js");
     const a = snapshot(runWithSeed(hashString("test")));
     const b = snapshot(runWithSeed(hashString("foo")));
-    const wallsEqual = a.walls.every((v, i) => v === b.walls[i]);
-    expect(wallsEqual).toBe(false);
+    expect(a.placements).not.toEqual(b.placements);
   });
 });
 

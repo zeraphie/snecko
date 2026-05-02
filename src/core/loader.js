@@ -1,11 +1,12 @@
 // loader.js — Startup asset loader
 //
-// Parses all runtime formats (.arena, .boss) during startup.
+// Parses all runtime formats (.arena, .boss, .shapes) during startup.
 // Returns a manifest that the game consumes instead of loading files itself.
 // A minimum display time ensures the loader animation is visible.
 
 import { parseArenaFile } from "./boss/arena.js";
 import { parseBossShape } from "./boss/boss-shape.js";
+import { buildCrystals } from "./generation/crystalline/crystals.js";
 
 const MIN_LOAD_MS = 300;
 
@@ -16,6 +17,8 @@ const BOSS_SHAPE_FILES = [
   "src/core/boss/bosses/traffic-jam.boss",
   "src/core/boss/bosses/the-algorithm.boss",
 ];
+
+const CRYSTAL_SHAPES_FILE = "src/core/generation/crystalline/crystals.shapes";
 
 // ── Spiral order for the 3×3 dot grid ─────────────────────────────
 //
@@ -83,7 +86,7 @@ function fileStem(path) {
  * Enforces a minimum display time so the loader animation is visible.
  *
  * @param {(path: string) => Promise<string>} readFile — platform-specific file reader (project-root-relative path)
- * @returns {Promise<{ arenas: object[], bossShapes: Record<string, object> }>}
+ * @returns {Promise<{ arenas: object[], bossShapes: Record<string, object>, crystals: object[] }>}
  */
 export async function loadAssets(readFile) {
   const start = Date.now();
@@ -100,7 +103,9 @@ export async function loadAssets(readFile) {
     bossShapes[fileStem(path)] = parseBossShape(text);
   }
 
-  const manifest = { arenas, bossShapes };
+  const crystals = buildCrystals(await readFile(CRYSTAL_SHAPES_FILE));
+
+  const manifest = { arenas, bossShapes, crystals };
 
   // ── Enforce minimum display time ────────────────────────────────
   const elapsed = Date.now() - start;

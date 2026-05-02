@@ -115,27 +115,40 @@ Every mutation has three parts:
 | **Mutation** | The active generation method + mechanic for an act. Stored in `upgrades.mutation`. Strings: `"crystalline"`, `"wildlands"`, `"catacombs"`. The draft `TYPE_MUTATION` option offers a mutation; accepting it changes the active mutation. | "Mutation" |
 | **Generation method** | The procedural step that fills the grid when an act starts. | Not surfaced by name — players see the result. |
 | **Mechanic** | The per-mutation behaviour layered on the grid (`game.mechanic`). Crystalline → lattice; wildlands → currents; catacombs → TBD. | Generally not surfaced by name. |
-| **Lifecycle state** | The ordered sequence of states a mechanic runs through (`game.mechanic.state`). "Phase" is reserved for boss combat — mutation lifecycles use **state**. | Not surfaced as a single noun; players see the named states ("growing", "decaying", "surge", etc.). |
+| **Lifecycle state** | The ordered sequence of states a mechanic runs through. Single-active mechanics keep it on `mech.state` (currents). Concurrent mechanics keep it on each entry (lattice's `mech.crystals[i].state`). "Phase" is reserved for boss combat — mutation lifecycles use **state**. | Not surfaced as a single noun; players see the named states ("growing", "decaying", "surge", etc.). |
 
 ## Crystalline mutation
 
-- **Generation method:** placing crystals across the grid at the start
-  of each act.
+- **Generation method:** the act starts with no walls. Crystals arrive
+  over time via the lattice mechanic's lifecycle — there is no
+  "initial layout" of crystals.
 - **Mechanic:** **Lattice** (`mechanics/lattice.js`).
 - **Lifecycle (one crystal, advances one step per food-bite):**
-  `telegraph → place → telegraph → grow → linger → telegraph → decay → disappear`,
-  then the slot frees and the next crystal begins. The collective verbs
-  are **growing** (telegraph→place→telegraph→grow) and **decaying**
-  (telegraph→decay→disappear).
+  `telegraph_place → place → telegraph_grow → grow → linger → decay → disappear`.
+  After `disappear` the crystal is reaped from `mech.crystals[]`. The
+  collective verbs are **growing** (`telegraph_place → place →
+  telegraph_grow → grow`) and **decaying** (`linger → decay →
+  disappear`). `telegraph_decay` is intentionally omitted — vanishing
+  walls don't need a warning.
+- **Concurrent crystals:** the lattice runs multiple lifecycles in
+  parallel. A new crystal lifecycle starts every `SPAWN_INTERVAL = 2`
+  food-bites, so 3–4 crystals are typically active at once at staggered
+  states.
+- **Determinism:** placement anchors and shape choices are pre-computed
+  once per act in `initLattice` from the seeded `mech.rand`, stored on
+  `mech.placements`. `telegraph_place` pops the next anchor and
+  re-validates it against the live grid; if every remaining anchor is
+  stale (snake parked on it, another crystal already there) it falls
+  back to a bounded live search.
 
 | Term | Internal meaning | Player-facing |
 |------|------------------|---------------|
-| **Crystal** | A wall structure with a lifecycle. | Crystal |
-| **Stage** | A defined size/silhouette of a crystal. Currently 2: *small* and *full*. | "Small / full crystal" |
-| **Growing** | Collective name for the early lifecycle states (telegraph → place → telegraph → grow). | "Growing" |
-| **Decaying** | Collective name for the late lifecycle states (telegraph → decay → disappear). | "Decaying" |
-| **Telegraph** / **Telegraph cell** | Walkable, non-lethal cell that announces an upcoming change (a wall about to appear on grow, a wall about to vanish on decay). `TERRAIN_TELEGRAPH` in the terrain layer. | "Warning cell" or just visual cue. |
-| **Hollow** | Cell inside a crystal's silhouette but not itself a wall. Walkable, no food spawns there. Distinct flag, cleared when the crystal decays. | "Hollow" |
+| **Crystal** | A self-contained wall lifecycle (`mech.crystals[i]`). Each crystal owns its own `state`, `crystalIdx`, `rotation`, anchor (`x`, `y`), `stageIdx`, plus per-crystal `ownedSolid` / `ownedInterior` bitmasks tracking exactly which cells it stamped — so decay/disappear release only that crystal's contribution, not cells another crystal happened to overlap. | Crystal |
+| **Stage** | A defined size/silhouette of a crystal. Currently 2: *small* (~5×5 bbox) and *full* (~8×8). Each stage has rotations, each rotation has `solidRows` (wall bitmask per row) and `interiorRows` (hollow bitmask per row). | "Small / full crystal" |
+| **Growing** | Collective name for the early lifecycle states (`telegraph_place → place → telegraph_grow → grow`). | "Growing" |
+| **Decaying** | Collective name for the late lifecycle states (`linger → decay → disappear`). | "Decaying" |
+| **Telegraph** / **Telegraph cell** | Walkable, non-lethal cell that announces an upcoming wall placement. `TERRAIN_TELEGRAPH` in the terrain layer. Clearing is footprint-scoped per crystal so concurrent crystals don't blow each other's telegraphs away. | "Warning cell" or just visual cue. |
+| **Hollow** | Cell inside a crystal's silhouette but not itself a wall. Walkable, no food spawns there. Marked as `TERRAIN_INTERIOR` in the terrain layer; auto-derived per stage by flood-fill from the bbox edge (cells the outside can't reach are interior); cleared when the crystal decays. | "Hollow" |
 | **Lattice** | The mechanic name in `mechanics/lattice.js`. | Not exposed to players. |
 
 **Conflict:** *Lattice* is also a candidate generic term for "grid maze."
@@ -231,7 +244,7 @@ live entirely in `LABELS`.
 | **Wall** | Blocking cell (`grid.isWallCell`). |
 | **Snake cell** | Cell occupied by the snake's body. |
 | **Reserved cell** | Generation-time reservation, e.g. spawn buffer. Cleared after generation. |
-| **Terrain** | A separate per-cell value: `TERRAIN_NONE` / `TERRAIN_TELEGRAPH` / `TERRAIN_CURRENT` / `TERRAIN_LOW` / `TERRAIN_HIGH` (`grid/constants.js`). |
+| **Terrain** | A separate per-cell value: `TERRAIN_NONE` / `TERRAIN_TELEGRAPH` / `TERRAIN_CURRENT` / `TERRAIN_LOW` / `TERRAIN_HIGH` / `TERRAIN_INTERIOR` (`grid/constants.js`). |
 | **Food** / **Boss food** | Single-position flags on the grid (`foodX/Y`, `bossFoodX/Y`). |
 
 ## Snake

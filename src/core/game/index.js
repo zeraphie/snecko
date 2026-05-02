@@ -138,7 +138,7 @@ export class Game {
     this._contraband = [];
     this._contrabandPool = null;
     this._contrabandSelection = 0;
-    this.manifest = { arenas: [], bossShapes: {} };
+    this.manifest = { arenas: [], bossShapes: {}, crystals: [] };
   }
 
   /** Resets all state and begins a new run from act 1. */
