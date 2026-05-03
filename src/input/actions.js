@@ -80,6 +80,26 @@ export function dispatchAction(game, action) {
     return;
   }
 
+  // ── Mutation picker ──────────────────────────────────────────
+  if (state === "mutation_picker") {
+    switch (action) {
+      case ACTION_UP:
+        game.selectMutationPicker(game._mutationPickerSelection - 1);
+        break;
+      case ACTION_DOWN:
+        game.selectMutationPicker(game._mutationPickerSelection + 1);
+        break;
+      case ACTION_CONFIRM:
+      case ACTION_USE_CONSUMABLE:
+        game.confirmMutationPicker();
+        break;
+      case ACTION_CANCEL:
+        game.closeMutationPicker();
+        break;
+    }
+    return;
+  }
+
   // ── Contraband draft ────────────────────────────────────────
   if (state === "contraband") {
     switch (action) {

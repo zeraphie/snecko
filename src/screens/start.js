@@ -11,6 +11,7 @@ export const startScreen = {
       LABELS.start.controls,
       "",
       LABELS.start.begin,
+      LABELS.start.menu,
     ]);
     renderer.flush();
   },

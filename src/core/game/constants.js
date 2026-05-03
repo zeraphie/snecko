@@ -10,6 +10,7 @@ export const STATE_BOSS = "boss";
 export const STATE_CONTRABAND = "contraband";
 export const STATE_SEED_INPUT = "seed_input";
 export const STATE_MENU = "menu";
+export const STATE_MUTATION_PICKER = "mutation_picker";
 
 // ── Death causes ──────────────────────────────────────────────────
 export const DEATH_WALL = "wall";
@@ -17,6 +18,7 @@ export const DEATH_SELF = "self";
 export const DEATH_BOSS = "boss";
 export const DEATH_PROJECTILE = "projectile";
 export const DEATH_BOMB = "bomb";
+export const DEATH_GIVE_UP = "give_up";
 
 export const GRID_W = 31;
 export const GRID_H = 31;

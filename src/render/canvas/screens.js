@@ -158,6 +158,64 @@ export function drawDraftScreen(choices, mutation, selectedIndex, mutationAccept
   ctx.textAlign = "left";
 }
 
+export function drawMutationPickerScreen(mutationIds, selectedIndex) {
+  const ctx = this._ctx;
+  const w = this._gridW;
+
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, this._canvas.width, this._canvas.height);
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  ctx.fillStyle = "#e74c3c";
+  ctx.font = "bold 22px monospace";
+  ctx.fillText(LABELS.mutationPicker.title, w / 2, 30);
+
+  ctx.fillStyle = "#555";
+  ctx.font = "11px monospace";
+  ctx.fillText(LABELS.mutationPicker.subtitle, w / 2, 52);
+
+  const cardW = Math.min(w - 40, 320);
+  const cardH = 52;
+  const gap = 8;
+  const totalH = mutationIds.length * cardH + (mutationIds.length - 1) * gap;
+  const startY = Math.max(70, (this._canvas.height - totalH) / 2);
+  const cardX = (w - cardW) / 2;
+
+  for (let i = 0; i < mutationIds.length; i++) {
+    const id = mutationIds[i];
+    const labels = LABELS.upgrades[id] ?? {};
+    const y = startY + i * (cardH + gap);
+    const selected = i === selectedIndex;
+
+    ctx.fillStyle = selected ? "#3a2040" : "#1a1a2e";
+    ctx.fillRect(cardX, y, cardW, cardH);
+
+    ctx.strokeStyle = selected ? "#e74c3c" : "#6a3a3a";
+    ctx.lineWidth = selected ? 2 : 1;
+    ctx.strokeRect(cardX, y, cardW, cardH);
+
+    ctx.textAlign = "left";
+    ctx.fillStyle = selected ? "#e74c3c" : "#6a3a3a";
+    ctx.font = "bold 14px monospace";
+    const prefix = selected ? "▶ " : "";
+    ctx.fillText(prefix + (labels.name ?? id), cardX + 10, y + 20);
+
+    ctx.fillStyle = "#aaa";
+    ctx.font = "11px monospace";
+    ctx.fillText(labels.desc ?? "", cardX + 10, y + 38);
+  }
+
+  const instrY = startY + mutationIds.length * (cardH + gap) + 10;
+  ctx.textAlign = "center";
+  ctx.fillStyle = "#666";
+  ctx.font = "12px monospace";
+  ctx.fillText(LABELS.mutationPicker.hint, w / 2, instrY);
+
+  ctx.textAlign = "left";
+}
+
 export function drawContrabandScreen(choices, selectedIndex, collected) {
   const ctx = this._ctx;
   const w = this._gridW;

@@ -131,6 +131,9 @@ export class Renderer {
   /** Draw the contraband pick screen. No-op if not overridden. */
   drawContrabandScreen(choices, selectedIndex, collected) {}
 
+  /** Draw the mutation picker screen. No-op if not overridden. */
+  drawMutationPickerScreen(mutationIds, selectedIndex) {}
+
   /** Draw boss HP bar and phase info. No-op if not overridden. */
   drawBossInfo(name, hp, maxHp, phase) {}
 

@@ -15,6 +15,7 @@ export const deadScreen = {
       `${LABELS.hud.time}: ${game.constructor.formatTime(game.runTime)}`,
       "",
       LABELS.dead.restart,
+      LABELS.dead.menu,
     ]);
     renderer.flush();
   },

@@ -105,6 +105,59 @@ export function drawDraftScreen(r, choices, mutation, selectedIndex, mutationAcc
 }
 
 /**
+ * Renders the mutation picker (practice mode, reachable from the menu).
+ *
+ * @param {import('./terminal-renderer.js').TerminalRenderer} r
+ * @param {string[]} mutationIds
+ * @param {number} selectedIndex
+ */
+export function drawMutationPickerScreen(r, mutationIds, selectedIndex) {
+  const fullWidth = r._w * 2;
+  const lines = [];
+
+  lines.push("");
+  lines.push(`  ${RED}${LABELS.mutationPicker.title}${RESET}`);
+  lines.push(`  ${DIM}${LABELS.mutationPicker.subtitle}${RESET}`);
+  lines.push("");
+
+  for (let i = 0; i < mutationIds.length; i++) {
+    const id = mutationIds[i];
+    const labels = LABELS.upgrades[id] ?? {};
+    const sel = i === selectedIndex;
+    if (sel) {
+      lines.push(`  ${RED}> [${i + 1}] ${labels.name ?? id}${RESET}`);
+    } else {
+      lines.push(`  ${DIM}  [${i + 1}]${RESET} ${labels.name ?? id}`);
+    }
+    lines.push(`        ${DIM}${labels.desc ?? ""}${RESET}`);
+  }
+
+  lines.push("");
+  lines.push(`  ${DIM}${LABELS.mutationPicker.hint}${RESET}`);
+
+  r._screenOverlay = null;
+  let buf = ESC_HOME;
+  const padTop = Math.max(0, Math.floor((r._h - lines.length) / 2));
+  for (let y = 0; y < r._h; y++) {
+    const li = y - padTop;
+    let line = "";
+    let visLen = 0;
+    if (li >= 0 && li < lines.length) {
+      line = lines[li];
+      visLen = line.replace(/\x1b\[[0-9;]*m/g, "").length;
+    }
+    if (visLen < fullWidth) {
+      line += " ".repeat(fullWidth - visLen);
+    }
+    buf += line + "\n";
+  }
+  const hudWidth = Math.max(fullWidth, r._maxHudLen);
+  buf += " ".repeat(hudWidth) + "\n";
+  buf += " ".repeat(hudWidth) + "\n";
+  r._stdout.write(buf);
+}
+
+/**
  * Renders the Contraband pick screen after a boss victory.
  *
  * @param {import('./terminal-renderer.js').TerminalRenderer} r

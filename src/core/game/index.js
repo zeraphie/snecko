@@ -11,6 +11,7 @@ import {
   generateGrid as crystallineGenerate,
   advanceGrid as crystallineAdvance,
 } from "../generation/index.js";
+import { MUTATIONS, getMutationGenerator } from "../generation/registry.js";
 import {
   STATE_START,
   STATE_PLAYING,
@@ -22,6 +23,8 @@ import {
   STATE_CONTRABAND,
   STATE_SEED_INPUT,
   STATE_MENU,
+  STATE_MUTATION_PICKER,
+  DEATH_GIVE_UP,
   GRID_W,
   GRID_H,
   INITIAL_SNAKE_LENGTH,
@@ -101,6 +104,15 @@ export class Game {
     this._menuSelection = 0;
     /** State to return to when the menu is dismissed (Esc). */
     this._menuFrom = null;
+    /** Wall-clock timestamp the pause menu was opened (null when not paused).
+     *  Used to compensate `startTime` / `lastTickTime` on resume so the
+     *  pause duration doesn't inflate the run timer. */
+    this._pauseStartTime = null;
+    /** Mutation the next run will start under. Persists across runs.
+     *  Cycled by the menu's mutation picker. Default crystalline. */
+    this._selectedMutation = "crystalline";
+    /** Highlighted index in the mutation picker. */
+    this._mutationPickerSelection = 0;
     this.upgrades = new UpgradeState();
     this._draftPool = null;
     this._draftSelection = 0;
@@ -267,14 +279,24 @@ export class Game {
    * just add entries here.
    */
   openMenu() {
-    if (this.state !== STATE_START && this.state !== STATE_DEAD) {
+    if (
+      this.state !== STATE_START &&
+      this.state !== STATE_DEAD &&
+      this.state !== STATE_PLAYING
+    ) {
       return;
     }
     this._menuFrom = this.state;
-    this._menuItems =
-      this.state === STATE_DEAD
-        ? [{ id: "restart" }, { id: "seed" }]
-        : [{ id: "begin" }, { id: "seed" }];
+    if (this.state === STATE_PLAYING) {
+      // Pause-menu variant: resume the run or give up. Practice / custom
+      // seed stay on the start/dead menus to keep the pause UI minimal.
+      this._pauseStartTime = Date.now();
+      this._menuItems = [{ id: "resume" }, { id: "give_up" }];
+    } else if (this.state === STATE_DEAD) {
+      this._menuItems = [{ id: "restart" }, { id: "practice" }, { id: "seed" }];
+    } else {
+      this._menuItems = [{ id: "begin" }, { id: "practice" }, { id: "seed" }];
+    }
     this._menuSelection = 0;
     this.state = STATE_MENU;
   }
@@ -284,7 +306,16 @@ export class Game {
     if (this.state !== STATE_MENU) {
       return;
     }
-    this.state = this._menuFrom ?? STATE_START;
+    const returnTo = this._menuFrom ?? STATE_START;
+    if (returnTo === STATE_PLAYING && this._pauseStartTime !== null) {
+      // Compensate for pause duration so runtime / lastTickTime aren't
+      // skewed by wall-clock time spent in the menu.
+      const pauseMs = Date.now() - this._pauseStartTime;
+      this.startTime += pauseMs;
+      this.lastTickTime = Date.now();
+      this._pauseStartTime = null;
+    }
+    this.state = returnTo;
     this._menuFrom = null;
   }
 
@@ -321,11 +352,98 @@ export class Game {
         this.advanceGrid = crystallineAdvance;
         this.startRun();
         break;
+      case "resume":
+        this.closeMenu();
+        break;
+      case "give_up":
+        this.snake.alive = false;
+        this.snake.deathCause = DEATH_GIVE_UP;
+        this._pauseStartTime = null;
+        this._menuFrom = null;
+        this.state = STATE_DEAD;
+        break;
+      case "practice":
+        this.openMutationPicker();
+        break;
       case "seed":
         this._seedInput = "";
         this.state = STATE_SEED_INPUT;
         break;
     }
+  }
+
+  // ── Mutation picker (practice screen, reachable from the menu) ────
+  //
+  // The mutation picker is a one-off action: picking a mutation starts a
+  // fresh practice run in that mutation. It does NOT change the default
+  // run that `confirm()` starts from the start/dead screens — those stay
+  // on crystalline. `_selectedMutation` is a UX hint (which row the picker
+  // pre-highlights when reopened); it has no effect on normal runs.
+
+  /**
+   * Opens the mutation picker. Reachable from the menu's "Practice"
+   * item.
+   */
+  openMutationPicker() {
+    if (this.state !== STATE_MENU) {
+      return;
+    }
+    // Highlight the currently-selected mutation by default.
+    const ids = Object.keys(MUTATIONS);
+    const idx = ids.indexOf(this._selectedMutation);
+    this._mutationPickerSelection = idx >= 0 ? idx : 0;
+    this.state = STATE_MUTATION_PICKER;
+  }
+
+  /**
+   * Sets the highlighted mutation-picker index, clamped to the registry.
+   *
+   * @param {number} index
+   */
+  selectMutationPicker(index) {
+    if (this.state !== STATE_MUTATION_PICKER) {
+      return;
+    }
+    const ids = Object.keys(MUTATIONS);
+    if (ids.length === 0) {
+      return;
+    }
+    this._mutationPickerSelection = Math.max(0, Math.min(index, ids.length - 1));
+  }
+
+  /**
+   * Starts a fresh practice run in the highlighted mutation. Rolls a new
+   * runSeed so the practice doesn't share state with the player's normal
+   * progression. After death, the dead screen's Enter key returns to the
+   * default crystalline run — practice is one-off.
+   */
+  confirmMutationPicker() {
+    if (this.state !== STATE_MUTATION_PICKER) {
+      return;
+    }
+    const ids = Object.keys(MUTATIONS);
+    const id = ids[this._mutationPickerSelection];
+    if (!id) {
+      return;
+    }
+    this._selectedMutation = id; // remember last pick for next picker open
+    const gen = getMutationGenerator(id) ?? MUTATIONS.crystalline;
+    this.generateGrid = gen.generate;
+    this.advanceGrid = gen.advance;
+    // Fresh seed so practice runs don't share runSeed with anything else.
+    this._pendingRunSeed = ((Math.random() * 0x100000000) | 0) >>> 0;
+    this.startRun();
+    if (id !== "crystalline") {
+      this.upgrades.mutation = id;
+    }
+  }
+
+  /** Returns to the menu without changing the selection. */
+  closeMutationPicker() {
+    if (this.state !== STATE_MUTATION_PICKER) {
+      return;
+    }
+    this.state = STATE_MENU;
   }
 
   /**
@@ -399,10 +517,10 @@ export class Game {
       this.state === STATE_DEAD ||
       this.state === STATE_SEED_INPUT
     ) {
-      // Always start a fresh crystalline run when the player confirms from
-      // the start screen, after death, or from the custom-seed input,
-      // regardless of any generators that may have been set by a previous
-      // run's mutation draft.
+      // Always start a fresh crystalline run when the player confirms
+      // from the start screen, after death, or from the custom-seed
+      // input. The menu's mutation picker is a separate practice mode;
+      // it doesn't change the default run.
       this.generateGrid = crystallineGenerate;
       this.advanceGrid = crystallineAdvance;
       this.startRun();
@@ -483,3 +601,4 @@ Game.BOSS_PHASE2_HP = BOSS_PHASE2_HP;
 Game.BOSS_PHASE3_HP = BOSS_PHASE3_HP;
 Game.BOSS_SPECIAL_INTERVAL = BOSS_SPECIAL_INTERVAL;
 Game.STATE_CONTRABAND = STATE_CONTRABAND;
+Game.STATE_MUTATION_PICKER = STATE_MUTATION_PICKER;

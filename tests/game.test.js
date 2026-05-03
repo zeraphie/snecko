@@ -2145,24 +2145,32 @@ describe("menu", () => {
     game.manifest = buildTestManifest();
   });
 
-  it("openMenu from start populates begin/seed items", () => {
+  it("openMenu from start populates begin/practice/seed items", () => {
     game.openMenu();
     expect(game.state).toBe("menu");
-    expect(game._menuItems.map((i) => i.id)).toEqual(["begin", "seed"]);
+    expect(game._menuItems.map((i) => i.id)).toEqual(["begin", "practice", "seed"]);
     expect(game._menuSelection).toBe(0);
   });
 
-  it("openMenu from dead populates restart/seed items", () => {
+  it("openMenu from dead populates restart/practice/seed items", () => {
     game.state = Game.STATE_DEAD;
     game.openMenu();
     expect(game.state).toBe("menu");
-    expect(game._menuItems.map((i) => i.id)).toEqual(["restart", "seed"]);
+    expect(game._menuItems.map((i) => i.id)).toEqual(["restart", "practice", "seed"]);
   });
 
-  it("openMenu is a no-op outside start/dead", () => {
+  it("openMenu from playing populates a resume/give_up pause menu", () => {
     game.startRun();
     game.openMenu();
-    expect(game.state).toBe(Game.STATE_PLAYING);
+    expect(game.state).toBe("menu");
+    expect(game._menuItems.map((i) => i.id)).toEqual(["resume", "give_up"]);
+    expect(game._pauseStartTime).not.toBe(null);
+  });
+
+  it("openMenu is a no-op outside start/dead/playing", () => {
+    game.state = Game.STATE_BOSS;
+    game.openMenu();
+    expect(game.state).toBe(Game.STATE_BOSS);
   });
 
   it("selectMenu clamps to bounds", () => {
@@ -2193,10 +2201,110 @@ describe("menu", () => {
 
   it("confirmMenu on 'seed' enters seed input", () => {
     game.openMenu();
-    game.selectMenu(1);
+    // begin/practice/seed → seed is index 2.
+    game.selectMenu(2);
     game.confirmMenu();
     expect(game.state).toBe("seed_input");
     expect(game._seedInput).toBe("");
+  });
+
+  // ── Practice mutation picker ────────────────────────────────
+
+  it("confirmMenu on 'practice' opens the mutation picker", () => {
+    game.openMenu();
+    game.selectMenu(1); // practice row
+    game.confirmMenu();
+    expect(game.state).toBe(Game.STATE_MUTATION_PICKER);
+    expect(game._mutationPickerSelection).toBeGreaterThanOrEqual(0);
+  });
+
+  it("selectMutationPicker clamps to bounds", () => {
+    game.openMenu();
+    game.selectMenu(1);
+    game.confirmMenu();
+    game.selectMutationPicker(-5);
+    expect(game._mutationPickerSelection).toBe(0);
+    game.selectMutationPicker(999);
+    expect(game._mutationPickerSelection).toBeGreaterThanOrEqual(0);
+  });
+
+  it("confirmMutationPicker immediately starts a practice run in the picked mutation", async () => {
+    const { MUTATIONS } = await import("../src/core/generation/registry.js");
+    game.openMenu();
+    game.selectMenu(1);
+    game.confirmMenu(); // → picker
+    const ids = Object.keys(MUTATIONS);
+    const idx = ids.indexOf("wildlands");
+    game.selectMutationPicker(idx);
+    game.confirmMutationPicker();
+    expect(game.state).toBe(Game.STATE_PLAYING);
+    expect(game.upgrades.mutation).toBe("wildlands");
+    expect(game.generateGrid).toBe(MUTATIONS.wildlands.generate);
+  });
+
+  it("closeMutationPicker returns to menu without starting a run", () => {
+    game.openMenu();
+    game.selectMenu(1);
+    game.confirmMenu();
+    game.selectMutationPicker(1);
+    game.closeMutationPicker();
+    expect(game.state).toBe("menu");
+  });
+
+  // ── Pause menu ──────────────────────────────────────────────
+
+  it("closeMenu from pause returns to playing and clears _pauseStartTime", () => {
+    game.startRun();
+    game.openMenu();
+    expect(game._pauseStartTime).not.toBe(null);
+    game.closeMenu();
+    expect(game.state).toBe(Game.STATE_PLAYING);
+    expect(game._pauseStartTime).toBe(null);
+  });
+
+  it("confirmMenu on 'resume' resumes the run", () => {
+    game.startRun();
+    game.openMenu();
+    game.selectMenu(0); // resume
+    game.confirmMenu();
+    expect(game.state).toBe(Game.STATE_PLAYING);
+    expect(game._pauseStartTime).toBe(null);
+  });
+
+  it("confirmMenu on 'give_up' ends the run with DEATH_GIVE_UP", async () => {
+    const { DEATH_GIVE_UP } = await import("../src/core/game/constants.js");
+    game.startRun();
+    game.openMenu();
+    game.selectMenu(1); // give_up
+    game.confirmMenu();
+    expect(game.state).toBe(Game.STATE_DEAD);
+    expect(game.snake.alive).toBe(false);
+    expect(game.snake.deathCause).toBe(DEATH_GIVE_UP);
+    expect(game._pauseStartTime).toBe(null);
+  });
+
+  it("normal Begin (Enter from start) stays on crystalline regardless of last practice pick", async () => {
+    const {
+      generateGrid: crystallineGenerate,
+    } = await import("../src/core/generation/index.js");
+    // Start a practice run in wildlands.
+    const { MUTATIONS } = await import("../src/core/generation/registry.js");
+    game.openMenu();
+    game.selectMenu(1);
+    game.confirmMenu();
+    const idx = Object.keys(MUTATIONS).indexOf("wildlands");
+    game.selectMutationPicker(idx);
+    game.confirmMutationPicker(); // wildlands practice run starts
+    expect(game.upgrades.mutation).toBe("wildlands");
+
+    // Simulate the player dying.
+    game.state = Game.STATE_DEAD;
+    // Pressing Enter from dead screen should restart on crystalline,
+    // not the wildlands they just practised.
+    game.confirm();
+    expect(game.state).toBe(Game.STATE_PLAYING);
+    expect(game.upgrades.mutation).toBe("crystalline");
+    expect(game.generateGrid).toBe(crystallineGenerate);
   });
 });
 
