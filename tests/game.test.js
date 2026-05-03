@@ -2158,12 +2158,7 @@ describe("menu", () => {
   it("openMenu from start populates begin/practice/leaderboard/seed items", () => {
     game.openMenu();
     expect(game.state).toBe("menu");
-    expect(game._menuItems.map((i) => i.id)).toEqual([
-      "begin",
-      "practice",
-      "leaderboard",
-      "seed",
-    ]);
+    expect(game._menuItems.map((i) => i.id)).toEqual(["begin", "practice", "leaderboard", "seed"]);
     expect(game._menuSelection).toBe(0);
   });
 
@@ -2389,9 +2384,7 @@ describe("menu", () => {
   });
 
   it("normal Begin (Enter from start) stays on crystalline regardless of last practice pick", async () => {
-    const {
-      generateGrid: crystallineGenerate,
-    } = await import("../src/core/generation/index.js");
+    const { generateGrid: crystallineGenerate } = await import("../src/core/generation/index.js");
     // Start a practice run in wildlands.
     const { MUTATIONS } = await import("../src/core/generation/registry.js");
     game.openMenu();

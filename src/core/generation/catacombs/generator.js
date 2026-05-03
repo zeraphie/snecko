@@ -136,8 +136,12 @@ function pickUnvisitedNeighbour(cx, cy, visited, rand) {
   for (const { dx, dy } of dirs) {
     const nx = cx + dx;
     const ny = cy + dy;
-    if (nx < 0 || nx >= CELLS_W || ny < 0 || ny >= CELLS_H) continue;
-    if (visited[ny * CELLS_W + nx]) continue;
+    if (nx < 0 || nx >= CELLS_W || ny < 0 || ny >= CELLS_H) {
+      continue;
+    }
+    if (visited[ny * CELLS_W + nx]) {
+      continue;
+    }
     return { cx: nx, cy: ny, dx, dy };
   }
   return null;
@@ -235,17 +239,27 @@ function findSpawn(grid, snakeLen, rand) {
   let maxForward = 0;
   for (let y = 1; y < grid.height - 1; y++) {
     for (let x = 1; x < grid.width - 1; x++) {
-      if (grid.isWallCell(x, y)) continue;
+      if (grid.isWallCell(x, y)) {
+        continue;
+      }
       for (const { dx, dy } of NEIGHBOUR_DIRS) {
         const forward = countStraightRun(grid, x, y, dx, dy);
-        if (forward < SPAWN_FORWARD_RUN) continue;
-        if (countStraightRun(grid, x, y, -dx, -dy) < snakeLen - 1) continue;
+        if (forward < SPAWN_FORWARD_RUN) {
+          continue;
+        }
+        if (countStraightRun(grid, x, y, -dx, -dy) < snakeLen - 1) {
+          continue;
+        }
         candidates.push({ x, y, dx, dy, forward });
-        if (forward > maxForward) maxForward = forward;
+        if (forward > maxForward) {
+          maxForward = forward;
+        }
       }
     }
   }
-  if (candidates.length === 0) return null;
+  if (candidates.length === 0) {
+    return null;
+  }
 
   // Prefer the longer-run cohort. Tolerate a 1-cell gap below the max so
   // we don't always pick the same single longest corridor every act.
@@ -259,8 +273,12 @@ function countStraightRun(grid, x, y, dx, dy) {
   for (let i = 1; ; i++) {
     const nx = x + dx * i;
     const ny = y + dy * i;
-    if (nx < 0 || nx >= grid.width || ny < 0 || ny >= grid.height) break;
-    if (grid.isWallCell(nx, ny)) break;
+    if (nx < 0 || nx >= grid.width || ny < 0 || ny >= grid.height) {
+      break;
+    }
+    if (grid.isWallCell(nx, ny)) {
+      break;
+    }
     count++;
   }
   return count;

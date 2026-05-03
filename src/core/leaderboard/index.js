@@ -39,10 +39,14 @@ export const MAX_NAME_LENGTH = 12;
  */
 export function loadLeaderboard() {
   const store = _getStore();
-  if (!store) return [];
+  if (!store) {
+    return [];
+  }
   try {
     const raw = store.getItem(STORAGE_KEY);
-    if (!raw) return [];
+    if (!raw) {
+      return [];
+    }
     const parsed = JSON.parse(raw);
     return Array.isArray(parsed) ? parsed : [];
   } catch {
@@ -58,7 +62,9 @@ export function loadLeaderboard() {
  */
 export function saveLeaderboard(entries) {
   const store = _getStore();
-  if (!store) return;
+  if (!store) {
+    return;
+  }
   try {
     store.setItem(STORAGE_KEY, JSON.stringify(entries));
   } catch {
@@ -87,9 +93,15 @@ export function recordScore(entry) {
  * bites, then lower time. Returns the standard Array.sort sign convention.
  */
 export function compareScores(a, b) {
-  if (a.act !== b.act) return b.act - a.act;
-  if (a.progress !== b.progress) return b.progress - a.progress;
-  if (a.bites !== b.bites) return b.bites - a.bites;
+  if (a.act !== b.act) {
+    return b.act - a.act;
+  }
+  if (a.progress !== b.progress) {
+    return b.progress - a.progress;
+  }
+  if (a.bites !== b.bites) {
+    return b.bites - a.bites;
+  }
   return a.time - b.time;
 }
 
@@ -98,7 +110,9 @@ export function compareScores(a, b) {
  */
 export function clearLeaderboard() {
   const store = _getStore();
-  if (!store) return;
+  if (!store) {
+    return;
+  }
   try {
     store.removeItem(STORAGE_KEY);
   } catch {
@@ -119,7 +133,9 @@ function _getStore() {
 /** Returns the last-confirmed player name, or "" if none set / no storage. */
 export function loadPlayerName() {
   const store = _getStore();
-  if (!store) return "";
+  if (!store) {
+    return "";
+  }
   try {
     return store.getItem(NAME_KEY) ?? "";
   } catch {
@@ -130,7 +146,9 @@ export function loadPlayerName() {
 /** Persists the player name. No-op if storage isn't available. */
 export function savePlayerName(name) {
   const store = _getStore();
-  if (!store) return;
+  if (!store) {
+    return;
+  }
   try {
     store.setItem(NAME_KEY, name);
   } catch {
@@ -144,7 +162,7 @@ const FOOD_REQUIRED_BASE = 5;
 const FOOD_REQUIRED_PER_ACT = 2;
 /** BASE_TICK_MS in seconds — used for dummy time calculation. Mirrors the
  *  game's actual base tick rate so dummy times look like real player runs. */
-const TICK_SECS = 0.150;
+const TICK_SECS = 0.15;
 /** Minimum ticks the dummy assumes between bites (lower = unrealistically fast). */
 const MIN_TICKS_PER_BITE = 10;
 /** Random spread above the minimum (so dummies vary). */
@@ -193,7 +211,9 @@ export function generateDummyEntries() {
  */
 export function ensureSeeded() {
   const existing = loadLeaderboard();
-  if (existing.length > 0) return existing;
+  if (existing.length > 0) {
+    return existing;
+  }
   const seeded = generateDummyEntries();
   seeded.sort(compareScores);
   saveLeaderboard(seeded);

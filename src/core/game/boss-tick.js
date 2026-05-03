@@ -17,7 +17,6 @@ import { generateContrabandPool } from "../upgrades/contraband/index.js";
 import {
   STATE_BOSS,
   STATE_CONTRABAND,
-  STATE_DEAD,
   BOSS_TICK_MS,
   BOSS_MOVE_MS,
   PLAYER_FIRE_INTERVAL,

@@ -4,10 +4,10 @@ import { describe, it, expect } from "vitest";
 import { Grid } from "../src/core/grid";
 import { Snake } from "../src/core/snake";
 import { generateCatacombsGrid } from "../src/core/generation/catacombs/generator.js";
-import { initRifts, advanceRifts, RIFT_CADENCE } from "../src/core/mechanics/rifts.js";
+import { advanceRifts, RIFT_CADENCE } from "../src/core/mechanics/rifts.js";
 import { TERRAIN_TELEGRAPH } from "../src/core/grid/constants.js";
 
-function makeGame(actSeed = 0xCAFEBABE) {
+function makeGame(actSeed = 0xcafebabe) {
   const grid = new Grid(31, 31);
   const snake = new Snake();
   return {
@@ -19,7 +19,7 @@ function makeGame(actSeed = 0xCAFEBABE) {
   };
 }
 
-function setupCatacombsGame(actSeed = 0xCAFEBABE) {
+function setupCatacombsGame(actSeed = 0xcafebabe) {
   const game = makeGame(actSeed);
   generateCatacombsGrid(game);
   return game;
@@ -28,7 +28,9 @@ function setupCatacombsGame(actSeed = 0xCAFEBABE) {
 function countTerrain(grid, terrainValue) {
   let count = 0;
   for (let i = 0; i < grid.terrain.length; i++) {
-    if (grid.terrain[i] === terrainValue) count++;
+    if (grid.terrain[i] === terrainValue) {
+      count++;
+    }
   }
   return count;
 }
@@ -37,7 +39,9 @@ function snapshotWalls(grid) {
   const walls = [];
   for (let y = 0; y < grid.height; y++) {
     for (let x = 0; x < grid.width; x++) {
-      if (grid.isWallCell(x, y)) walls.push(y * grid.width + x);
+      if (grid.isWallCell(x, y)) {
+        walls.push(y * grid.width + x);
+      }
     }
   }
   return walls;
@@ -57,8 +61,8 @@ describe("initRifts", () => {
   });
 
   it("same actSeed → identical mechanic state (rand + first batch)", () => {
-    const a = setupCatacombsGame(0xABCDEF12);
-    const b = setupCatacombsGame(0xABCDEF12);
+    const a = setupCatacombsGame(0xabcdef12);
+    const b = setupCatacombsGame(0xabcdef12);
     // First batch of rifts is generated identically from the same seed.
     expect(a.mechanic.riftBatch.length).toBe(b.mechanic.riftBatch.length);
     expect(a.mechanic.riftBatch).toEqual(b.mechanic.riftBatch);
@@ -128,7 +132,9 @@ describe("advanceRifts", () => {
     let openCells = 0;
     for (let y = 0; y < game.grid.height; y++) {
       for (let x = 0; x < game.grid.width; x++) {
-        if (!game.grid.isWallCell(x, y)) openCells++;
+        if (!game.grid.isWallCell(x, y)) {
+          openCells++;
+        }
       }
     }
     expect(reached).toBe(openCells);
@@ -145,7 +151,9 @@ describe("advanceRifts", () => {
         const sx = game.snake.snakeX[idx];
         const sy = game.snake.snakeY[idx];
         expect(game.grid.isWallCell(sx, sy)).toBe(false);
-        if (idx === game.snake.headIndex) break;
+        if (idx === game.snake.headIndex) {
+          break;
+        }
         idx = (idx + 1) % Snake.MAX_CELLS;
       }
     }
@@ -195,13 +203,24 @@ function bfsCount(grid, startX, startY) {
   let count = 0;
   while (stack.length > 0) {
     const [x, y] = stack.pop();
-    if (grid.isWallCell(x, y)) continue;
+    if (grid.isWallCell(x, y)) {
+      continue;
+    }
     count++;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
       const nx = x + dx;
       const ny = y + dy;
-      if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-      if (visited[ny * w + nx]) continue;
+      if (nx < 0 || nx >= w || ny < 0 || ny >= h) {
+        continue;
+      }
+      if (visited[ny * w + nx]) {
+        continue;
+      }
       visited[ny * w + nx] = 1;
       stack.push([nx, ny]);
     }

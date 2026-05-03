@@ -8,7 +8,6 @@ import { applyCurrentDrift } from "../mechanics/currents.js";
 import {
   STATE_PLAYING,
   STATE_DRAFT,
-  STATE_DEAD,
   STATE_BOSS,
   BASE_TICK_MS,
   MIN_TICK_MS,

@@ -73,7 +73,6 @@ export function advanceRifts(game) {
 
   if (mech.state === "telegraph_rift") {
     applyRift(game);
-    return;
   }
 }
 
@@ -129,7 +128,9 @@ function refillBatch(game) {
   const grid = game.grid;
   for (let i = 0; i < RIFT_BATCH_SIZE; i++) {
     const rift = pickRandomRift(grid, mech.rand);
-    if (rift) mech.riftBatch.push(rift);
+    if (rift) {
+      mech.riftBatch.push(rift);
+    }
   }
 }
 
@@ -148,7 +149,9 @@ function refillBatch(game) {
 function pickRandomRift(grid, rand) {
   const closed = listInterCellWalls(grid, true);
   const open = listInterCellWalls(grid, false);
-  if (closed.length === 0 || open.length === 0) return null;
+  if (closed.length === 0 || open.length === 0) {
+    return null;
+  }
 
   const openTarget = closed[Math.floor(rand() * closed.length)];
 
@@ -192,7 +195,13 @@ function listInterCellWalls(grid, closed) {
       const wallA = grid.isWallCell(wallX, ya);
       const wallB = grid.isWallCell(wallX, yb);
       if (wallA === closed && wallB === closed) {
-        result.push({ axis: "v", cells: [{ x: wallX, y: ya }, { x: wallX, y: yb }] });
+        result.push({
+          axis: "v",
+          cells: [
+            { x: wallX, y: ya },
+            { x: wallX, y: yb },
+          ],
+        });
       }
     }
   }
@@ -206,7 +215,13 @@ function listInterCellWalls(grid, closed) {
       const wallA = grid.isWallCell(xa, wallY);
       const wallB = grid.isWallCell(xb, wallY);
       if (wallA === closed && wallB === closed) {
-        result.push({ axis: "h", cells: [{ x: xa, y: wallY }, { x: xb, y: wallY }] });
+        result.push({
+          axis: "h",
+          cells: [
+            { x: xa, y: wallY },
+            { x: xb, y: wallY },
+          ],
+        });
       }
     }
   }
@@ -223,14 +238,22 @@ function listInterCellWalls(grid, closed) {
  */
 function preservesConnectivityAfterRift(grid, openTarget, closeTarget) {
   // Apply provisionally.
-  for (const cell of openTarget.cells) grid.clearCell("wall", cell.x, cell.y);
-  for (const cell of closeTarget.cells) grid.setCell("wall", cell.x, cell.y);
+  for (const cell of openTarget.cells) {
+    grid.clearCell("wall", cell.x, cell.y);
+  }
+  for (const cell of closeTarget.cells) {
+    grid.setCell("wall", cell.x, cell.y);
+  }
 
   const ok = isMazeFullyConnected(grid);
 
   // Undo.
-  for (const cell of openTarget.cells) grid.setCell("wall", cell.x, cell.y);
-  for (const cell of closeTarget.cells) grid.clearCell("wall", cell.x, cell.y);
+  for (const cell of openTarget.cells) {
+    grid.setCell("wall", cell.x, cell.y);
+  }
+  for (const cell of closeTarget.cells) {
+    grid.clearCell("wall", cell.x, cell.y);
+  }
 
   return ok;
 }
@@ -250,12 +273,23 @@ function isMazeFullyConnected(grid) {
   while (queue.length > 0) {
     const [x, y] = queue.shift();
     reached++;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
       const nx = x + dx;
       const ny = y + dy;
-      if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-      if (visited[ny * w + nx]) continue;
-      if (grid.isWallCell(nx, ny)) continue;
+      if (nx < 0 || nx >= w || ny < 0 || ny >= h) {
+        continue;
+      }
+      if (visited[ny * w + nx]) {
+        continue;
+      }
+      if (grid.isWallCell(nx, ny)) {
+        continue;
+      }
       visited[ny * w + nx] = 1;
       queue.push([nx, ny]);
     }
@@ -265,7 +299,9 @@ function isMazeFullyConnected(grid) {
   let total = 0;
   for (let y = 0; y < h; y++) {
     for (let x = 0; x < w; x++) {
-      if (!grid.isWallCell(x, y)) total++;
+      if (!grid.isWallCell(x, y)) {
+        total++;
+      }
     }
   }
   return reached === total;
@@ -281,14 +317,18 @@ function isMazeFullyConnected(grid) {
 function isRiftSafe(grid, snake, rift) {
   // Snake-occupied cells block both flips immediately.
   for (const cell of [...rift.open.cells, ...rift.close.cells]) {
-    if (grid.isSnakeCell(cell.x, cell.y)) return false;
+    if (grid.isSnakeCell(cell.x, cell.y)) {
+      return false;
+    }
   }
   // The rift's close cells shouldn't lie on the snake's straight forward
   // path — the player committed to that corridor.
   const projection = forwardProjection(grid, snake);
   for (const cell of rift.close.cells) {
     for (const proj of projection) {
-      if (proj.x === cell.x && proj.y === cell.y) return false;
+      if (proj.x === cell.x && proj.y === cell.y) {
+        return false;
+      }
     }
   }
   return true;
@@ -303,8 +343,12 @@ function forwardProjection(grid, snake) {
   for (let i = 1; i <= 8; i++) {
     const nx = hx + dx * i;
     const ny = hy + dy * i;
-    if (nx < 0 || nx >= grid.width || ny < 0 || ny >= grid.height) break;
-    if (grid.isWallCell(nx, ny)) break;
+    if (nx < 0 || nx >= grid.width || ny < 0 || ny >= grid.height) {
+      break;
+    }
+    if (grid.isWallCell(nx, ny)) {
+      break;
+    }
     cells.push({ x: nx, y: ny });
   }
   return cells;
@@ -313,8 +357,12 @@ function forwardProjection(grid, snake) {
 // ── Apply / paint helpers ────────────────────────────────────────
 
 function applyRiftToGrid(grid, rift) {
-  for (const cell of rift.open.cells) grid.clearCell("wall", cell.x, cell.y);
-  for (const cell of rift.close.cells) grid.setCell("wall", cell.x, cell.y);
+  for (const cell of rift.open.cells) {
+    grid.clearCell("wall", cell.x, cell.y);
+  }
+  for (const cell of rift.close.cells) {
+    grid.setCell("wall", cell.x, cell.y);
+  }
 }
 
 function paintRiftTelegraph(grid, rift) {
@@ -325,7 +373,9 @@ function paintRiftTelegraph(grid, rift) {
 }
 
 function clearRiftTelegraph(grid, rift) {
-  if (!rift) return;
+  if (!rift) {
+    return;
+  }
   const w = grid.width;
   for (const cell of [...rift.open.cells, ...rift.close.cells]) {
     if (grid.terrain[cell.y * w + cell.x] === TERRAIN_TELEGRAPH) {

@@ -46,7 +46,8 @@ const effectiveWorld = worldArg || (isMutationMode ? mode : "");
 
 const game = new Game();
 
-const generators = getMutationGenerator(isMutationMode ? mode : "crystalline") ?? MUTATIONS.crystalline;
+const generators =
+  getMutationGenerator(isMutationMode ? mode : "crystalline") ?? MUTATIONS.crystalline;
 game.generateGrid = generators.generate;
 game.advanceGrid = generators.advance;
 

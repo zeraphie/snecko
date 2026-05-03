@@ -8,7 +8,7 @@ import {
   advanceCatacombsGrid,
 } from "../src/core/generation/catacombs/generator.js";
 
-function makeGame(actSeed = 0xCAFEBABE) {
+function makeGame(actSeed = 0xcafebabe) {
   const grid = new Grid(31, 31);
   const snake = new Snake();
   return {
@@ -24,7 +24,9 @@ function snapshotWalls(grid) {
   const walls = [];
   for (let y = 0; y < grid.height; y++) {
     for (let x = 0; x < grid.width; x++) {
-      if (grid.isWallCell(x, y)) walls.push(y * grid.width + x);
+      if (grid.isWallCell(x, y)) {
+        walls.push(y * grid.width + x);
+      }
     }
   }
   return walls;
@@ -39,13 +41,24 @@ function bfsReachableCells(grid, startX, startY) {
   let count = 0;
   while (stack.length > 0) {
     const [x, y] = stack.pop();
-    if (grid.isWallCell(x, y)) continue;
+    if (grid.isWallCell(x, y)) {
+      continue;
+    }
     count++;
-    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+    for (const [dx, dy] of [
+      [1, 0],
+      [-1, 0],
+      [0, 1],
+      [0, -1],
+    ]) {
       const nx = x + dx;
       const ny = y + dy;
-      if (nx < 0 || nx >= w || ny < 0 || ny >= h) continue;
-      if (visited[ny * w + nx]) continue;
+      if (nx < 0 || nx >= w || ny < 0 || ny >= h) {
+        continue;
+      }
+      if (visited[ny * w + nx]) {
+        continue;
+      }
       visited[ny * w + nx] = 1;
       stack.push([nx, ny]);
     }
@@ -100,7 +113,9 @@ describe("generateCatacombsGrid", () => {
     let openCells = 0;
     for (let y = 0; y < game.grid.height; y++) {
       for (let x = 0; x < game.grid.width; x++) {
-        if (!game.grid.isWallCell(x, y)) openCells++;
+        if (!game.grid.isWallCell(x, y)) {
+          openCells++;
+        }
       }
     }
     expect(reachable).toBe(openCells);
@@ -132,14 +147,16 @@ describe("generateCatacombsGrid", () => {
       const sx = snake.snakeX[idx];
       const sy = snake.snakeY[idx];
       expect(game.grid.isWallCell(sx, sy)).toBe(false);
-      if (idx === snake.headIndex) break;
+      if (idx === snake.headIndex) {
+        break;
+      }
       idx = (idx + 1) % Snake.MAX_CELLS;
     }
   });
 
   it("same actSeed produces identical mazes", () => {
-    const a = makeGame(0xABCDEF12);
-    const b = makeGame(0xABCDEF12);
+    const a = makeGame(0xabcdef12);
+    const b = makeGame(0xabcdef12);
     generateCatacombsGrid(a);
     generateCatacombsGrid(b);
     expect(snapshotWalls(a.grid)).toEqual(snapshotWalls(b.grid));
@@ -226,8 +243,12 @@ describe("spawn polish", () => {
     for (let i = 1; ; i++) {
       const nx = hx + snake.dirX * i;
       const ny = hy + snake.dirY * i;
-      if (nx < 0 || nx >= grid.width || ny < 0 || ny >= grid.height) break;
-      if (grid.isWallCell(nx, ny)) break;
+      if (nx < 0 || nx >= grid.width || ny < 0 || ny >= grid.height) {
+        break;
+      }
+      if (grid.isWallCell(nx, ny)) {
+        break;
+      }
       count++;
     }
     return count;

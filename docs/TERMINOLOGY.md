@@ -195,15 +195,15 @@ elsewhere** — particularly for the catacombs maze.
   the flip and clears the telegraph. `RIFT_CADENCE = 5` for v1 (3
   lingers, 1 telegraph, 1 rift per cycle).
 
-| Term                 | Internal meaning                                                                                                                                                            | Player-facing    |
-| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
-| **Catacombs**        | Mutation string `"catacombs"`.                                                                                                                                              | "Catacombs"      |
-| **Maze cell**        | One of the 10×10 logical cells the maze graph operates on. Each has a 2×2 corridor interior on the board, plus 1-wide inter-cell walls to its 4 neighbours.                 | —                |
-| **Corridor**         | 2-cell-wide walkable strip — the 2×2 interior of a maze cell, plus any opened inter-cell wall gaps connecting it to neighbours.                                             | "Corridor"       |
-| **Inter-cell wall**  | The 1-cell-wide divider between two adjacent maze cells. Either fully closed (both gap cells are walls) or fully open (both passable). The rifts mechanic flips these.       | "Wall"           |
-| **Wall** (catacombs) | 1-cell-wide blocker between corridors. Same wall flag as everywhere else; the term distinguishes intent.                                                                    | "Wall"           |
-| **Rift**             | The atomic mechanic operation: open one closed inter-cell wall + close one open one, chosen so the maze stays connected and the snake's straight corridor isn't touched.    | Implicit visual. |
-| **Rifts**            | The mechanic name in `mechanics/rifts.js`.                                                                                                                                  | Not exposed.     |
+| Term                 | Internal meaning                                                                                                                                                         | Player-facing    |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------- |
+| **Catacombs**        | Mutation string `"catacombs"`.                                                                                                                                           | "Catacombs"      |
+| **Maze cell**        | One of the 10×10 logical cells the maze graph operates on. Each has a 2×2 corridor interior on the board, plus 1-wide inter-cell walls to its 4 neighbours.              | —                |
+| **Corridor**         | 2-cell-wide walkable strip — the 2×2 interior of a maze cell, plus any opened inter-cell wall gaps connecting it to neighbours.                                          | "Corridor"       |
+| **Inter-cell wall**  | The 1-cell-wide divider between two adjacent maze cells. Either fully closed (both gap cells are walls) or fully open (both passable). The rifts mechanic flips these.   | "Wall"           |
+| **Wall** (catacombs) | 1-cell-wide blocker between corridors. Same wall flag as everywhere else; the term distinguishes intent.                                                                 | "Wall"           |
+| **Rift**             | The atomic mechanic operation: open one closed inter-cell wall + close one open one, chosen so the maze stays connected and the snake's straight corridor isn't touched. | Implicit visual. |
+| **Rifts**            | The mechanic name in `mechanics/rifts.js`.                                                                                                                               | Not exposed.     |
 
 ## Boss fights
 

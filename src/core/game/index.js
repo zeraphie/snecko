@@ -301,11 +301,7 @@ export class Game {
    * just add entries here.
    */
   openMenu() {
-    if (
-      this.state !== STATE_START &&
-      this.state !== STATE_DEAD &&
-      this.state !== STATE_PLAYING
-    ) {
+    if (this.state !== STATE_START && this.state !== STATE_DEAD && this.state !== STATE_PLAYING) {
       return;
     }
     this._menuFrom = this.state;
@@ -419,7 +415,9 @@ export class Game {
    * name-input are no-ops.
    */
   _endRun() {
-    if (this._runRecorded || this._pendingRunRecord) return;
+    if (this._runRecorded || this._pendingRunRecord) {
+      return;
+    }
     this.runTime = (Date.now() - this.startTime) / 1000;
     this._pendingRunRecord = {
       act: this.actIndex,
@@ -434,14 +432,20 @@ export class Game {
 
   /** Appends a character to the name buffer (length-capped). */
   appendNameInput(ch) {
-    if (this.state !== STATE_NAME_INPUT) return;
-    if (this._nameInput.length >= MAX_NAME_LENGTH) return;
+    if (this.state !== STATE_NAME_INPUT) {
+      return;
+    }
+    if (this._nameInput.length >= MAX_NAME_LENGTH) {
+      return;
+    }
     this._nameInput += ch;
   }
 
   /** Removes the last character from the name buffer. */
   backspaceNameInput() {
-    if (this.state !== STATE_NAME_INPUT) return;
+    if (this.state !== STATE_NAME_INPUT) {
+      return;
+    }
     this._nameInput = this._nameInput.slice(0, -1);
   }
 
@@ -451,7 +455,9 @@ export class Game {
    * STATE_DEAD. Empty name records as "Anonymous".
    */
   confirmNameInput() {
-    if (this.state !== STATE_NAME_INPUT) return;
+    if (this.state !== STATE_NAME_INPUT) {
+      return;
+    }
     const trimmed = this._nameInput.trim();
     const name = trimmed.length > 0 ? trimmed.slice(0, MAX_NAME_LENGTH) : "Anonymous";
     if (trimmed.length > 0) {
@@ -463,13 +469,17 @@ export class Game {
 
   /** Cancel the name input — record as "Anonymous" and proceed to dead. */
   cancelNameInput() {
-    if (this.state !== STATE_NAME_INPUT) return;
+    if (this.state !== STATE_NAME_INPUT) {
+      return;
+    }
     this._finalizeRunRecord("Anonymous");
     this.state = STATE_DEAD;
   }
 
   _finalizeRunRecord(name) {
-    if (!this._pendingRunRecord) return;
+    if (!this._pendingRunRecord) {
+      return;
+    }
     recordScore({ name, ...this._pendingRunRecord });
     this._pendingRunRecord = null;
     this._runRecorded = true;
@@ -496,7 +506,6 @@ export class Game {
     this.state = this._leaderboardFrom ?? STATE_MENU;
     this._leaderboardFrom = null;
   }
-
 
   // ── Mutation picker (practice screen, reachable from the menu) ────
   //

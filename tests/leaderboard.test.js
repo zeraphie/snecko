@@ -42,19 +42,39 @@ afterEach(() => {
 
 describe("compareScores", () => {
   it("higher act wins", () => {
-    expect(compareScores({ act: 5, progress: 0, bites: 0, time: 0 }, { act: 3, progress: 9, bites: 99, time: 1 })).toBeLessThan(0);
+    expect(
+      compareScores(
+        { act: 5, progress: 0, bites: 0, time: 0 },
+        { act: 3, progress: 9, bites: 99, time: 1 }
+      )
+    ).toBeLessThan(0);
   });
 
   it("equal act → higher progress wins", () => {
-    expect(compareScores({ act: 4, progress: 7, bites: 10, time: 60 }, { act: 4, progress: 5, bites: 12, time: 50 })).toBeLessThan(0);
+    expect(
+      compareScores(
+        { act: 4, progress: 7, bites: 10, time: 60 },
+        { act: 4, progress: 5, bites: 12, time: 50 }
+      )
+    ).toBeLessThan(0);
   });
 
   it("equal act + progress → higher bites wins", () => {
-    expect(compareScores({ act: 4, progress: 5, bites: 12, time: 50 }, { act: 4, progress: 5, bites: 10, time: 50 })).toBeLessThan(0);
+    expect(
+      compareScores(
+        { act: 4, progress: 5, bites: 12, time: 50 },
+        { act: 4, progress: 5, bites: 10, time: 50 }
+      )
+    ).toBeLessThan(0);
   });
 
   it("equal act + progress + bites → lower time wins", () => {
-    expect(compareScores({ act: 4, progress: 5, bites: 10, time: 30 }, { act: 4, progress: 5, bites: 10, time: 60 })).toBeLessThan(0);
+    expect(
+      compareScores(
+        { act: 4, progress: 5, bites: 10, time: 30 },
+        { act: 4, progress: 5, bites: 10, time: 60 }
+      )
+    ).toBeLessThan(0);
   });
 });
 
