@@ -64,6 +64,11 @@ export const LABELS = {
       short: "Crystalline",
       desc: "Crystal growth generation",
     },
+    catacombs: {
+      name: "Catacombs",
+      short: "Catacombs",
+      desc: "Pre-generated maze with shifting paths",
+    },
     // Contraband
     danger_noodle: {
       name: "Danger noodle",

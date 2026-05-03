@@ -134,8 +134,8 @@ describe("mutation", () => {
 });
 
 describe("upgrade definitions", () => {
-  it("has all 8 upgrades", () => {
-    expect(Object.keys(UPGRADES).length).toBe(8);
+  it("has all 9 upgrades", () => {
+    expect(Object.keys(UPGRADES).length).toBe(9);
   });
 
   it("getUpgradesByType returns correct subsets", () => {
@@ -146,7 +146,7 @@ describe("upgrade definitions", () => {
     expect(passives.length).toBe(2);
     expect(consumables.length).toBe(3);
     expect(bites.length).toBe(1);
-    expect(mutations.length).toBe(2);
+    expect(mutations.length).toBe(3);
   });
 
   it("all passives have duration", () => {
@@ -178,7 +178,48 @@ describe("upgrade definitions", () => {
     const state = new UpgradeState(); // crystalline
     const eligible = getEligibleUpgrades(state);
     const mutations = eligible.filter((u) => u.type === TYPE_MUTATION);
-    expect(mutations.length).toBe(1);
-    expect(mutations[0].id).toBe("wildlands");
+    const ids = mutations.map((u) => u.id).sort();
+    expect(ids).toEqual(["catacombs", "wildlands"]);
+  });
+
+  // ── Per-mutation upgrade filtering (D4) ─────────────────────────
+
+  it("catacombs draft excludes Iron Jaw, Bomb, Dash, Wormhole, and Climber", () => {
+    const state = new UpgradeState();
+    state.setMutation("catacombs");
+    const eligible = getEligibleUpgrades(state);
+    const ids = eligible.map((u) => u.id);
+    expect(ids).not.toContain("iron_jaw");
+    expect(ids).not.toContain("bomb");
+    expect(ids).not.toContain("dash");
+    expect(ids).not.toContain("wormhole");
+    expect(ids).not.toContain("climber");
+    // Slow Time and the non-active mutations should still be there.
+    expect(ids).toContain("slow_time");
+    expect(ids).toContain("crystalline");
+    expect(ids).toContain("wildlands");
+  });
+
+  it("crystalline draft includes Bomb / Dash / Wormhole but not Iron Jaw or Climber", () => {
+    const state = new UpgradeState(); // crystalline by default
+    const eligible = getEligibleUpgrades(state);
+    const ids = eligible.map((u) => u.id);
+    expect(ids).toContain("bomb");
+    expect(ids).toContain("dash");
+    expect(ids).toContain("wormhole");
+    expect(ids).not.toContain("iron_jaw");
+    expect(ids).not.toContain("climber");
+  });
+
+  it("wildlands draft is the only one that includes Iron Jaw and Climber", () => {
+    const state = new UpgradeState();
+    state.setMutation("wildlands");
+    const eligible = getEligibleUpgrades(state);
+    const ids = eligible.map((u) => u.id);
+    expect(ids).toContain("iron_jaw");
+    expect(ids).toContain("climber");
+    expect(ids).toContain("bomb");
+    expect(ids).toContain("dash");
+    expect(ids).toContain("wormhole");
   });
 });

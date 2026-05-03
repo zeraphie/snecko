@@ -64,8 +64,8 @@ Per food-bite (every time a food is eaten):
 
 - `foodEaten++`, `bossFoodCharge++`
 - The active mutation's lifecycle advances one step (subject to the
-  mutation's own cadence — Catacombs may use a divisor, e.g. step every
-  3 food-bites; see `PLAN.catacombs-adr.md` Q7).
+  mutation's own cadence — see each mutation's section below for the
+  state names and cadence).
 - Every passive upgrade ticks down one bite of `remainingBites`.
 - The snake grows by one cell.
 
@@ -88,9 +88,8 @@ runs on it during an act. Today's mutations:
 
 - **Crystalline** — open grid with dynamic crystal lifecycles.
 - **Wildlands** — FBM-noise terrain with shifting current rivers.
-- **Catacombs** — pre-generated maze with fixed corridors. (See
-  `PLAN.catacombs-adr.md`. File currently named `PLAN.pacman-adr.md` —
-  rename pending when that ADR is tackled.)
+- **Catacombs** — pre-generated maze with fixed corridors plus a
+  rifts mechanic.
 
 There is **one concept** here, not two. A mutation is something an act
 runs under (the "active mutation"); a mutation can also appear as a
@@ -105,7 +104,7 @@ Every mutation has three parts:
 1. **Generation method** — how the grid is built when the act starts
    (placing crystals; FBM noise; maze carving).
 2. **Mechanic** — the recurring per-mutation behaviour layered on the
-   grid (lattice / currents / TBD-for-catacombs).
+   grid (lattice / currents / rifts).
 3. **Lifecycle** — the ordered states the mechanic moves through, one
    step per food-bite. Each mutation has its own lifecycle defined in
    its own section below.
@@ -114,7 +113,7 @@ Every mutation has three parts:
 | --------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
 | **Mutation**          | The active generation method + mechanic for an act. Stored in `upgrades.mutation`. Strings: `"crystalline"`, `"wildlands"`, `"catacombs"`. The draft `TYPE_MUTATION` option offers a mutation; accepting it changes the active mutation.                                      | "Mutation"                                                                                          |
 | **Generation method** | The procedural step that fills the grid when an act starts.                                                                                                                                                                                                                   | Not surfaced by name — players see the result.                                                      |
-| **Mechanic**          | The per-mutation behaviour layered on the grid (`game.mechanic`). Crystalline → lattice; wildlands → currents; catacombs → TBD.                                                                                                                                               | Generally not surfaced by name.                                                                     |
+| **Mechanic**          | The per-mutation behaviour layered on the grid (`game.mechanic`). Crystalline → lattice; wildlands → currents; catacombs → rifts.                                                                                                                                             | Generally not surfaced by name.                                                                     |
 | **Lifecycle state**   | The ordered sequence of states a mechanic runs through. Single-active mechanics keep it on `mech.state` (currents). Concurrent mechanics keep it on each entry (lattice's `mech.crystals[i].state`). "Phase" is reserved for boss combat — mutation lifecycles use **state**. | Not surfaced as a single noun; players see the named states ("growing", "decaying", "surge", etc.). |
 
 ## Crystalline mutation
@@ -177,15 +176,34 @@ elsewhere** — particularly for the catacombs maze.
 
 ## Catacombs mutation
 
-See `PLAN.catacombs-adr.md` (file rename pending). The mutation is
-pre-generated per act, with fixed 2-wide corridors and 1-wide walls.
+- **Generation method:** the act starts with a static maze pre-generated
+  by recursive-backtracker on a 10×10 logical-cell graph (period-3
+  layout: 2-wide corridors + 1-wide walls between cells). A small
+  extra-loop pass punches a few additional openings so the maze has
+  cycles, not just a single path between any two points. The snake
+  spawns in a corridor with at least 4 straight cells before the next
+  turn so the player can read the first corner.
+- **Mechanic:** **Rifts** (`mechanics/rifts.js`). Every
+  `RIFT_CADENCE` food-bites the maze topology rifts: one closed
+  inter-cell wall opens and one open inter-cell wall closes (chosen so
+  the maze stays connected and the snake's current corridor is left
+  alone).
+- **Lifecycle (advances one step per food-bite):**
+  `linger × (RIFT_CADENCE - 2) → telegraph_rift → rift → linger …`,
+  cycling indefinitely. `telegraph_rift` paints the four cells about to
+  flip with `TERRAIN_TELEGRAPH` (one bite of warning); `rift` applies
+  the flip and clears the telegraph. `RIFT_CADENCE = 5` for v1 (3
+  lingers, 1 telegraph, 1 rift per cycle).
 
-| Term                 | Internal meaning                                                                                         | Player-facing |
-| -------------------- | -------------------------------------------------------------------------------------------------------- | ------------- |
-| **Catacombs**        | Mutation string `"catacombs"`.                                                                           | "Catacombs"   |
-| **Corridor**         | 2-cell-wide walkable strip in the maze.                                                                  | "Corridor"    |
-| **Wall** (catacombs) | 1-cell-wide blocker between corridors. Same wall flag as everywhere else; the term distinguishes intent. | "Wall"        |
-| **Mechanic**         | Pending — see Q7 in `PLAN.catacombs-adr.md`. May be empty (the maze is the mechanic).                    | —             |
+| Term                 | Internal meaning                                                                                                                                                            | Player-facing    |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- |
+| **Catacombs**        | Mutation string `"catacombs"`.                                                                                                                                              | "Catacombs"      |
+| **Maze cell**        | One of the 10×10 logical cells the maze graph operates on. Each has a 2×2 corridor interior on the board, plus 1-wide inter-cell walls to its 4 neighbours.                 | —                |
+| **Corridor**         | 2-cell-wide walkable strip — the 2×2 interior of a maze cell, plus any opened inter-cell wall gaps connecting it to neighbours.                                             | "Corridor"       |
+| **Inter-cell wall**  | The 1-cell-wide divider between two adjacent maze cells. Either fully closed (both gap cells are walls) or fully open (both passable). The rifts mechanic flips these.       | "Wall"           |
+| **Wall** (catacombs) | 1-cell-wide blocker between corridors. Same wall flag as everywhere else; the term distinguishes intent.                                                                    | "Wall"           |
+| **Rift**             | The atomic mechanic operation: open one closed inter-cell wall + close one open one, chosen so the maze stays connected and the snake's straight corridor isn't touched.    | Implicit visual. |
+| **Rifts**            | The mechanic name in `mechanics/rifts.js`.                                                                                                                                  | Not exposed.     |
 
 ## Boss fights
 
