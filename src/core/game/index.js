@@ -12,6 +12,8 @@ import {
   advanceGrid as crystallineAdvance,
 } from "../generation/index.js";
 import { MUTATIONS, getMutationGenerator } from "../generation/registry.js";
+import { ALL_BOSS_DEFS } from "../boss/bosses/index.js";
+import { PRACTICE_HUB_ITEMS } from "./practice.js";
 import {
   recordScore,
   loadLeaderboard,
@@ -33,6 +35,9 @@ import {
   STATE_MUTATION_PICKER,
   STATE_LEADERBOARD,
   STATE_NAME_INPUT,
+  STATE_PRACTICE_HUB,
+  STATE_BOSS_PICKER,
+  STATE_BOSS_RUSH_COMPLETE,
   DEATH_GIVE_UP,
   GRID_W,
   GRID_H,
@@ -122,6 +127,31 @@ export class Game {
     this._selectedMutation = "crystalline";
     /** Highlighted index in the mutation picker. */
     this._mutationPickerSelection = 0;
+    /** State to return to when the mutation picker closes. */
+    this._mutationPickerFrom = null;
+    /** Highlighted index in the practice hub. */
+    this._practiceHubSelection = 0;
+    /** Highlighted index in the boss picker. */
+    this._bossPickerSelection = 0;
+    /**
+     * Active practice mode, or null when not in a practice run.
+     *
+     *   null    — normal run (regular game flow)
+     *   'single'— picker / random boss: victory returns to practice hub
+     *   'rush'  — boss rush: victory chains contraband draft → next boss,
+     *             completion shows the rush-complete screen
+     */
+    this._practiceMode = null;
+    /** Boss IDs remaining in the current rush, in spawn order. */
+    this._bossRushQueue = [];
+    /** Total bosses in the rush (set on start) — used for rush HUD progress. */
+    this._bossRushTotal = 0;
+    /**
+     * Boss id to spawn on the NEXT call to `_enterBossFight`. Cleared once
+     * consumed. Practice flows set this to override the mutation-based
+     * lookup; null means "use the mutation-keyed boss" (the normal flow).
+     */
+    this._practiceBossId = null;
     /** Snapshot of the leaderboard for the current view (set on open). */
     this._leaderboardEntries = [];
     /** State to return to when the leaderboard view is dismissed. */
@@ -391,7 +421,7 @@ export class Game {
         this._endRun();
         break;
       case "practice":
-        this.openMutationPicker();
+        this.openPracticeHub();
         break;
       case "leaderboard":
         this.openLeaderboard();
@@ -520,9 +550,11 @@ export class Game {
    * item.
    */
   openMutationPicker() {
-    if (this.state !== STATE_MENU) {
+    if (this.state !== STATE_MENU && this.state !== STATE_PRACTICE_HUB) {
       return;
     }
+    // Remember where to return on close (Esc).
+    this._mutationPickerFrom = this.state;
     // Highlight the currently-selected mutation by default.
     const ids = Object.keys(MUTATIONS);
     const idx = ids.indexOf(this._selectedMutation);
@@ -573,13 +605,209 @@ export class Game {
     }
   }
 
-  /** Returns to the menu without changing the selection. */
+  /** Returns to the screen the picker was opened from. */
   closeMutationPicker() {
     if (this.state !== STATE_MUTATION_PICKER) {
       return;
     }
+    this.state = this._mutationPickerFrom ?? STATE_MENU;
+    this._mutationPickerFrom = null;
+  }
+
+  // ── Practice hub + boss picker + boss rush ───────────────────────
+  //
+  // The practice hub branches to four flows:
+  //   mutations    — opens the existing mutation picker (one-off run)
+  //   bossPicker   — picks a specific boss to fight, returns to hub on win
+  //   randomBoss   — picks a random boss the same way
+  //   bossRush     — fights all bosses back-to-back in shuffled order,
+  //                  with a contraband draft between fights
+  //
+  // The boss-fight flow is the same as the normal in-run boss; what
+  // changes is what happens on victory. `_practiceMode` is the switch:
+  // 'single' returns to the hub; 'rush' continues into the next boss
+  // (or the completion screen if the queue is empty).
+
+  /** Opens the practice hub from the menu's "Practice" item. */
+  openPracticeHub() {
+    if (this.state !== STATE_MENU) {
+      return;
+    }
+    this._practiceHubSelection = 0;
+    this.state = STATE_PRACTICE_HUB;
+  }
+
+  /**
+   * Sets the highlighted hub index, clamped to the items array.
+   *
+   * @param {number} index
+   */
+  selectPracticeHub(index) {
+    if (this.state !== STATE_PRACTICE_HUB) {
+      return;
+    }
+    const max = PRACTICE_HUB_ITEMS.length - 1;
+    this._practiceHubSelection = Math.max(0, Math.min(index, max));
+  }
+
+  /** Activates the highlighted hub item. */
+  confirmPracticeHub() {
+    if (this.state !== STATE_PRACTICE_HUB) {
+      return;
+    }
+    const item = PRACTICE_HUB_ITEMS[this._practiceHubSelection];
+    if (!item) {
+      return;
+    }
+    switch (item.id) {
+      case "mutations":
+        this.openMutationPicker();
+        break;
+      case "bossPicker":
+        this.openBossPicker();
+        break;
+      case "randomBoss":
+        this.startRandomPracticeBoss();
+        break;
+      case "bossRush":
+        this.startBossRush();
+        break;
+    }
+  }
+
+  /** Returns to the menu from the practice hub. */
+  closePracticeHub() {
+    if (this.state !== STATE_PRACTICE_HUB) {
+      return;
+    }
     this.state = STATE_MENU;
   }
+
+  /** Opens the boss picker from the practice hub. */
+  openBossPicker() {
+    if (this.state !== STATE_PRACTICE_HUB) {
+      return;
+    }
+    this._bossPickerSelection = 0;
+    this.state = STATE_BOSS_PICKER;
+  }
+
+  /**
+   * Sets the highlighted boss-picker index.
+   *
+   * @param {number} index
+   */
+  selectBossPicker(index) {
+    if (this.state !== STATE_BOSS_PICKER) {
+      return;
+    }
+    const max = ALL_BOSS_DEFS.length - 1;
+    this._bossPickerSelection = Math.max(0, Math.min(index, max));
+  }
+
+  /** Spawns the highlighted boss as a single-fight practice run. */
+  confirmBossPicker() {
+    if (this.state !== STATE_BOSS_PICKER) {
+      return;
+    }
+    const def = ALL_BOSS_DEFS[this._bossPickerSelection];
+    if (!def) {
+      return;
+    }
+    this._startPracticeBoss(def.id);
+  }
+
+  /** Returns to the practice hub from the boss picker. */
+  closeBossPicker() {
+    if (this.state !== STATE_BOSS_PICKER) {
+      return;
+    }
+    this.state = STATE_PRACTICE_HUB;
+  }
+
+  /** Picks a random boss and drops into a single-fight practice run. */
+  startRandomPracticeBoss() {
+    if (ALL_BOSS_DEFS.length === 0) {
+      return;
+    }
+    const idx = Math.floor(Math.random() * ALL_BOSS_DEFS.length);
+    this._startPracticeBoss(ALL_BOSS_DEFS[idx].id);
+  }
+
+  /**
+   * Builds a shuffled queue of every boss and drops into the first fight.
+   * Subsequent bosses are spawned by `confirmContraband` between fights.
+   */
+  startBossRush() {
+    const queue = ALL_BOSS_DEFS.map((d) => d.id);
+    // Fisher–Yates so the order varies each rush.
+    for (let i = queue.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = queue[i];
+      queue[i] = queue[j];
+      queue[j] = tmp;
+    }
+    this._bossRushQueue = queue;
+    this._bossRushTotal = queue.length;
+    this._practiceMode = "rush";
+    this._spawnNextRushBoss();
+  }
+
+  /**
+   * Pops the next boss off the rush queue and enters its fight, or shows
+   * the completion screen if the queue is empty.
+   */
+  _spawnNextRushBoss() {
+    const next = this._bossRushQueue.shift();
+    if (!next) {
+      this._practiceMode = null;
+      this._bossRushTotal = 0;
+      this.state = STATE_BOSS_RUSH_COMPLETE;
+      return;
+    }
+    this._practiceBossId = next;
+    this._enterPracticeBossFight();
+  }
+
+  /**
+   * Sets up a single-fight practice run against `bossId`, then enters the
+   * fight. On victory, `_exitBossVictory` returns to the practice hub.
+   *
+   * @param {string} bossId
+   */
+  _startPracticeBoss(bossId) {
+    this._practiceMode = "single";
+    this._practiceBossId = bossId;
+    this._enterPracticeBossFight();
+  }
+
+  /** Dismisses the rush-complete splash and returns to the practice hub. */
+  closeBossRushComplete() {
+    if (this.state !== STATE_BOSS_RUSH_COMPLETE) {
+      return;
+    }
+    this.state = STATE_PRACTICE_HUB;
+  }
+
+  /**
+   * Resets the run-state fields a boss fight depends on (contraband stash,
+   * upgrades, snake) so practice fights start from a clean slate, then
+   * delegates to `_enterBossFight`. `_enterBossFight` consumes
+   * `_practiceBossId` to spawn the requested boss instead of the
+   * mutation-keyed one.
+   */
+  _enterPracticeBossFight() {
+    this._contraband = [];
+    this.upgrades = new UpgradeState();
+    this.snake = new Snake();
+    this.runTime = 0;
+    this.score = 0;
+    this.lastTickTime = 0;
+    this.startTime = Date.now();
+    this._enterBossFight();
+  }
+
+  // ── End of practice helpers ─────────────────────────────────────
 
   /**
    * Enters the custom-seed input mode directly. Used by the menu's
@@ -739,3 +967,6 @@ Game.STATE_CONTRABAND = STATE_CONTRABAND;
 Game.STATE_MUTATION_PICKER = STATE_MUTATION_PICKER;
 Game.STATE_LEADERBOARD = STATE_LEADERBOARD;
 Game.STATE_NAME_INPUT = STATE_NAME_INPUT;
+Game.STATE_PRACTICE_HUB = STATE_PRACTICE_HUB;
+Game.STATE_BOSS_PICKER = STATE_BOSS_PICKER;
+Game.STATE_BOSS_RUSH_COMPLETE = STATE_BOSS_RUSH_COMPLETE;
