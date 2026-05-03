@@ -570,5 +570,5 @@ export function _exitBossDeath(cause) {
 
   this._playerBullets = [];
   _clearBossModifiers(this);
-  this.state = STATE_DEAD;
+  this._endRun();
 }

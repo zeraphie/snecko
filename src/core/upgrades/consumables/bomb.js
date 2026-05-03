@@ -91,7 +91,7 @@ export function confirmBomb(game) {
   if (hitSnake) {
     game.snake.alive = false;
     game.snake.deathCause = DEATH_BOMB;
-    game.state = "dead";
+    game._endRun();
   } else {
     game.state = "playing";
     game.lastTickTime = Date.now();

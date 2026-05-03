@@ -80,6 +80,14 @@ export function dispatchAction(game, action) {
     return;
   }
 
+  // ── Leaderboard view ─────────────────────────────────────────
+  if (state === "leaderboard") {
+    if (action === ACTION_CANCEL || action === ACTION_CONFIRM) {
+      game.closeLeaderboard();
+    }
+    return;
+  }
+
   // ── Mutation picker ──────────────────────────────────────────
   if (state === "mutation_picker") {
     switch (action) {

@@ -13,6 +13,13 @@ import {
 } from "../generation/index.js";
 import { MUTATIONS, getMutationGenerator } from "../generation/registry.js";
 import {
+  recordScore,
+  loadLeaderboard,
+  loadPlayerName,
+  savePlayerName,
+  MAX_NAME_LENGTH,
+} from "../leaderboard/index.js";
+import {
   STATE_START,
   STATE_PLAYING,
   STATE_DRAFT,
@@ -24,6 +31,8 @@ import {
   STATE_SEED_INPUT,
   STATE_MENU,
   STATE_MUTATION_PICKER,
+  STATE_LEADERBOARD,
+  STATE_NAME_INPUT,
   DEATH_GIVE_UP,
   GRID_W,
   GRID_H,
@@ -113,6 +122,16 @@ export class Game {
     this._selectedMutation = "crystalline";
     /** Highlighted index in the mutation picker. */
     this._mutationPickerSelection = 0;
+    /** Snapshot of the leaderboard for the current view (set on open). */
+    this._leaderboardEntries = [];
+    /** State to return to when the leaderboard view is dismissed. */
+    this._leaderboardFrom = null;
+    /** True once the current run has been recorded — prevents double-counting. */
+    this._runRecorded = false;
+    /** Snapshot of the just-finished run, awaiting the player's name. */
+    this._pendingRunRecord = null;
+    /** Buffer for the post-run name-input UI (STATE_NAME_INPUT). */
+    this._nameInput = "";
     this.upgrades = new UpgradeState();
     this._draftPool = null;
     this._draftSelection = 0;
@@ -191,6 +210,9 @@ export class Game {
     this._wormholeB = null;
     this.mechanic = null;
     this._heldDirection = null;
+    this._runRecorded = false;
+    this._pendingRunRecord = null;
+    this._nameInput = "";
 
     this._playerFacing = { dx: 1, dy: 0 };
     this._playerSpawnY = 0;
@@ -293,9 +315,19 @@ export class Game {
       this._pauseStartTime = Date.now();
       this._menuItems = [{ id: "resume" }, { id: "give_up" }];
     } else if (this.state === STATE_DEAD) {
-      this._menuItems = [{ id: "restart" }, { id: "practice" }, { id: "seed" }];
+      this._menuItems = [
+        { id: "restart" },
+        { id: "practice" },
+        { id: "leaderboard" },
+        { id: "seed" },
+      ];
     } else {
-      this._menuItems = [{ id: "begin" }, { id: "practice" }, { id: "seed" }];
+      this._menuItems = [
+        { id: "begin" },
+        { id: "practice" },
+        { id: "leaderboard" },
+        { id: "seed" },
+      ];
     }
     this._menuSelection = 0;
     this.state = STATE_MENU;
@@ -360,10 +392,13 @@ export class Game {
         this.snake.deathCause = DEATH_GIVE_UP;
         this._pauseStartTime = null;
         this._menuFrom = null;
-        this.state = STATE_DEAD;
+        this._endRun();
         break;
       case "practice":
         this.openMutationPicker();
+        break;
+      case "leaderboard":
+        this.openLeaderboard();
         break;
       case "seed":
         this._seedInput = "";
@@ -371,6 +406,97 @@ export class Game {
         break;
     }
   }
+
+  // ── Run end → name input → leaderboard ───────────────────────────
+
+  /**
+   * End-of-run handler called from every death path (snake, boss, give-up).
+   * Snapshots the run's stats, prefills the name input with the player's
+   * last-used name, and routes to STATE_NAME_INPUT. The actual record
+   * happens after the player confirms the name (`confirmNameInput`).
+   *
+   * Idempotent: runs that are already recorded or already pending a
+   * name-input are no-ops.
+   */
+  _endRun() {
+    if (this._runRecorded || this._pendingRunRecord) return;
+    this.runTime = (Date.now() - this.startTime) / 1000;
+    this._pendingRunRecord = {
+      act: this.actIndex,
+      progress: this.foodEaten,
+      foodRequired: this.foodRequired,
+      bites: this.score,
+      time: this.runTime,
+    };
+    this._nameInput = loadPlayerName();
+    this.state = STATE_NAME_INPUT;
+  }
+
+  /** Appends a character to the name buffer (length-capped). */
+  appendNameInput(ch) {
+    if (this.state !== STATE_NAME_INPUT) return;
+    if (this._nameInput.length >= MAX_NAME_LENGTH) return;
+    this._nameInput += ch;
+  }
+
+  /** Removes the last character from the name buffer. */
+  backspaceNameInput() {
+    if (this.state !== STATE_NAME_INPUT) return;
+    this._nameInput = this._nameInput.slice(0, -1);
+  }
+
+  /**
+   * Confirms the entered name, saves it as the persistent default,
+   * records the pending run with the name, and transitions to
+   * STATE_DEAD. Empty name records as "Anonymous".
+   */
+  confirmNameInput() {
+    if (this.state !== STATE_NAME_INPUT) return;
+    const trimmed = this._nameInput.trim();
+    const name = trimmed.length > 0 ? trimmed.slice(0, MAX_NAME_LENGTH) : "Anonymous";
+    if (trimmed.length > 0) {
+      savePlayerName(name);
+    }
+    this._finalizeRunRecord(name);
+    this.state = STATE_DEAD;
+  }
+
+  /** Cancel the name input — record as "Anonymous" and proceed to dead. */
+  cancelNameInput() {
+    if (this.state !== STATE_NAME_INPUT) return;
+    this._finalizeRunRecord("Anonymous");
+    this.state = STATE_DEAD;
+  }
+
+  _finalizeRunRecord(name) {
+    if (!this._pendingRunRecord) return;
+    recordScore({ name, ...this._pendingRunRecord });
+    this._pendingRunRecord = null;
+    this._runRecorded = true;
+    this._nameInput = "";
+  }
+
+  // ── Leaderboard screen ────────────────────────────────────────────
+
+  /** Opens the leaderboard view from the menu. */
+  openLeaderboard() {
+    if (this.state !== STATE_MENU) {
+      return;
+    }
+    this._leaderboardFrom = STATE_MENU;
+    this._leaderboardEntries = loadLeaderboard();
+    this.state = STATE_LEADERBOARD;
+  }
+
+  /** Returns from the leaderboard back to the menu. */
+  closeLeaderboard() {
+    if (this.state !== STATE_LEADERBOARD) {
+      return;
+    }
+    this.state = this._leaderboardFrom ?? STATE_MENU;
+    this._leaderboardFrom = null;
+  }
+
 
   // ── Mutation picker (practice screen, reachable from the menu) ────
   //
@@ -602,3 +728,5 @@ Game.BOSS_PHASE3_HP = BOSS_PHASE3_HP;
 Game.BOSS_SPECIAL_INTERVAL = BOSS_SPECIAL_INTERVAL;
 Game.STATE_CONTRABAND = STATE_CONTRABAND;
 Game.STATE_MUTATION_PICKER = STATE_MUTATION_PICKER;
+Game.STATE_LEADERBOARD = STATE_LEADERBOARD;
+Game.STATE_NAME_INPUT = STATE_NAME_INPUT;

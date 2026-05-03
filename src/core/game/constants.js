@@ -11,6 +11,8 @@ export const STATE_CONTRABAND = "contraband";
 export const STATE_SEED_INPUT = "seed_input";
 export const STATE_MENU = "menu";
 export const STATE_MUTATION_PICKER = "mutation_picker";
+export const STATE_LEADERBOARD = "leaderboard";
+export const STATE_NAME_INPUT = "name_input";
 
 // ── Death causes ──────────────────────────────────────────────────
 export const DEATH_WALL = "wall";

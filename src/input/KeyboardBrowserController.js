@@ -130,10 +130,27 @@ export class KeyboardBrowserController extends Controller {
       return;
     }
 
-    // Esc on start/dead opens the in-game menu (containing seed input,
-    // restart, etc.). Inside the menu, Esc closes — handled by the
-    // dispatcher's menu branch.
-    if (e.key === "Escape" && (game.state === "start" || game.state === "dead")) {
+    // Post-run name input: same raw-text pattern as seed input.
+    if (game.state === "name_input") {
+      if (e.key === "Enter") {
+        game.confirmNameInput();
+      } else if (e.key === "Escape") {
+        game.cancelNameInput();
+      } else if (e.key === "Backspace") {
+        game.backspaceNameInput();
+      } else if (e.key.length === 1 && e.key >= " " && e.key <= "~") {
+        game.appendNameInput(e.key);
+      }
+      e.preventDefault();
+      return;
+    }
+
+    // Esc opens the in-game menu from start, dead, or playing states.
+    // Inside the menu, Esc closes — handled by the dispatcher's menu branch.
+    if (
+      e.key === "Escape" &&
+      (game.state === "start" || game.state === "dead" || game.state === "playing")
+    ) {
       game.openMenu();
       e.preventDefault();
       return;

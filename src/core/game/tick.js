@@ -53,7 +53,7 @@ export function tick() {
     applyWormholeTeleport(this);
     applyCurrentDrift(this);
   } else {
-    this.state = STATE_DEAD;
+    this._endRun();
   }
 }
 

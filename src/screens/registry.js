@@ -14,6 +14,8 @@ import { wormholeScreen } from "./wormhole.js";
 import { seedInputScreen } from "./seedInput.js";
 import { menuScreen } from "./menu.js";
 import { mutationPickerScreen } from "./mutationPicker.js";
+import { leaderboardScreen } from "./leaderboard.js";
+import { nameInputScreen } from "./nameInput.js";
 
 /** @type {Map<string, { draw(renderer: object, game: object): void }>} */
 const SCREENS = new Map();
@@ -51,3 +53,5 @@ registerScreen("wormhole", wormholeScreen);
 registerScreen("seed_input", seedInputScreen);
 registerScreen("menu", menuScreen);
 registerScreen("mutation_picker", mutationPickerScreen);
+registerScreen("leaderboard", leaderboardScreen);
+registerScreen("name_input", nameInputScreen);

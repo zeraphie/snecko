@@ -126,9 +126,20 @@ export const LABELS = {
     resume: "Resume",
     give_up: "Give up",
     practice: "Practice",
+    leaderboard: "Leaderboard",
     seed: "Custom seed",
     seedLabel: "Seed",
     hint: "↑↓ select, Enter confirm, Esc close",
+  },
+  leaderboard: {
+    title: "L E A D E R B O A R D",
+    empty: "No runs recorded yet.",
+    hint: "Esc to close",
+  },
+  nameInput: {
+    title: "E N T E R   N A M E",
+    prompt: "Type a name and press Enter",
+    hint: "Esc to skip (saves as Anonymous)",
   },
   mutationPicker: {
     title: "P R A C T I C E",
