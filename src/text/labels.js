@@ -19,6 +19,7 @@ export const LABELS = {
     title: "G A M E   O V E R",
     cause: "Cause",
     restart: "Press Space or Enter to restart",
+    menu: "Esc for menu",
   },
   // Each upgrade has:
   //   name  — long flavour title shown on draft/contraband cards
@@ -64,6 +65,11 @@ export const LABELS = {
       short: "Crystalline",
       desc: "Crystal growth generation",
     },
+    catacombs: {
+      name: "Catacombs",
+      short: "Catacombs",
+      desc: "Pre-generated maze with shifting paths",
+    },
     // Contraband
     danger_noodle: {
       name: "Danger noodle",
@@ -105,6 +111,7 @@ export const LABELS = {
     title: "S N E C K O",
     controls: "Arrow keys or WASD to move",
     begin: "Press Space or Enter to start",
+    menu: "Esc for menu",
   },
   seedInput: {
     title: "C U S T O M   S E E D",
@@ -116,8 +123,28 @@ export const LABELS = {
     // Per-item labels are looked up by item.id at render time.
     begin: "Begin run",
     restart: "Restart",
+    resume: "Resume",
+    give_up: "Give up",
+    practice: "Practice",
+    leaderboard: "Leaderboard",
     seed: "Custom seed",
+    seedLabel: "Seed",
     hint: "↑↓ select, Enter confirm, Esc close",
+  },
+  leaderboard: {
+    title: "L E A D E R B O A R D",
+    empty: "No runs recorded yet.",
+    hint: "Esc to close",
+  },
+  nameInput: {
+    title: "E N T E R   N A M E",
+    prompt: "Type a name and press Enter",
+    hint: "Esc to skip (saves as Anonymous)",
+  },
+  mutationPicker: {
+    title: "P R A C T I C E",
+    subtitle: "Pick a mutation. Practice runs use a fresh seed.",
+    hint: "↑↓ select, Enter start, Esc cancel",
   },
   draft: {
     // "L E V E L   U P" was the old wording before level → act; "Upgrade" is

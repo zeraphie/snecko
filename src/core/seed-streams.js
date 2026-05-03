@@ -20,3 +20,9 @@ export const SUBSEED_LATTICE = 4111;
 
 /** Food placement — stateful, used by both crystalline and wildlands. */
 export const SUBSEED_FOOD = 6101;
+
+/** Catacombs maze generator — one-shot at act start. */
+export const SUBSEED_CATACOMBS = 8009;
+
+/** Catacombs rifts mechanic — stateful RNG for the rift sequence. */
+export const SUBSEED_RIFTS = 8521;

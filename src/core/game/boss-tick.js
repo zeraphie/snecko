@@ -17,7 +17,6 @@ import { generateContrabandPool } from "../upgrades/contraband/index.js";
 import {
   STATE_BOSS,
   STATE_CONTRABAND,
-  STATE_DEAD,
   BOSS_TICK_MS,
   BOSS_MOVE_MS,
   PLAYER_FIRE_INTERVAL,
@@ -570,5 +569,5 @@ export function _exitBossDeath(cause) {
 
   this._playerBullets = [];
   _clearBossModifiers(this);
-  this.state = STATE_DEAD;
+  this._endRun();
 }

@@ -5,6 +5,11 @@ import { generateGrid, advanceGrid } from "./core/generation/index.js";
 import { CanvasRenderer } from "./render/canvas/index.js";
 import { loadAssets, getLoaderDots } from "./core/loader.js";
 import { KeyboardBrowserController } from "./input/KeyboardBrowserController.js";
+import { ensureSeeded } from "./core/leaderboard/index.js";
+
+// Seed the leaderboard with placeholder scores on first launch so the
+// board isn't empty before the player has finished a run.
+ensureSeeded();
 
 const CELL_SIZE = 20;
 const game = new Game();

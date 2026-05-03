@@ -3,21 +3,68 @@
 import { MAX_CELLS } from "./constants.js";
 import { DEATH_WALL, DEATH_SELF } from "../game/constants.js";
 
+/** Maximum entries beyond `nextDirX/Y` allowed in the buffered direction queue. */
+const DIR_QUEUE_DEPTH = 1;
+
 /**
- * Queues a direction change for the next tick. Ignores reversals and zero vectors.
+ * Queues a direction change for an upcoming tick. The snake holds a
+ * single-tick "next direction" (`nextDirX/Y`) plus a small follow-up queue
+ * (`dirQueue`), so rapid input bursts (zigzags through tight corridors)
+ * aren't collapsed by latest-wins overwrites. Effective depth is 2 — one
+ * pre-loaded turn plus one buffered follow-up.
+ *
+ * Drops zero vectors, 180° reversals against the *effective last queued
+ * direction* (so a reversal can't sneak in between two queued turns), and
+ * same-direction repeats. Drops the new input on overflow rather than
+ * evicting an earlier one — players overshoot, they don't change their
+ * minds at the back of the queue.
  *
  * @param {number} dx
  * @param {number} dy
  */
 export function setNextDirection(dx, dy) {
-  if (dx === -this.dirX && dy === -this.dirY) {
-    return;
-  }
   if (dx === 0 && dy === 0) {
     return;
   }
-  this.nextDirX = dx;
-  this.nextDirY = dy;
+
+  // Effective last direction the snake will be facing when this new input
+  // would actually be consumed. Walks the queue tail-first.
+  let lastDx;
+  let lastDy;
+  if (this.dirQueue.length > 0) {
+    const tail = this.dirQueue[this.dirQueue.length - 1];
+    lastDx = tail.dx;
+    lastDy = tail.dy;
+  } else {
+    lastDx = this.nextDirX;
+    lastDy = this.nextDirY;
+  }
+
+  // 180° reversal against the effective last direction → would self-collide.
+  if (dx === -lastDx && dy === -lastDy) {
+    return;
+  }
+  // Same as the effective last direction → nothing new to record.
+  if (dx === lastDx && dy === lastDy) {
+    return;
+  }
+
+  // `nextDirX/Y` is "stale" when it still equals the just-executed direction
+  // (queue was empty going into the last tick). In that case we can land
+  // the new input directly there instead of using a queue slot.
+  const nextIsStale =
+    this.dirQueue.length === 0 && this.nextDirX === this.dirX && this.nextDirY === this.dirY;
+  if (nextIsStale) {
+    this.nextDirX = dx;
+    this.nextDirY = dy;
+    return;
+  }
+
+  // `nextDirX/Y` already holds a pending change. Append to the queue.
+  if (this.dirQueue.length >= DIR_QUEUE_DEPTH) {
+    return; // overflow — drop the new input
+  }
+  this.dirQueue.push({ dx, dy });
 }
 
 /**
@@ -34,6 +81,15 @@ export function step(grid) {
 
   this.dirX = this.nextDirX;
   this.dirY = this.nextDirY;
+
+  // Drain one buffered entry into `nextDirX/Y` so the upcoming tick
+  // consumes it. If the queue is empty `nextDirX/Y` stays equal to
+  // `dirX/Y` — i.e., the snake continues straight.
+  if (this.dirQueue.length > 0) {
+    const next = this.dirQueue.shift();
+    this.nextDirX = next.dx;
+    this.nextDirY = next.dy;
+  }
 
   const hx = this.snakeX[this.headIndex];
   const hy = this.snakeY[this.headIndex];

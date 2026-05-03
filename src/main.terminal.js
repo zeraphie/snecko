@@ -7,11 +7,7 @@ import { TerminalRenderer } from "./render/terminal/index.js";
 import { loadAssets, getLoaderDots } from "./core/loader.js";
 import { KeyboardTerminalController } from "./input/KeyboardTerminalController.js";
 import { Game } from "./core/game/index.js";
-import { generateGrid, advanceGrid } from "./core/generation/index.js";
-import {
-  generateWildlandsGrid,
-  advanceWildlandsGrid,
-} from "./core/generation/wildlands/generator.js";
+import { MUTATIONS, getMutationGenerator } from "./core/generation/registry.js";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const projectRoot = resolve(__dirname, "..");
@@ -19,51 +15,64 @@ const projectRoot = resolve(__dirname, "..");
 // ── Mode / world selection ────────────────────────────────────────
 //
 // process.argv[2]  mode  — play style
-//   (empty)               normal crystalline game
+//   (empty)               default crystalline game
 //   boss                  skip straight to boss arena every fight
-//   wildlands             wildlands terrain + currents
+//   <mutation>            any registered mutation (see MUTATIONS in
+//                         core/generation/registry.js) — wildlands,
+//                         catacombs, etc.
 //
 // process.argv[3]  world — boss biome override (only meaningful with mode=boss,
-//                          but also respected in wildlands mode for consistency)
-//   (empty)               derive from mode (wildlands → wildlands boss)
-//   wildlands             The Current Sovereign
-//   crystalline           The Anchor  (explicit; same as default)
+//                          but also respected when mode is a mutation)
+//   (empty)               derive from mode
+//   <mutation>            any registered mutation
 //
 // Examples
-//   just play                   → crystalline game, The Anchor on trigger
-//   just play boss              → boss arena, The Anchor (crystalline)
-//   just play wildlands         → wildlands terrain, The Current Sovereign
-//   just play boss wildlands    → boss arena, The Current Sovereign
+//   npm run play                    → crystalline game, The Anchor on trigger
+//   npm run play boss               → boss arena, The Anchor
+//   npm run play wildlands          → wildlands terrain, The Current Sovereign
+//   npm run play catacombs          → catacombs maze, default boss
+//   npm run play boss wildlands     → boss arena, The Current Sovereign
+//
+// Adding a new mutation: register it in MUTATIONS — that's it. No edits here.
 
 const mode = process.argv[2] || "";
 const worldArg = process.argv[3] || "";
 
+const isMutationMode = mode in MUTATIONS;
 // The effective mutation: explicit override first, then infer from play mode.
-const effectiveWorld = worldArg || (mode === "wildlands" ? "wildlands" : "");
+const effectiveWorld = worldArg || (isMutationMode ? mode : "");
 
 // ── Generator setup ───────────────────────────────────────────────
 
 const game = new Game();
 
-if (mode === "wildlands") {
-  game.generateGrid = generateWildlandsGrid;
-  game.advanceGrid = advanceWildlandsGrid;
-} else {
-  game.generateGrid = generateGrid;
-  game.advanceGrid = advanceGrid;
-}
+const generators =
+  getMutationGenerator(isMutationMode ? mode : "crystalline") ?? MUTATIONS.crystalline;
+game.generateGrid = generators.generate;
+game.advanceGrid = generators.advance;
 
 // ── startRun patch ────────────────────────────────────────────────
 //
-// startRun() calls upgrades.reset() which resets the mutation to 'crystalline'.
-// Any dev-mode override needs to be re-applied after that reset.
-// This single patch handles:
-//   1. Restoring the effective mutation after reset.
-//   2. Entering the boss arena immediately (boss mode only).
+// `confirm()` (and the start menu) explicitly reset `generateGrid`/`advanceGrid`
+// back to the crystalline default *before* invoking `startRun()`, then
+// `startRun()` calls the generator at the end. So if we want a dev-mode
+// mutation to actually take effect on every fresh run, we have to:
+//   1. Restore the dev-mode generator pair *before* the inner startRun runs
+//      its generator (otherwise `confirm()`'s reset wins).
+//   2. Restore the mutation string *after* `upgrades.reset()` flips it back
+//      to crystalline.
+//   3. Enter the boss arena immediately (boss mode only).
 
 if (effectiveWorld || mode === "boss") {
   const _origStartRun = game.startRun.bind(game);
   game.startRun = function () {
+    if (effectiveWorld) {
+      const gen = getMutationGenerator(effectiveWorld);
+      if (gen) {
+        this.generateGrid = gen.generate;
+        this.advanceGrid = gen.advance;
+      }
+    }
     _origStartRun();
     if (effectiveWorld) {
       this.upgrades.mutation = effectiveWorld;

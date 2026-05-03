@@ -5,7 +5,12 @@ import { BG_LIGHT, BG_DARK, HUD_BG } from "./colors.js";
 import { drawCell } from "./cells.js";
 import { drawSnakeHead, drawSnakeHeadInvul } from "./snake.js";
 import { drawHUD, drawBossInfo, drawBossIntroOverlay } from "./hud.js";
-import { drawScreen, drawDraftScreen, drawContrabandScreen } from "./screens.js";
+import {
+  drawScreen,
+  drawDraftScreen,
+  drawContrabandScreen,
+  drawMutationPickerScreen,
+} from "./screens.js";
 import { drawTargetingOverlay, drawWormholeOverlay } from "./overlays.js";
 import { drawLoader } from "./loader.js";
 
@@ -60,6 +65,7 @@ CanvasRenderer.prototype.drawBossIntroOverlay = drawBossIntroOverlay;
 CanvasRenderer.prototype.drawScreen = drawScreen;
 CanvasRenderer.prototype.drawDraftScreen = drawDraftScreen;
 CanvasRenderer.prototype.drawContrabandScreen = drawContrabandScreen;
+CanvasRenderer.prototype.drawMutationPickerScreen = drawMutationPickerScreen;
 CanvasRenderer.prototype.drawTargetingOverlay = drawTargetingOverlay;
 CanvasRenderer.prototype.drawWormholeOverlay = drawWormholeOverlay;
 CanvasRenderer.prototype.drawLoader = drawLoader;

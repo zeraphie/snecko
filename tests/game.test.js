@@ -115,6 +115,7 @@ describe("tick", () => {
     game.tick(); // step 1 — ok
     game.lastTickTime = 0;
     game.tick(); // step 2 — hits wall
+    game.cancelNameInput();
     expect(game.state).toBe(Game.STATE_DEAD);
   });
 
@@ -547,6 +548,7 @@ describe("Iron Jaw passive", () => {
     game.lastTickTime = 0;
     game.tick();
 
+    game.cancelNameInput();
     expect(game.state).toBe(Game.STATE_DEAD);
   });
 
@@ -572,6 +574,7 @@ describe("Iron Jaw passive", () => {
     game.grid.setCell("wall", hx + game.snake.dirX, hy + game.snake.dirY);
     game.lastTickTime = 0;
     game.tick();
+    game.cancelNameInput();
     expect(game.state).toBe(Game.STATE_DEAD);
   });
 
@@ -701,6 +704,7 @@ describe("Dash consumable", () => {
     // Put snake cell 2 ahead
     game.grid.setCell("snake", hx + dx * 2, hy + dy * 2);
     game.useConsumable();
+    game.cancelNameInput();
     expect(game.state).toBe(Game.STATE_DEAD);
   });
 
@@ -964,6 +968,7 @@ describe("Bomb consumable", () => {
     game._bombCursor.x = game.snake.snakeX[tailIdx];
     game._bombCursor.y = game.snake.snakeY[tailIdx];
     game.confirm();
+    game.cancelNameInput();
     expect(game.state).toBe(Game.STATE_DEAD);
     expect(game.snake.deathCause).toBe(DEATH_BOMB);
   });
@@ -1281,6 +1286,7 @@ describe("boss fight", () => {
     game.grid.playerY = Math.floor(Game.GRID_H / 2);
     game.onInput(1, 0); // move right into east wall
     bossTick(game);
+    game.cancelNameInput();
     expect(game.state).toBe(Game.STATE_DEAD);
     expect(game.snake.deathCause).toBe(DEATH_WALL);
   });
@@ -1294,6 +1300,7 @@ describe("boss fight", () => {
     game.grid.playerY = target.y;
     game.onInput(1, 0); // move right into boss body cell
     bossTick(game);
+    game.cancelNameInput();
     expect(game.state).toBe(Game.STATE_DEAD);
     expect(game.snake.deathCause).toBe(DEATH_BOSS);
   });
@@ -1723,6 +1730,7 @@ describe("projectile system", () => {
     // Place projectile one cell left of tip, moving right — lands on tip next tick
     game._projectiles.push({ x: px - 1, y: py, dx: 1, dy: 0 });
     bossTick(game);
+    game.cancelNameInput();
     expect(game.state).toBe(Game.STATE_DEAD);
     expect(game.snake.deathCause).toBe(DEATH_PROJECTILE);
   });
@@ -1736,6 +1744,7 @@ describe("projectile system", () => {
     // Wing B = (14, 16).  Place projectile one cell left, moving right.
     game._projectiles.push({ x: 13, y: 16, dx: 1, dy: 0 });
     bossTick(game);
+    game.cancelNameInput();
     expect(game.state).toBe(Game.STATE_DEAD);
     expect(game.snake.deathCause).toBe(DEATH_PROJECTILE);
   });
@@ -1748,6 +1757,7 @@ describe("projectile system", () => {
     // Place projectile one cell above tail, moving down
     game._projectiles.push({ x: 15, y: 16, dx: 0, dy: 1 });
     bossTick(game);
+    game.cancelNameInput();
     expect(game.state).toBe(Game.STATE_DEAD);
     expect(game.snake.deathCause).toBe(DEATH_PROJECTILE);
   });
@@ -2145,24 +2155,37 @@ describe("menu", () => {
     game.manifest = buildTestManifest();
   });
 
-  it("openMenu from start populates begin/seed items", () => {
+  it("openMenu from start populates begin/practice/leaderboard/seed items", () => {
     game.openMenu();
     expect(game.state).toBe("menu");
-    expect(game._menuItems.map((i) => i.id)).toEqual(["begin", "seed"]);
+    expect(game._menuItems.map((i) => i.id)).toEqual(["begin", "practice", "leaderboard", "seed"]);
     expect(game._menuSelection).toBe(0);
   });
 
-  it("openMenu from dead populates restart/seed items", () => {
+  it("openMenu from dead populates restart/practice/leaderboard/seed items", () => {
     game.state = Game.STATE_DEAD;
     game.openMenu();
     expect(game.state).toBe("menu");
-    expect(game._menuItems.map((i) => i.id)).toEqual(["restart", "seed"]);
+    expect(game._menuItems.map((i) => i.id)).toEqual([
+      "restart",
+      "practice",
+      "leaderboard",
+      "seed",
+    ]);
   });
 
-  it("openMenu is a no-op outside start/dead", () => {
+  it("openMenu from playing populates a resume/give_up pause menu", () => {
     game.startRun();
     game.openMenu();
-    expect(game.state).toBe(Game.STATE_PLAYING);
+    expect(game.state).toBe("menu");
+    expect(game._menuItems.map((i) => i.id)).toEqual(["resume", "give_up"]);
+    expect(game._pauseStartTime).not.toBe(null);
+  });
+
+  it("openMenu is a no-op outside start/dead/playing", () => {
+    game.state = Game.STATE_BOSS;
+    game.openMenu();
+    expect(game.state).toBe(Game.STATE_BOSS);
   });
 
   it("selectMenu clamps to bounds", () => {
@@ -2193,10 +2216,193 @@ describe("menu", () => {
 
   it("confirmMenu on 'seed' enters seed input", () => {
     game.openMenu();
-    game.selectMenu(1);
+    // begin/practice/leaderboard/seed → seed is index 3.
+    game.selectMenu(3);
     game.confirmMenu();
     expect(game.state).toBe("seed_input");
     expect(game._seedInput).toBe("");
+  });
+
+  // ── Practice mutation picker ────────────────────────────────
+
+  it("confirmMenu on 'practice' opens the mutation picker", () => {
+    game.openMenu();
+    game.selectMenu(1); // practice row
+    game.confirmMenu();
+    expect(game.state).toBe(Game.STATE_MUTATION_PICKER);
+    expect(game._mutationPickerSelection).toBeGreaterThanOrEqual(0);
+  });
+
+  it("selectMutationPicker clamps to bounds", () => {
+    game.openMenu();
+    game.selectMenu(1);
+    game.confirmMenu();
+    game.selectMutationPicker(-5);
+    expect(game._mutationPickerSelection).toBe(0);
+    game.selectMutationPicker(999);
+    expect(game._mutationPickerSelection).toBeGreaterThanOrEqual(0);
+  });
+
+  it("confirmMutationPicker immediately starts a practice run in the picked mutation", async () => {
+    const { MUTATIONS } = await import("../src/core/generation/registry.js");
+    game.openMenu();
+    game.selectMenu(1);
+    game.confirmMenu(); // → picker
+    const ids = Object.keys(MUTATIONS);
+    const idx = ids.indexOf("wildlands");
+    game.selectMutationPicker(idx);
+    game.confirmMutationPicker();
+    expect(game.state).toBe(Game.STATE_PLAYING);
+    expect(game.upgrades.mutation).toBe("wildlands");
+    expect(game.generateGrid).toBe(MUTATIONS.wildlands.generate);
+  });
+
+  it("closeMutationPicker returns to menu without starting a run", () => {
+    game.openMenu();
+    game.selectMenu(1);
+    game.confirmMenu();
+    game.selectMutationPicker(1);
+    game.closeMutationPicker();
+    expect(game.state).toBe("menu");
+  });
+
+  // ── Pause menu ──────────────────────────────────────────────
+
+  it("closeMenu from pause returns to playing and clears _pauseStartTime", () => {
+    game.startRun();
+    game.openMenu();
+    expect(game._pauseStartTime).not.toBe(null);
+    game.closeMenu();
+    expect(game.state).toBe(Game.STATE_PLAYING);
+    expect(game._pauseStartTime).toBe(null);
+  });
+
+  it("confirmMenu on 'resume' resumes the run", () => {
+    game.startRun();
+    game.openMenu();
+    game.selectMenu(0); // resume
+    game.confirmMenu();
+    expect(game.state).toBe(Game.STATE_PLAYING);
+    expect(game._pauseStartTime).toBe(null);
+  });
+
+  it("confirmMenu on 'give_up' ends the run with DEATH_GIVE_UP", async () => {
+    const { DEATH_GIVE_UP } = await import("../src/core/game/constants.js");
+    game.startRun();
+    game.openMenu();
+    game.selectMenu(1); // give_up
+    game.confirmMenu();
+    game.cancelNameInput();
+    expect(game.state).toBe(Game.STATE_DEAD);
+    expect(game.snake.alive).toBe(false);
+    expect(game.snake.deathCause).toBe(DEATH_GIVE_UP);
+    expect(game._pauseStartTime).toBe(null);
+  });
+
+  // ── Post-run name input ─────────────────────────────────────
+
+  it("a wall death routes through STATE_NAME_INPUT before STATE_DEAD", () => {
+    game.startRun();
+    const hx = game.snake.snakeX[game.snake.headIndex];
+    const hy = game.snake.snakeY[game.snake.headIndex];
+    game.grid.setCell("wall", hx + 2, hy);
+    game.lastTickTime = 0;
+    game.tick();
+    game.lastTickTime = 0;
+    game.tick();
+    expect(game.state).toBe(Game.STATE_NAME_INPUT);
+    expect(game._pendingRunRecord).not.toBe(null);
+    game.confirmNameInput();
+    expect(game.state).toBe(Game.STATE_DEAD);
+  });
+
+  it("appendNameInput / backspaceNameInput edit the buffer", () => {
+    game.startRun();
+    const hx = game.snake.snakeX[game.snake.headIndex];
+    const hy = game.snake.snakeY[game.snake.headIndex];
+    game.grid.setCell("wall", hx + 2, hy);
+    game.lastTickTime = 0;
+    game.tick();
+    game.lastTickTime = 0;
+    game.tick();
+    game._nameInput = ""; // ignore any saved name
+    game.appendNameInput("A");
+    game.appendNameInput("L");
+    game.appendNameInput("X");
+    expect(game._nameInput).toBe("ALX");
+    game.backspaceNameInput();
+    expect(game._nameInput).toBe("AL");
+  });
+
+  it("appendNameInput respects MAX_NAME_LENGTH", async () => {
+    const { MAX_NAME_LENGTH } = await import("../src/core/leaderboard/index.js");
+    game.startRun();
+    const hx = game.snake.snakeX[game.snake.headIndex];
+    const hy = game.snake.snakeY[game.snake.headIndex];
+    game.grid.setCell("wall", hx + 2, hy);
+    game.lastTickTime = 0;
+    game.tick();
+    game.lastTickTime = 0;
+    game.tick();
+    game._nameInput = "";
+    for (let i = 0; i < MAX_NAME_LENGTH + 5; i++) {
+      game.appendNameInput("X");
+    }
+    expect(game._nameInput.length).toBe(MAX_NAME_LENGTH);
+  });
+
+  it("confirmNameInput records the run with the entered name", () => {
+    game.startRun();
+    game.score = 11;
+    game.foodEaten = 3;
+    const hx = game.snake.snakeX[game.snake.headIndex];
+    const hy = game.snake.snakeY[game.snake.headIndex];
+    game.grid.setCell("wall", hx + 2, hy);
+    game.lastTickTime = 0;
+    game.tick();
+    game.lastTickTime = 0;
+    game.tick();
+    game._nameInput = "TESTER";
+    game.confirmNameInput();
+    expect(game._runRecorded).toBe(true);
+    expect(game._pendingRunRecord).toBe(null);
+  });
+
+  it("cancelNameInput records as Anonymous", () => {
+    game.startRun();
+    const hx = game.snake.snakeX[game.snake.headIndex];
+    const hy = game.snake.snakeY[game.snake.headIndex];
+    game.grid.setCell("wall", hx + 2, hy);
+    game.lastTickTime = 0;
+    game.tick();
+    game.lastTickTime = 0;
+    game.tick();
+    game._nameInput = "WHATEVER";
+    game.cancelNameInput();
+    expect(game._runRecorded).toBe(true);
+    expect(game.state).toBe(Game.STATE_DEAD);
+  });
+
+  it("normal Begin (Enter from start) stays on crystalline regardless of last practice pick", async () => {
+    const { generateGrid: crystallineGenerate } = await import("../src/core/generation/index.js");
+    // Start a practice run in wildlands.
+    const { MUTATIONS } = await import("../src/core/generation/registry.js");
+    game.openMenu();
+    game.selectMenu(1);
+    game.confirmMenu();
+    const idx = Object.keys(MUTATIONS).indexOf("wildlands");
+    game.selectMutationPicker(idx);
+    game.confirmMutationPicker(); // wildlands practice run starts
+    expect(game.upgrades.mutation).toBe("wildlands");
+
+    // Simulate the player dying.
+    game.state = Game.STATE_DEAD;
+    // Pressing Enter from dead screen should restart on crystalline,
+    // not the wildlands they just practised.
+    game.confirm();
+    expect(game.state).toBe(Game.STATE_PLAYING);
+    expect(game.upgrades.mutation).toBe("crystalline");
+    expect(game.generateGrid).toBe(crystallineGenerate);
   });
 });
 
@@ -2450,6 +2656,7 @@ describe("player invulnerability (Step 5)", () => {
     // First tick: invul decrements to 0, projectile moves — lands on tip, but
     // the collision check runs after the decrement so invul is now 0 → death
     bossTick(game);
+    game.cancelNameInput();
     expect(game.state).toBe(Game.STATE_DEAD);
     expect(game.snake.deathCause).toBe(DEATH_PROJECTILE);
   });
@@ -2904,6 +3111,7 @@ describe("boss special abilities", () => {
     game.grid.playerY = Math.floor(Game.GRID_H / 2);
     game.onInput(1, 0);
     bossTick(game);
+    game.cancelNameInput();
     expect(game.state).toBe(Game.STATE_DEAD);
 
     // All lock cells must have been removed from the grid

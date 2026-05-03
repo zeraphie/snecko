@@ -106,7 +106,7 @@ export class KeyboardTerminalController extends Controller {
       this._onQuit();
       return;
     }
-    if (key.name === "q" && game.state !== "seed_input") {
+    if (key.name === "q" && game.state !== "seed_input" && game.state !== "name_input") {
       this._onQuit();
       return;
     }
@@ -125,10 +125,26 @@ export class KeyboardTerminalController extends Controller {
       return;
     }
 
-    // Esc on start/dead opens the in-game menu (containing seed input,
-    // restart, etc.). Inside the menu, Esc closes — handled by the
-    // dispatcher's menu branch.
-    if (key.name === "escape" && (game.state === "start" || game.state === "dead")) {
+    // Post-run name input: same raw-text pattern as seed input.
+    if (game.state === "name_input") {
+      if (key.name === "return") {
+        game.confirmNameInput();
+      } else if (key.name === "escape") {
+        game.cancelNameInput();
+      } else if (key.name === "backspace") {
+        game.backspaceNameInput();
+      } else if (ch && ch.length === 1 && ch >= " " && ch <= "~") {
+        game.appendNameInput(ch);
+      }
+      return;
+    }
+
+    // Esc opens the in-game menu from start, dead, or playing states.
+    // Inside the menu, Esc closes — handled by the dispatcher's menu branch.
+    if (
+      key.name === "escape" &&
+      (game.state === "start" || game.state === "dead" || game.state === "playing")
+    ) {
       game.openMenu();
       return;
     }

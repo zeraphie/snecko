@@ -14,7 +14,12 @@ import { CELL_EMPTY, CELL_SNAKE_HEAD } from "../renderer.js";
 import { Renderer } from "../renderer.js";
 import { ESC_HIDE_CURSOR, ESC_SHOW_CURSOR } from "./palette.js";
 import { drawHUD, drawBossInfo, drawBossIntroOverlay } from "./hud.js";
-import { drawScreen, drawDraftScreen, drawContrabandScreen } from "./screens.js";
+import {
+  drawScreen,
+  drawDraftScreen,
+  drawContrabandScreen,
+  drawMutationPickerScreen,
+} from "./screens.js";
 import { drawTargetingOverlay, drawWormholeOverlay } from "./overlays.js";
 import { flush } from "./flush.js";
 import { drawLoader } from "./loader.js";
@@ -149,6 +154,10 @@ export class TerminalRenderer extends Renderer {
 
   drawContrabandScreen(choices, selectedIndex, collected) {
     drawContrabandScreen(this, choices, selectedIndex, collected);
+  }
+
+  drawMutationPickerScreen(mutationIds, selectedIndex) {
+    drawMutationPickerScreen(this, mutationIds, selectedIndex);
   }
 
   flush() {

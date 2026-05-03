@@ -25,7 +25,7 @@ export function executeDash(game) {
     if (result === "food") {
       game._handleFoodEaten();
     } else if (result !== "ok") {
-      game.state = "dead";
+      game._endRun();
     }
   }
 }

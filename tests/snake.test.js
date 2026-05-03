@@ -62,6 +62,95 @@ describe("setNextDirection", () => {
   });
 });
 
+describe("input buffer queue", () => {
+  let grid, snake;
+  beforeEach(() => {
+    grid = new Grid(21, 21);
+    snake = new Snake();
+    snake.init(grid, 10, 10, 3, 1, 0);
+  });
+
+  it("a fresh second input within the same tick lands in the buffer instead of overwriting nextDir", () => {
+    // First tap: nextDir is stale (== dirX/Y), so up replaces it.
+    snake.setNextDirection(0, -1);
+    expect(snake.nextDirX).toBe(0);
+    expect(snake.nextDirY).toBe(-1);
+    expect(snake.dirQueue).toHaveLength(0);
+
+    // Second tap: nextDir is now fresh, so right gets queued.
+    snake.setNextDirection(1, 0);
+    expect(snake.nextDirX).toBe(0); // unchanged — would-be overwrite blocked
+    expect(snake.nextDirY).toBe(-1);
+    expect(snake.dirQueue).toEqual([{ dx: 1, dy: 0 }]);
+  });
+
+  it("two-step zigzag executes both inputs across two ticks", () => {
+    // Snake heading right at (10, 10). Tap up, then right.
+    snake.setNextDirection(0, -1);
+    snake.setNextDirection(1, 0);
+
+    snake.step(grid);
+    // First tick consumed up; right shifted into nextDir for the next tick.
+    expect(snake.dirX).toBe(0);
+    expect(snake.dirY).toBe(-1);
+    expect(snake.nextDirX).toBe(1);
+    expect(snake.nextDirY).toBe(0);
+    expect(snake.dirQueue).toHaveLength(0);
+
+    snake.step(grid);
+    expect(snake.dirX).toBe(1);
+    expect(snake.dirY).toBe(0);
+    // Queue empty → nextDir stays equal to dir for the next-next tick.
+    expect(snake.nextDirX).toBe(1);
+    expect(snake.nextDirY).toBe(0);
+  });
+
+  it("third rapid input is dropped (depth 2 cap)", () => {
+    snake.setNextDirection(0, -1); // → nextDir
+    snake.setNextDirection(1, 0); // → queue
+    snake.setNextDirection(0, 1); // overflow → dropped (also reversal of right)
+    expect(snake.dirQueue).toHaveLength(1);
+    expect(snake.dirQueue[0]).toEqual({ dx: 1, dy: 0 });
+  });
+
+  it("rejects a reversal of the queued direction (not just the executed one)", () => {
+    // Snake heading right; queue an up. A subsequent down would reverse the
+    // QUEUED up, not the executed right. Must reject.
+    snake.setNextDirection(0, -1); // → nextDir
+    snake.setNextDirection(0, 1); // 180° reversal of nextDir's up — reject
+    expect(snake.nextDirX).toBe(0);
+    expect(snake.nextDirY).toBe(-1);
+    expect(snake.dirQueue).toHaveLength(0);
+  });
+
+  it("rejects a reversal of the buffered direction (queue tail)", () => {
+    snake.setNextDirection(0, -1); // → nextDir (up)
+    snake.setNextDirection(1, 0); // → queue (right)
+    snake.setNextDirection(-1, 0); // reversal of queue tail (right) — reject
+    expect(snake.dirQueue).toHaveLength(1);
+    expect(snake.dirQueue[0]).toEqual({ dx: 1, dy: 0 });
+  });
+
+  it("collapses same-direction repeats so the buffer doesn't fill with no-ops", () => {
+    snake.setNextDirection(0, -1); // → nextDir
+    snake.setNextDirection(0, -1); // same as nextDir — drop
+    snake.setNextDirection(0, -1); // same — drop
+    expect(snake.dirQueue).toHaveLength(0);
+    expect(snake.nextDirX).toBe(0);
+    expect(snake.nextDirY).toBe(-1);
+  });
+
+  it("init clears the queue", () => {
+    snake.setNextDirection(0, -1);
+    snake.setNextDirection(1, 0);
+    expect(snake.dirQueue).toHaveLength(1);
+    snake.init(grid, 5, 5, 3, 1, 0);
+    expect(snake.dirQueue).toHaveLength(0);
+    expect(snake.nextDirX).toBe(1);
+    expect(snake.nextDirY).toBe(0);
+  });
+});
+
 describe("step", () => {
   let grid, snake;
 

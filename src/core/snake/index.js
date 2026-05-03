@@ -20,6 +20,10 @@ export class Snake {
     this.dirY = 0;
     this.nextDirX = 1;
     this.nextDirY = 0;
+    // Buffered direction changes beyond `nextDirX/Y`. Depth 2 = `nextDirX/Y`
+    // (one slot) + `dirQueue` (one more slot). See setNextDirection / step
+    // in movement.js for the queue semantics.
+    this.dirQueue = [];
     this.growing = false;
     this.alive = true;
     this.deathCause = null;
@@ -40,6 +44,7 @@ export class Snake {
     this.dirY = dy;
     this.nextDirX = dx;
     this.nextDirY = dy;
+    this.dirQueue.length = 0;
     this.snakeLength = length;
     this.growing = false;
     this.alive = true;

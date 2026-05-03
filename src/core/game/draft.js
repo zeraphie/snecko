@@ -1,11 +1,7 @@
 // draft.js — Draft screen methods (selection, mutation, confirm)
 
 import { TYPE_PASSIVE, TYPE_CONSUMABLE, TYPE_BITES, TYPE_MUTATION } from "../upgrades/defs.js";
-import {
-  generateGrid as crystallineGenerate,
-  advanceGrid as crystallineAdvance,
-} from "../generation/index.js";
-import { generateWildlandsGrid, advanceWildlandsGrid } from "../generation/wildlands/generator.js";
+import { getMutationGenerator } from "../generation/registry.js";
 import {
   STATE_DRAFT,
   STATE_PLAYING,
@@ -15,14 +11,6 @@ import {
 } from "./constants.js";
 import { mixSeeds, splitmix32 } from "../rng.js";
 import { SUBSEED_FOOD } from "../seed-streams.js";
-
-const GENERATORS = {
-  crystalline: { generate: crystallineGenerate, advance: crystallineAdvance },
-  wildlands: {
-    generate: generateWildlandsGrid,
-    advance: advanceWildlandsGrid,
-  },
-};
 
 /**
  * Selects a draft choice by index.
@@ -62,7 +50,7 @@ export function _applyUpgrade(def) {
     this.upgrades.addBites(def.id, def.charges);
   } else if (def.type === TYPE_MUTATION) {
     this.upgrades.setMutation(def.id);
-    const gen = GENERATORS[def.id];
+    const gen = getMutationGenerator(def.id);
     if (gen) {
       this.generateGrid = gen.generate;
       this.advanceGrid = gen.advance;
