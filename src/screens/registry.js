@@ -16,6 +16,9 @@ import { menuScreen } from "./menu.js";
 import { mutationPickerScreen } from "./mutationPicker.js";
 import { leaderboardScreen } from "./leaderboard.js";
 import { nameInputScreen } from "./nameInput.js";
+import { practiceHubScreen } from "./practiceHub.js";
+import { bossPickerScreen } from "./bossPicker.js";
+import { bossRushCompleteScreen } from "./bossRushComplete.js";
 
 /** @type {Map<string, { draw(renderer: object, game: object): void }>} */
 const SCREENS = new Map();
@@ -55,3 +58,6 @@ registerScreen("menu", menuScreen);
 registerScreen("mutation_picker", mutationPickerScreen);
 registerScreen("leaderboard", leaderboardScreen);
 registerScreen("name_input", nameInputScreen);
+registerScreen("practice_hub", practiceHubScreen);
+registerScreen("boss_picker", bossPickerScreen);
+registerScreen("boss_rush_complete", bossRushCompleteScreen);

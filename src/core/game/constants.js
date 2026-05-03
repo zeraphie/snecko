@@ -13,6 +13,9 @@ export const STATE_MENU = "menu";
 export const STATE_MUTATION_PICKER = "mutation_picker";
 export const STATE_LEADERBOARD = "leaderboard";
 export const STATE_NAME_INPUT = "name_input";
+export const STATE_PRACTICE_HUB = "practice_hub";
+export const STATE_BOSS_PICKER = "boss_picker";
+export const STATE_BOSS_RUSH_COMPLETE = "boss_rush_complete";
 
 // ── Death causes ──────────────────────────────────────────────────
 export const DEATH_WALL = "wall";

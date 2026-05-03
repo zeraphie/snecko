@@ -2,7 +2,7 @@
 
 import { applyArena } from "../boss/arena.js";
 import { BossEntity } from "../boss/entity.js";
-import { getBossDef } from "../boss/bosses/index.js";
+import { getBossDef, getBossDefById } from "../boss/bosses/index.js";
 import { FLOW_TICKS as ALGORITHM_FLOW_TICKS } from "../boss/bosses/the-algorithm.js";
 import { getPlayerCells } from "../boss/player.js";
 import { updateProjectiles, checkProjectileCollision } from "../boss/projectiles.js";
@@ -17,6 +17,7 @@ import { generateContrabandPool } from "../upgrades/contraband/index.js";
 import {
   STATE_BOSS,
   STATE_CONTRABAND,
+  STATE_PRACTICE_HUB,
   BOSS_TICK_MS,
   BOSS_MOVE_MS,
   PLAYER_FIRE_INTERVAL,
@@ -490,7 +491,16 @@ export function _bossTick() {
  * Called when the snake eats a red food cell.
  */
 export function _enterBossFight() {
-  const def = getBossDef(this.upgrades.mutation);
+  // Practice flows pre-set `_practiceBossId` to spawn a specific boss
+  // regardless of mutation; clear it after consumption so subsequent
+  // (rush) entries can repoint to a different boss.
+  let def;
+  if (this._practiceBossId) {
+    def = getBossDefById(this._practiceBossId) ?? getBossDef(this.upgrades.mutation);
+    this._practiceBossId = null;
+  } else {
+    def = getBossDef(this.upgrades.mutation);
+  }
 
   // Hydrate shape from manifest (idempotent — boss defs are mutated once and reused)
   if (!def.shape) {
@@ -539,15 +549,30 @@ export function _enterBossFight() {
 
 /**
  * Awards BOSS_FOOD_REWARD food-progress, then opens the Contraband draft.
+ *
+ * Practice flow override:
+ *   - 'single' practice → return to the practice hub immediately,
+ *     no contraband draft, no progress saved.
+ *   - 'rush'   practice → contraband draft, then on confirmation the
+ *     next boss in the queue spawns (or the rush-complete screen if
+ *     the queue is empty). `confirmContraband` handles that branch.
  */
 export function _exitBossVictory() {
-  this.foodEaten += BOSS_FOOD_REWARD;
   this._boss = null;
   this._fight = null;
   this._heldDirection = null;
-
   this._playerBullets = [];
   _clearBossModifiers(this);
+
+  if (this._practiceMode === "single") {
+    this._practiceMode = null;
+    this.state = STATE_PRACTICE_HUB;
+    return;
+  }
+
+  if (this._practiceMode !== "rush") {
+    this.foodEaten += BOSS_FOOD_REWARD;
+  }
 
   this._contrabandPool = generateContrabandPool(Math.random);
   this._contrabandSelection = 0;
@@ -559,6 +584,10 @@ export function _exitBossVictory() {
 /**
  * Handles player death during a boss fight.
  *
+ * In a practice fight (single or rush) the death is silent — no
+ * leaderboard record, no name prompt — the player just bounces back
+ * to the practice hub.
+ *
  * @param {string} cause — 'wall' | 'boss' | 'projectile'
  */
 export function _exitBossDeath(cause) {
@@ -569,5 +598,15 @@ export function _exitBossDeath(cause) {
 
   this._playerBullets = [];
   _clearBossModifiers(this);
+
+  if (this._practiceMode) {
+    this._practiceMode = null;
+    this._bossRushQueue = [];
+    this._bossRushTotal = 0;
+    this._practiceBossId = null;
+    this.state = STATE_PRACTICE_HUB;
+    return;
+  }
+
   this._endRun();
 }

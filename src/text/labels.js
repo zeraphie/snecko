@@ -141,10 +141,31 @@ export const LABELS = {
     prompt: "Type a name and press Enter",
     hint: "Esc to skip (saves as Anonymous)",
   },
-  mutationPicker: {
+  practiceHub: {
     title: "P R A C T I C E",
+    subtitle: "Pick a practice mode.",
+    hint: "↑↓ select, Enter confirm, Esc back",
+    items: {
+      mutations: "Mutations",
+      bossPicker: "Boss picker",
+      randomBoss: "Random boss",
+      bossRush: "Boss rush",
+    },
+  },
+  mutationPicker: {
+    title: "M U T A T I O N",
     subtitle: "Pick a mutation. Practice runs use a fresh seed.",
-    hint: "↑↓ select, Enter start, Esc cancel",
+    hint: "↑↓ select, Enter start, Esc back",
+  },
+  bossPicker: {
+    title: "B O S S   P I C K E R",
+    subtitle: "Pick a boss to fight. No contraband, fresh arena.",
+    hint: "↑↓ select, Enter start, Esc back",
+  },
+  bossRushComplete: {
+    title: "R U S H   C L E A R",
+    subtitle: "All bosses defeated. Snake supreme.",
+    hint: "Enter or Esc to return",
   },
   draft: {
     // "L E V E L   U P" was the old wording before level → act; "Upgrade" is

@@ -2223,12 +2223,22 @@ describe("menu", () => {
     expect(game._seedInput).toBe("");
   });
 
-  // ── Practice mutation picker ────────────────────────────────
+  // ── Practice hub + mutation picker ─────────────────────────
 
-  it("confirmMenu on 'practice' opens the mutation picker", () => {
+  it("confirmMenu on 'practice' opens the practice hub", () => {
     game.openMenu();
     game.selectMenu(1); // practice row
     game.confirmMenu();
+    expect(game.state).toBe(Game.STATE_PRACTICE_HUB);
+    expect(game._practiceHubSelection).toBe(0);
+  });
+
+  it("hub 'Mutations' item opens the mutation picker", () => {
+    game.openMenu();
+    game.selectMenu(1);
+    game.confirmMenu(); // → hub
+    game.selectPracticeHub(0); // mutations
+    game.confirmPracticeHub();
     expect(game.state).toBe(Game.STATE_MUTATION_PICKER);
     expect(game._mutationPickerSelection).toBeGreaterThanOrEqual(0);
   });
@@ -2237,6 +2247,7 @@ describe("menu", () => {
     game.openMenu();
     game.selectMenu(1);
     game.confirmMenu();
+    game.confirmPracticeHub(); // mutations is the default row
     game.selectMutationPicker(-5);
     expect(game._mutationPickerSelection).toBe(0);
     game.selectMutationPicker(999);
@@ -2247,7 +2258,8 @@ describe("menu", () => {
     const { MUTATIONS } = await import("../src/core/generation/registry.js");
     game.openMenu();
     game.selectMenu(1);
-    game.confirmMenu(); // → picker
+    game.confirmMenu(); // → hub
+    game.confirmPracticeHub(); // → mutation picker
     const ids = Object.keys(MUTATIONS);
     const idx = ids.indexOf("wildlands");
     game.selectMutationPicker(idx);
@@ -2257,13 +2269,153 @@ describe("menu", () => {
     expect(game.generateGrid).toBe(MUTATIONS.wildlands.generate);
   });
 
-  it("closeMutationPicker returns to menu without starting a run", () => {
+  it("closeMutationPicker returns to the practice hub when opened from there", () => {
     game.openMenu();
     game.selectMenu(1);
     game.confirmMenu();
+    game.confirmPracticeHub(); // → mutation picker
     game.selectMutationPicker(1);
     game.closeMutationPicker();
+    expect(game.state).toBe(Game.STATE_PRACTICE_HUB);
+  });
+
+  it("closePracticeHub returns to the menu", () => {
+    game.openMenu();
+    game.selectMenu(1);
+    game.confirmMenu();
+    game.closePracticeHub();
     expect(game.state).toBe("menu");
+  });
+
+  // ── Practice hub: boss picker / random / rush ────────────────
+
+  it("hub 'Boss picker' opens the boss picker screen", () => {
+    game.openMenu();
+    game.selectMenu(1);
+    game.confirmMenu();
+    game.selectPracticeHub(1); // bossPicker
+    game.confirmPracticeHub();
+    expect(game.state).toBe(Game.STATE_BOSS_PICKER);
+    expect(game._bossPickerSelection).toBe(0);
+  });
+
+  it("confirmBossPicker spawns the chosen boss with no contraband", async () => {
+    const { ALL_BOSS_DEFS } = await import("../src/core/boss/bosses/index.js");
+    const { LABELS } = await import("../src/text/labels.js");
+    game.openMenu();
+    game.selectMenu(1);
+    game.confirmMenu();
+    game.selectPracticeHub(1);
+    game.confirmPracticeHub(); // → boss picker
+    game.selectBossPicker(2); // third boss in registry
+    game.confirmBossPicker();
+    expect(game.state).toBe(Game.STATE_BOSS);
+    expect(game._practiceMode).toBe("single");
+    expect(game._boss.name).toBe(LABELS.bosses[ALL_BOSS_DEFS[2].id].name);
+    expect(game._contraband).toHaveLength(0);
+  });
+
+  it("single-boss victory returns to practice hub without recording", () => {
+    game.openMenu();
+    game.selectMenu(1);
+    game.confirmMenu();
+    game.selectPracticeHub(1);
+    game.confirmPracticeHub();
+    game.selectBossPicker(0);
+    game.confirmBossPicker();
+    expect(game.state).toBe(Game.STATE_BOSS);
+
+    game._exitBossVictory();
+    expect(game.state).toBe(Game.STATE_PRACTICE_HUB);
+    expect(game._practiceMode).toBe(null);
+    expect(game._boss).toBe(null);
+    expect(game._runRecorded).toBe(false);
+  });
+
+  it("single-boss death returns to the practice hub (no leaderboard)", async () => {
+    const { DEATH_BOSS } = await import("../src/core/game/constants.js");
+    game.openMenu();
+    game.selectMenu(1);
+    game.confirmMenu();
+    game.selectPracticeHub(1);
+    game.confirmPracticeHub();
+    game.selectBossPicker(0);
+    game.confirmBossPicker();
+
+    game._exitBossDeath(DEATH_BOSS);
+    expect(game.state).toBe(Game.STATE_PRACTICE_HUB);
+    expect(game._practiceMode).toBe(null);
+    expect(game._runRecorded).toBe(false);
+    expect(game._pendingRunRecord).toBe(null);
+  });
+
+  it("startRandomPracticeBoss enters STATE_BOSS in single mode", () => {
+    game.startRandomPracticeBoss();
+    expect(game.state).toBe(Game.STATE_BOSS);
+    expect(game._practiceMode).toBe("single");
+    expect(game._boss).not.toBe(null);
+  });
+
+  it("startBossRush queues every boss in shuffled order and spawns the first", async () => {
+    const { ALL_BOSS_DEFS } = await import("../src/core/boss/bosses/index.js");
+    const { LABELS } = await import("../src/text/labels.js");
+    game.startBossRush();
+    expect(game.state).toBe(Game.STATE_BOSS);
+    expect(game._practiceMode).toBe("rush");
+    expect(game._bossRushTotal).toBe(ALL_BOSS_DEFS.length);
+    expect(game._bossRushQueue.length).toBe(ALL_BOSS_DEFS.length - 1);
+    // The spawned boss is one of the registered bosses (matched by name).
+    const allNames = new Set(ALL_BOSS_DEFS.map((d) => LABELS.bosses[d.id].name));
+    expect(allNames.has(game._boss.name)).toBe(true);
+    // The queue holds unique boss ids.
+    const ids = new Set(game._bossRushQueue);
+    expect(ids.size).toBe(game._bossRushQueue.length);
+  });
+
+  it("rush victory chains contraband draft → next boss", () => {
+    game.startBossRush();
+    const firstName = game._boss.name;
+
+    game._exitBossVictory();
+    expect(game.state).toBe(Game.STATE_CONTRABAND);
+    // Picking any contraband and confirming should spawn the next boss.
+    game._contrabandSelection = 0;
+    game.confirmContraband();
+    expect(game.state).toBe(Game.STATE_BOSS);
+    expect(game._boss.name).not.toBe(firstName); // different boss
+    expect(game._practiceMode).toBe("rush");
+  });
+
+  it("rush completion shows the rush-complete screen after the last boss", async () => {
+    const { ALL_BOSS_DEFS } = await import("../src/core/boss/bosses/index.js");
+    game.startBossRush();
+    // Plough through every boss in the queue.
+    for (let i = 0; i < ALL_BOSS_DEFS.length; i++) {
+      expect(game.state).toBe(Game.STATE_BOSS);
+      game._exitBossVictory();
+      expect(game.state).toBe(Game.STATE_CONTRABAND);
+      game._contrabandSelection = 0;
+      game.confirmContraband();
+    }
+    expect(game.state).toBe(Game.STATE_BOSS_RUSH_COMPLETE);
+    expect(game._practiceMode).toBe(null);
+    expect(game._bossRushQueue).toHaveLength(0);
+  });
+
+  it("closeBossRushComplete returns to the practice hub", () => {
+    game.state = Game.STATE_BOSS_RUSH_COMPLETE;
+    game.closeBossRushComplete();
+    expect(game.state).toBe(Game.STATE_PRACTICE_HUB);
+  });
+
+  it("rush death exits the rush cleanly (no recorded score)", async () => {
+    const { DEATH_PROJECTILE } = await import("../src/core/game/constants.js");
+    game.startBossRush();
+    game._exitBossDeath(DEATH_PROJECTILE);
+    expect(game.state).toBe(Game.STATE_PRACTICE_HUB);
+    expect(game._practiceMode).toBe(null);
+    expect(game._bossRushQueue).toHaveLength(0);
+    expect(game._runRecorded).toBe(false);
   });
 
   // ── Pause menu ──────────────────────────────────────────────
@@ -2389,7 +2541,8 @@ describe("menu", () => {
     const { MUTATIONS } = await import("../src/core/generation/registry.js");
     game.openMenu();
     game.selectMenu(1);
-    game.confirmMenu();
+    game.confirmMenu(); // → practice hub
+    game.confirmPracticeHub(); // → mutation picker
     const idx = Object.keys(MUTATIONS).indexOf("wildlands");
     game.selectMutationPicker(idx);
     game.confirmMutationPicker(); // wildlands practice run starts

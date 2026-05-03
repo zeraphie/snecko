@@ -57,3 +57,23 @@ export const DEFAULT_BOSS_DEF = absoluteUnit;
 export function getBossDef(mutation) {
   return BOSS_DEFS[mutation] ?? DEFAULT_BOSS_DEF;
 }
+
+/**
+ * Stable list of every boss definition the game knows about, including the
+ * fallback. Used by the practice screen to enumerate bosses by name.
+ *
+ * @type {ReadonlyArray<BossDef>}
+ */
+export const ALL_BOSS_DEFS = [trafficJam, theAlgorithm, absoluteUnit];
+
+/**
+ * Returns the boss definition matching `id`, or null if no boss exists with
+ * that id. Used by practice mode to spawn a specific boss without going
+ * through mutation lookup.
+ *
+ * @param {string} id — boss def `id` field (e.g. 'traffic_jam', 'absolute_unit')
+ * @returns {BossDef | null}
+ */
+export function getBossDefById(id) {
+  return ALL_BOSS_DEFS.find((d) => d.id === id) ?? null;
+}

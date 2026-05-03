@@ -108,6 +108,54 @@ export function dispatchAction(game, action) {
     return;
   }
 
+  // ── Practice hub ─────────────────────────────────────────────
+  if (state === "practice_hub") {
+    switch (action) {
+      case ACTION_UP:
+        game.selectPracticeHub(game._practiceHubSelection - 1);
+        break;
+      case ACTION_DOWN:
+        game.selectPracticeHub(game._practiceHubSelection + 1);
+        break;
+      case ACTION_CONFIRM:
+      case ACTION_USE_CONSUMABLE:
+        game.confirmPracticeHub();
+        break;
+      case ACTION_CANCEL:
+        game.closePracticeHub();
+        break;
+    }
+    return;
+  }
+
+  // ── Boss picker ──────────────────────────────────────────────
+  if (state === "boss_picker") {
+    switch (action) {
+      case ACTION_UP:
+        game.selectBossPicker(game._bossPickerSelection - 1);
+        break;
+      case ACTION_DOWN:
+        game.selectBossPicker(game._bossPickerSelection + 1);
+        break;
+      case ACTION_CONFIRM:
+      case ACTION_USE_CONSUMABLE:
+        game.confirmBossPicker();
+        break;
+      case ACTION_CANCEL:
+        game.closeBossPicker();
+        break;
+    }
+    return;
+  }
+
+  // ── Boss rush completion splash ──────────────────────────────
+  if (state === "boss_rush_complete") {
+    if (action === ACTION_CANCEL || action === ACTION_CONFIRM) {
+      game.closeBossRushComplete();
+    }
+    return;
+  }
+
   // ── Contraband draft ────────────────────────────────────────
   if (state === "contraband") {
     switch (action) {
