@@ -33,10 +33,7 @@ import {
   generateCatacombsGrid,
   advanceCatacombsGrid,
 } from "../src/core/generation/catacombs/generator.js";
-import {
-  CONTRABAND_DEFS,
-  generateContrabandPool,
-} from "../src/core/upgrades/contraband/index.js";
+import { CONTRABAND_DEFS, generateContrabandPool } from "../src/core/upgrades/contraband/index.js";
 
 const __testDir = dirname(fileURLToPath(import.meta.url));
 const __projectRoot = resolve(__testDir, "..");

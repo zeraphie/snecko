@@ -83,8 +83,8 @@ mutation lifecycles use **state**.
   `telegraph_place → place → telegraph_grow → grow → linger → decay → disappear`.
   After `disappear` the crystal is reaped from `mech.crystals[]`. The
   collective verbs are **growing** (`telegraph_place → place →
-  telegraph_grow → grow`) and **decaying** (`linger → decay →
-  disappear`). `telegraph_decay` is intentionally omitted — vanishing
+telegraph_grow → grow`) and **decaying** (`linger → decay →
+disappear`). `telegraph_decay` is intentionally omitted — vanishing
   walls don't need a warning.
 - **Concurrent crystals:** the lattice runs multiple lifecycles in
   parallel. A new crystal lifecycle starts every `SPAWN_INTERVAL = 2`

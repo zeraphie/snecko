@@ -115,8 +115,7 @@ export function drawBossInfo(r, name, hp, maxHp, phase) {
 export function drawSurvivalInfo(r, name, ticksLeft, totalTicks) {
   const BAR_LEN = 10;
   const filled = totalTicks > 0 ? Math.round((ticksLeft / totalTicks) * BAR_LEN) : 0;
-  const bar =
-    GREEN + "▓".repeat(filled) + RESET + DIM + "░".repeat(BAR_LEN - filled) + RESET;
+  const bar = GREEN + "▓".repeat(filled) + RESET + DIM + "░".repeat(BAR_LEN - filled) + RESET;
 
   const secs = Math.max(0, Math.ceil((ticksLeft * 120) / 1000));
   const mm = String(Math.floor(secs / 60)).padStart(2, "0");

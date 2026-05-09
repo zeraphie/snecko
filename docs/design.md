@@ -32,7 +32,7 @@ Each entry uses the same five-line structure:
   bloom dead-centre on it — and finding the alternate route in time.
 - **Don't become:** a static-walls grid where new crystals only matter
   in the moments they appear. The lifecycle (`telegraph_place →
-  place → telegraph_grow → grow → linger → decay`) is the soul; if
+place → telegraph_grow → grow → linger → decay`) is the soul; if
   players stop reading those states, the mutation has degraded into
   random walls.
 - **Open:** crystal density, concurrent-lifecycle count
@@ -97,12 +97,12 @@ Each entry uses the same five-line structure:
 
 ### The Algorithm (wildlands → bullet-hell)
 
-- **Fantasy:** the river didn't go away — it's *between* you and the
+- **Fantasy:** the river didn't go away — it's _between_ you and the
   boss now, bending bullets. Geometry is on the boss's side.
 - **Core mechanic:** read the per-cell flow vectors of the
   algorithm-current band, predict how bullets will curve, position so
   curved shots miss instead of converge.
-- **Signature moment:** dodging a shot that *looked* straight only
+- **Signature moment:** dodging a shot that _looked_ straight only
   for the river to whip it back across your head — and learning to
   pre-empt the curve next time.
 - **Don't become:** a pure projectile fight where the river is
@@ -144,7 +144,7 @@ Each entry uses the same five-line structure:
   the framing has slipped.
 - **Open:** the fixed `SURVIVAL_WIN_TICKS = 750` timer vs. an
   N-phase escalation; default blob speed (`SURVIVAL_BOSS_TICK_INTERVAL
-  = 1`); BFS recompute cadence as a baiting dial
+= 1`); BFS recompute cadence as a baiting dial
   (`SURVIVAL_BOSS_PATH_RECOMPUTE_TICKS`); how much rift telegraphing
   should remain visible during the fight.
 
@@ -154,8 +154,8 @@ Each entry uses the same five-line structure:
   the relevant entry. If the change you're about to make would break
   the **Don't become** line, that's a design conversation, not a
   tuning pass.
-- New mutation or boss → add an entry here *before* writing code. The
+- New mutation or boss → add an entry here _before_ writing code. The
   five lines are a forcing function; if you can't write them, the
   design isn't ready.
-- Open questions get added freely. Resolved questions get *removed*
+- Open questions get added freely. Resolved questions get _removed_
   (not crossed out) — this doc is current state, not history.
