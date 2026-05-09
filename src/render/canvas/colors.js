@@ -26,6 +26,7 @@ import {
   CELL_EXHAUST,
   CELL_WALL_HIGH,
   CELL_WALL_LOW_EDIBLE,
+  CELL_BLOB,
 } from "../renderer.js";
 
 export const COLORS = {};
@@ -54,6 +55,7 @@ COLORS[CELL_DANGER_TRAIL] = "#ff8c00";
 COLORS[CELL_ECHO_ZONE] = "#27ae60";
 COLORS[CELL_BOSS_DAMAGED] = "#6a2d8e";
 COLORS[CELL_EXHAUST] = "#e67e22";
+COLORS[CELL_BLOB] = "#8e44ad"; // same purple family as bullet-hell boss; differentiates from snake green
 
 export const BG_LIGHT = "#222034";
 export const BG_DARK = "#1a1a2e";

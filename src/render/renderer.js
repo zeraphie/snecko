@@ -30,6 +30,7 @@ export const CELL_BOSS_DAMAGED = 24;
 export const CELL_EXHAUST = 25;
 export const CELL_WALL_HIGH = 26;
 export const CELL_WALL_LOW_EDIBLE = 27;
+export const CELL_BLOB = 28;
 
 // ── Renderer base class ───────────────────────────────────────────────────
 //
@@ -136,6 +137,9 @@ export class Renderer {
 
   /** Draw boss HP bar and phase info. No-op if not overridden. */
   drawBossInfo(name, hp, maxHp, phase) {}
+
+  /** Draw the survival countdown HUD. No-op if not overridden. */
+  drawSurvivalInfo(name, ticksLeft, totalTicks) {}
 
   /** Draw the boss intro overlay. No-op if not overridden. */
   drawBossIntroOverlay(name, ticksLeft, total) {}

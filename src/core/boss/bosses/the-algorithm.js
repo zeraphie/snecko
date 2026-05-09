@@ -63,6 +63,7 @@ function special(game) {
  */
 export default {
   id: "the_algorithm",
+  style: "bullet_hell",
   maxHp: 12,
   width: 0,
   height: 0,

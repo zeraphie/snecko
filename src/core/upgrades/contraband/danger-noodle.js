@@ -10,5 +10,6 @@
 // Player-facing name/desc lives in src/text/labels.js (LABELS.upgrades.danger_noodle).
 export default {
   id: "danger_noodle",
+  styles: ["bullet_hell"], // damages boss on trail overlap — bullet-hell only (survival blob has no HP)
   apply: (_game) => {}, // Checked at movement + damage time in boss-tick.js
 };

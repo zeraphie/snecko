@@ -4,7 +4,7 @@ import { Renderer } from "../renderer.js";
 import { BG_LIGHT, BG_DARK, HUD_BG } from "./colors.js";
 import { drawCell } from "./cells.js";
 import { drawSnakeHead, drawSnakeHeadInvul } from "./snake.js";
-import { drawHUD, drawBossInfo, drawBossIntroOverlay } from "./hud.js";
+import { drawHUD, drawBossInfo, drawSurvivalInfo, drawBossIntroOverlay } from "./hud.js";
 import {
   drawScreen,
   drawDraftScreen,
@@ -61,6 +61,7 @@ CanvasRenderer.prototype.drawSnakeHead = drawSnakeHead;
 CanvasRenderer.prototype.drawSnakeHeadInvul = drawSnakeHeadInvul;
 CanvasRenderer.prototype.drawHUD = drawHUD;
 CanvasRenderer.prototype.drawBossInfo = drawBossInfo;
+CanvasRenderer.prototype.drawSurvivalInfo = drawSurvivalInfo;
 CanvasRenderer.prototype.drawBossIntroOverlay = drawBossIntroOverlay;
 CanvasRenderer.prototype.drawScreen = drawScreen;
 CanvasRenderer.prototype.drawDraftScreen = drawDraftScreen;

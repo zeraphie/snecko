@@ -106,6 +106,7 @@ export const LABELS = {
     traffic_jam: { name: "Traffic Jam" },
     the_algorithm: { name: "The Algorithm" },
     absolute_unit: { name: "Absolute Unit" },
+    catacombs_chaser: { name: "The Roomba" },
   },
   start: {
     title: "S N E C K O",

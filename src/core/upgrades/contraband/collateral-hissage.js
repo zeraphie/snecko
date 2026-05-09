@@ -8,5 +8,6 @@
 // Player-facing name/desc lives in src/text/labels.js (LABELS.upgrades.collateral_hissage).
 export default {
   id: "collateral_hissage",
+  styles: ["bullet_hell"], // bonus damage on weak-point hit — survival has no weak point
   apply: (_game) => {}, // Checked at hit time in boss-tick.js — no apply-time setup needed
 };

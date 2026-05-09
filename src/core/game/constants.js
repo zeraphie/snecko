@@ -24,6 +24,7 @@ export const DEATH_BOSS = "boss";
 export const DEATH_PROJECTILE = "projectile";
 export const DEATH_BOMB = "bomb";
 export const DEATH_GIVE_UP = "give_up";
+export const DEATH_BLOB = "blob";
 
 export const GRID_W = 31;
 export const GRID_H = 31;
@@ -61,6 +62,19 @@ export const BOSS_PHASE3_HP = 4; // enter phase 3 when HP drops to this
 
 // ── Boss special abilities ────────────────────────────────────────
 export const BOSS_SPECIAL_INTERVAL = 18; // boss ticks between special ability triggers
+
+// ── Survival style tuning ────────────────────────────────────────
+// Survival uses BOSS_TICK_MS (120 ms) as its tick rate — same cadence as
+// bullet-hell so HUD timers and chase movement stay in sync.
+export const SURVIVAL_WIN_TICKS = 750; // ~1.5 min at 120 ms/tick — full fight duration
+export const SURVIVAL_BLOB_SIZE = 2; // 2×2 footprint — matches catacombs corridor width
+export const SURVIVAL_BOSS_TICK_INTERVAL = 1; // boss steps per player tick — 1 = match player speed; raise to slow blob
+export const SURVIVAL_BOSS_PATH_RECOMPUTE_TICKS = 1; // boss steps per BFS recompute — raise to enable player baiting
+export const SURVIVAL_PATH_SHIFT_TICKS = 80; // ~10 s at 120 ms/tick — total cycle length per corridor flip
+// Rift cycle = 5 bite-equivalents (3 lingers + telegraph + apply). Driving advanceRifts once
+// every SURVIVAL_PATH_SHIFT_TICKS / 5 ticks keeps the flip cadence at SURVIVAL_PATH_SHIFT_TICKS.
+export const SURVIVAL_RIFT_INTERVAL_TICKS = 16;
+export const SURVIVAL_BOSS_STUN_TICKS = 8; // ~1 s at 120 ms/tick — blob freeze after a flip closes on it
 
 // ── Contraband tuning ─────────────────────────────────────────────
 export const GOMU_STAGGER_TICKS = 3; // player stagger after gomu shield absorbs a hit

@@ -28,7 +28,9 @@ import {
   CELL_ECHO_ZONE,
   CELL_PLAYER_BULLET,
   CELL_EXHAUST,
+  CELL_BLOB,
 } from "../../render/renderer.js";
+import { SURVIVAL_BLOB_SIZE } from "./constants.js";
 import { getPlayerCells } from "../boss/player.js";
 import {
   TERRAIN_LOW,
@@ -219,6 +221,30 @@ export function _drawBossArena() {
       renderer.drawSnakeHeadInvul(grid.playerX, grid.playerY, dir.dx, dir.dy);
     } else {
       renderer.drawSnakeHead(grid.playerX, grid.playerY, dir.dx, dir.dy);
+    }
+  }
+}
+
+/**
+ * Draws the survival arena: the maze + snake (via _drawGrid), with the
+ * 2×2 chasing blob on top. The catacombs grid stays in place during a
+ * survival fight, so this is mostly a regular play render with the blob
+ * overlay.
+ */
+export function _drawSurvivalArena() {
+  this._drawGrid();
+  const sv = this._bossSurvival;
+  if (!sv) {
+    return;
+  }
+  const blob = sv.blob;
+  for (let dy = 0; dy < SURVIVAL_BLOB_SIZE; dy++) {
+    for (let dx = 0; dx < SURVIVAL_BLOB_SIZE; dx++) {
+      const x = blob.x + dx;
+      const y = blob.y + dy;
+      if (this.grid.isInBounds(x, y)) {
+        this.renderer.drawCell(x, y, CELL_BLOB);
+      }
     }
   }
 }

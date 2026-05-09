@@ -79,8 +79,14 @@ import {
 } from "./tick.js";
 import { selectDraft, toggleMutation, _applyUpgrade, confirmDraft } from "./draft.js";
 import { cycleConsumable, useConsumable, cancelTargeting } from "./consumables.js";
-import { _drawGrid, _drawBossArena, renderFrame } from "./render.js";
-import { _bossTick, _enterBossFight, _exitBossVictory, _exitBossDeath } from "./boss-tick.js";
+import { _drawGrid, _drawBossArena, _drawSurvivalArena, renderFrame } from "./render.js";
+import {
+  _bossTick,
+  _bossOnInput,
+  _enterBossFight,
+  _exitBossVictory,
+  _exitBossDeath,
+} from "./boss-tick.js";
 
 // ── Game class ────────────────────────────────────────────────────
 
@@ -298,13 +304,7 @@ export class Game {
     if (this.state === STATE_PLAYING) {
       this.snake.setNextDirection(dx, dy);
     } else if (this.state === STATE_BOSS) {
-      // Left/right only — reject vertical unless snake_hungry is active
-      if (dy !== 0 && !this._contraband.some((c) => c.id === "snake_hungry")) {
-        return;
-      }
-      // Latest key wins — just set the held direction
-      this._heldDirection = { dx, dy };
-      this._playerFacing = { dx: 0, dy: -1 }; // always face up
+      this._bossOnInput(dx, dy);
     } else if (this.state === STATE_TARGETING) {
       moveCursor(this, dx, dy);
     } else if (this.state === STATE_WORMHOLE) {
@@ -926,8 +926,10 @@ Game.prototype.useConsumable = useConsumable;
 Game.prototype.cancelTargeting = cancelTargeting;
 Game.prototype._drawGrid = _drawGrid;
 Game.prototype._drawBossArena = _drawBossArena;
+Game.prototype._drawSurvivalArena = _drawSurvivalArena;
 Game.prototype.renderFrame = renderFrame;
 Game.prototype._bossTick = _bossTick;
+Game.prototype._bossOnInput = _bossOnInput;
 Game.prototype._enterBossFight = _enterBossFight;
 Game.prototype._exitBossVictory = _exitBossVictory;
 Game.prototype._exitBossDeath = _exitBossDeath;

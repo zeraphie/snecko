@@ -95,6 +95,44 @@ export function drawBossInfo(name, hp, maxHp, phase) {
   ctx.textBaseline = "middle";
 }
 
+export function drawSurvivalInfo(name, ticksLeft, totalTicks) {
+  const ctx = this._ctx;
+  const y2 = this._gridH + 34;
+
+  ctx.fillStyle = "#16162a";
+  ctx.fillRect(0, y2 - 8, this._gridW, 20);
+
+  ctx.font = "12px monospace";
+  ctx.textBaseline = "middle";
+
+  ctx.fillStyle = "#e74c3c";
+  ctx.textAlign = "left";
+  ctx.fillText(name, 8, y2);
+
+  // Countdown bar — depletes left-to-right as ticksLeft drops.
+  const BAR_SEGMENTS = 10;
+  const SEG_W = 8;
+  const SEG_H = 10;
+  const barX = 8 + ctx.measureText(name).width + 10;
+  const barY = y2 - SEG_H / 2;
+  const filled = totalTicks > 0 ? Math.round((ticksLeft / totalTicks) * BAR_SEGMENTS) : 0;
+  for (let i = 0; i < BAR_SEGMENTS; i++) {
+    ctx.fillStyle = i < filled ? "#5ddb8a" : "#1a3a23";
+    ctx.fillRect(barX + i * (SEG_W + 1), barY, SEG_W, SEG_H);
+  }
+
+  // mm:ss remaining at BOSS_TICK_MS = 120 ms/tick.
+  const secs = Math.max(0, Math.ceil((ticksLeft * 120) / 1000));
+  const mm = String(Math.floor(secs / 60)).padStart(2, "0");
+  const ss = String(secs % 60).padStart(2, "0");
+  const timeX = barX + BAR_SEGMENTS * (SEG_W + 1) + 6;
+  ctx.fillStyle = "#888";
+  ctx.fillText(`${mm}:${ss}`, timeX, y2);
+
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+}
+
 export function drawBossIntroOverlay(name, ticksLeft, total) {
   const ctx = this._ctx;
   const w = this._gridW;

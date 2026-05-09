@@ -29,6 +29,7 @@ import {
   CELL_EXHAUST,
   CELL_WALL_HIGH,
   CELL_WALL_LOW_EDIBLE,
+  CELL_BLOB,
 } from "../renderer.js";
 
 import {
@@ -80,6 +81,8 @@ CELL_CHARS[CELL_ECHO_ZONE] = "\x1b[38;5;34m" + "\u2592\u2592" + RESET; // ▒▒
 CELL_CHARS[CELL_PLAYER_BULLET] = CYAN + "\u2219\u2219" + RESET; // ∙∙ player bullet (bright)
 CELL_CHARS[CELL_BOSS_DAMAGED] = MAGENTA + "\u2592\u2592" + RESET; // ▒▒ damaged boss body
 CELL_CHARS[CELL_EXHAUST] = ORANGE + "\u2592\u2592" + RESET; // ▒▒ exhaust flame
+
+CELL_CHARS[CELL_BLOB] = MAGENTA + "██" + RESET; // ██ chasing blob (catacombs)
 
 // ── Dim / pulse-low variants ─────────────────────────────────────
 

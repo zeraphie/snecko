@@ -8,6 +8,7 @@
  */
 export default {
   id: "absolute_unit",
+  style: "bullet_hell",
   maxHp: 12,
   width: 0,
   height: 0,

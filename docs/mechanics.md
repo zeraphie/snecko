@@ -1,0 +1,239 @@
+# Mechanics
+
+How each system actually works. Companion to [`glossary.md`](./glossary.md)
+(term lookup) and [`design.md`](./design.md) (intent). Read this when
+you're implementing or extending a system; for a single term's
+definition, hit the glossary.
+
+## Seeding pattern
+
+```
+runSeed     = randomU32()                 // once per run
+actSeed(i)  = mix(runSeed, i)             // splitmix32-style mix
+```
+
+`runSeed` is rolled once per run. `actSeed` is derived from `runSeed`
+and `actIndex` so each act gets a fresh seed; same act number in the
+same run always produces the same layout. Sub-systems (mechanic RNG,
+food placement, etc.) derive further seeds from `actSeed` via
+`mixSeeds(actSeed, SUBSEED_*)`. Each act's generator (crystalline /
+wildlands / catacombs) is initialised with `actSeed(actIndex)`.
+
+Same mutation in two different acts produces two different layouts
+because `actIndex` differs. Same run replayed at the same act produces
+an identical layout — useful for testing and future "share this seed"
+features.
+
+## Bites
+
+A **bite** is one consumption event — the snake takes something into
+itself. Bites are the canonical sub-act unit of time: durations, charge
+counts, and lifecycle ticks all measure in bites.
+
+Two flavours, distinguished by what's consumed: **food-bite** (snake
+eats a food cell) and **wall-bite** (snake eats a wall, only possible
+when a bites-type upgrade allows it).
+
+### Cadence
+
+Per food-bite (every time a food is eaten):
+
+- `foodEaten++`, `bossFoodCharge++`
+- The active mutation's lifecycle advances one step (subject to the
+  mutation's own cadence — see each mutation's section below).
+- Every passive upgrade ticks down one bite of `remainingBites`.
+- The snake grows by one cell.
+
+Per wall-bite (when allowed and used):
+
+- The triggering bites-type upgrade decrements its `charges` by one.
+  The wall cell is cleared.
+- Does **not** advance progression, lifecycle, or grow the snake.
+
+### Duration unit
+
+All upgrade durations and charge counts use the bite unit. There is no
+"per-act" duration; "per-tick" / "per-frame" durations don't exist
+either. If something has a counter, it's measured in bites.
+
+## Mutation structure
+
+Every mutation has three parts:
+
+1. **Generation method** — how the grid is built when the act starts
+   (placing crystals; FBM noise; maze carving).
+2. **Mechanic** — the recurring per-mutation behaviour layered on the
+   grid (lattice / currents / rifts).
+3. **Lifecycle** — the ordered states the mechanic moves through, one
+   step per food-bite. Each mutation has its own lifecycle defined in
+   its own section below.
+
+Single-active mechanics keep state on `mech.state` (currents).
+Concurrent mechanics keep it on each entry (lattice's
+`mech.crystals[i].state`). "Phase" is reserved for boss combat —
+mutation lifecycles use **state**.
+
+## Crystalline
+
+- **Generation method:** the act starts with no walls. Crystals arrive
+  over time via the lattice mechanic's lifecycle — there is no
+  "initial layout" of crystals.
+- **Mechanic:** **lattice** (`mechanics/lattice.js`).
+- **Lifecycle (one crystal, advances one step per food-bite):**
+  `telegraph_place → place → telegraph_grow → grow → linger → decay → disappear`.
+  After `disappear` the crystal is reaped from `mech.crystals[]`. The
+  collective verbs are **growing** (`telegraph_place → place →
+  telegraph_grow → grow`) and **decaying** (`linger → decay →
+  disappear`). `telegraph_decay` is intentionally omitted — vanishing
+  walls don't need a warning.
+- **Concurrent crystals:** the lattice runs multiple lifecycles in
+  parallel. A new crystal lifecycle starts every `SPAWN_INTERVAL = 2`
+  food-bites, so 3–4 crystals are typically active at once at
+  staggered states.
+- **Determinism:** placement anchors and shape choices are
+  pre-computed once per act in `initLattice` from the seeded
+  `mech.rand`, stored on `mech.placements`. `telegraph_place` pops the
+  next anchor and re-validates it against the live grid; if every
+  remaining anchor is stale (snake parked on it, another crystal
+  already there) it falls back to a bounded live search.
+
+## Wildlands
+
+- **Generation method:** FBM-noise sampling across the grid, with
+  cells above one threshold becoming **low walls** and above a higher
+  threshold becoming **high walls**.
+- **Mechanic:** **currents** (`mechanics/currents.js`) — a winding
+  river that pushes the snake along its flow direction.
+- **Lifecycle (one step per food-bite):** initial
+  `telegraph → flow → surge`, then loops
+  `telegraph_shift → flow → surge` indefinitely.
+  `telegraph_shift` both announces the river is about to move and
+  previews the new river's shape; the next `flow` paints it for real.
+- **Wall types:** **low walls** are eatable by Iron Jaw (and any
+  future bites-type upgrade that interacts with walls) — they read as
+  amber. **High walls** are not eatable — dark brown.
+
+## Catacombs
+
+- **Generation method:** the act starts with a static maze
+  pre-generated by recursive-backtracker on a 10×10 logical-cell graph
+  (period-3 layout: 2-wide corridors + 1-wide walls between cells). A
+  small extra-loop pass punches a few additional openings so the maze
+  has cycles, not just a single path between any two points. The
+  snake spawns in a corridor with at least 4 straight cells before
+  the next turn so the player can read the first corner.
+- **Mechanic:** **rifts** (`mechanics/rifts.js`). Every
+  `RIFT_CADENCE` food-bites the maze topology rifts: one closed
+  inter-cell wall opens and one open inter-cell wall closes (chosen
+  so the maze stays connected and the snake's current corridor is
+  left alone).
+- **Lifecycle (advances one step per food-bite):**
+  `linger × (RIFT_CADENCE - 2) → telegraph_rift → rift → linger …`,
+  cycling indefinitely. `telegraph_rift` paints the four cells about
+  to flip with `TERRAIN_TELEGRAPH` (one bite of warning); `rift`
+  applies the flip and clears the telegraph. `RIFT_CADENCE = 5` for
+  v1 (3 lingers, 1 telegraph, 1 rift per cycle).
+
+## Boss styles
+
+Each boss declares a **style** — the family of fight it belongs to.
+Styles dispatch to per-style modules in `src/core/boss/styles/<name>.js`,
+each owning its own `setup` / `tick` / `teardown` / `onInput`. The
+shared transitions (`STATE_BOSS` umbrella, contraband draft on
+victory, `_endRun` on death, practice flow) live in
+`core/game/boss-tick.js` and are style-agnostic. Player input is
+frozen during `BOSS_PHASE_INTRO` across all styles.
+
+Today: **bullet-hell** (the default, hosting Anchor / Algorithm /
+Absolute Unit) and **survival** (hosting The Roomba). New styles are
+added by creating a new file under `boss/styles/` and registering it
+in the dispatcher's `STYLES` map — not by branching the tick function.
+
+### Bullet-hell
+
+- Player Y-locked; auto-fires up.
+- Boss has body cells + weak point + HP. Body cells are destructible
+  cover; weak point is shielded until the body cell directly south of
+  it is destroyed.
+- Boss fires projectiles down. Phases (`BOSS_PHASE_INTRO` / `_1` /
+  `_2` / `_3`) escalate the fire pattern: single aimed shot →
+  triple spread ±45° → triple spread ±90°.
+- Win = boss HP zero. Lose = touch boss / wall / projectile.
+- The boss def's `special()` fires on `BOSS_SPECIAL_INTERVAL` (after
+  intro) and can spawn modifiers — temporary hazards or cover
+  (`anchor_lock`, `algorithm_current`, `danger_trail`, `echo_zone`).
+
+### Survival
+
+The first survival fight is **The Roomba** in catacombs; future
+survival bosses can host on any mutation.
+
+- **Host:** survival doesn't lay its own arena. It uses the host
+  mutation's grid and snake. Production runs reach this via eating
+  red food on the host mutation; practice mode runs the boss def's
+  `bootGrid` hook to bootstrap a fresh maze + snake spawn.
+- **Boss entity:** a 2×2 **blob** that chases the snake via BFS
+  pathfinding. Top-left coordinates; the footprint is
+  `(x, y) .. (x+1, y+1)`.
+- **Spawn:** at the BFS-furthest valid 2×2 placement from the snake
+  head — visible as "incoming threat from the far end of the maze."
+- **Win:** survive `SURVIVAL_WIN_TICKS = 750` ticks
+  (~1.5 min at `BOSS_TICK_MS = 120` ms/tick). HUD shows a countdown
+  via `drawSurvivalInfo`.
+- **Loss (`DEATH_BLOB`):** any blob cell overlaps any snake cell.
+  Plus the existing snake death rules (`DEATH_WALL` / `DEATH_SELF`).
+- **Pacing:** snake auto-advances each `BOSS_TICK_MS`; blob steps
+  every `SURVIVAL_BOSS_TICK_INTERVAL` (1 = match player). BFS
+  recomputes every `SURVIVAL_BOSS_PATH_RECOMPUTE_TICKS` (1 = every
+  step; raise to enable player baiting).
+- **Path-shifts during the fight:** the host mutation's path-shift
+  mechanic (rifts on catacombs) keeps running on a tick cadence — a
+  flip lands every `SURVIVAL_PATH_SHIFT_TICKS = 80` ticks (~10 s).
+  The existing snake-safety rule still skips flips that would close
+  on a snake cell; flips that would close on a **blob** cell still
+  apply, with the blob pushed back along `-lastDir` to the nearest
+  valid 2×2 placement and stunned for `SURVIVAL_BOSS_STUN_TICKS = 8`
+  (~1 s). Flips never kill the blob.
+
+## Upgrades
+
+Three upgrade types exist, distinguished by their **trigger axis**:
+
+- **Passive** — _time-gated._ Always-on while held; counts down its
+  `remainingBites` on every food-bite. e.g. Slow Time.
+- **Consumable** — _player-gated._ Charges spent by manual player
+  trigger. e.g. Bomb, Dash, Wormhole.
+- **Bites** — _event-gated._ Auto-fires on a specific in-game event,
+  consuming one charge per fire. e.g. Iron Jaw (per wall eaten).
+
+Independently, an upgrade also has a **source** — where the player got
+it from. Source and type are orthogonal axes.
+
+### Contraband
+
+A separate _source_ — boss-only upgrades picked from a draft after a
+boss kill. Contraband upgrades have their own data shape
+(`ContrabandDef`) with refresh-per-fight or cooldown semantics
+(Gomu Gomu, Get Out of Jail Free) — they are _not_ in the bites type
+system; the contraband system is structurally distinct.
+
+Each `ContrabandDef` may declare a `styles[]` allow-list scoping it
+to specific boss styles (e.g. `["bullet_hell"]`); unset = available
+in every style. The draft pool is filtered by the active boss's
+style at draft time, so survival fights never see bullet-hell-only
+items like Danger Noodle.
+
+### Upgrade label fields
+
+Each upgrade entry under `LABELS.upgrades.<id>` provides three
+string fields:
+
+- **`name`** — long flavour title shown on draft / contraband cards
+  (e.g. "Who gave the snake a gun?").
+- **`short`** — terse HUD label, ≤10 characters, shown in the
+  upgrade strip (e.g. "Bullets").
+- **`desc`** — one-liner shown under the name on cards.
+
+Defs in `defs.js` and `contraband/*.js` hold only mechanical config
+(id, type, duration / charges, modeOnly, etc.); player-facing strings
+live entirely in `LABELS`.

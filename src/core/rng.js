@@ -1,7 +1,7 @@
 // rng.js — Seeded RNG primitives shared across mutations.
 //
 // Provides deterministic randomness so two runs with the same runSeed
-// produce identical layouts. See `docs/TERMINOLOGY.md` "Seeding pattern".
+// produce identical layouts. See `docs/mechanics.md` "Seeding pattern".
 
 // ── splitmix32 PRNG constants ────────────────────────────────────
 //

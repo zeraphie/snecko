@@ -19,16 +19,43 @@ import {
   DEATH_BOSS,
   DEATH_PROJECTILE,
   DEATH_BOMB,
+  DEATH_BLOB,
   BOSS_BODY_HP,
   HUNGRY_VERTICAL_RANGE,
   PLAYER_BULLET_INTERVAL,
+  SURVIVAL_WIN_TICKS,
+  SURVIVAL_RIFT_INTERVAL_TICKS,
+  SURVIVAL_BOSS_STUN_TICKS,
 } from "../src/core/game/constants.js";
+import * as survivalStyle from "../src/core/boss/styles/survival.js";
+import { Snake } from "../src/core/snake/index.js";
+import {
+  generateCatacombsGrid,
+  advanceCatacombsGrid,
+} from "../src/core/generation/catacombs/generator.js";
+import {
+  CONTRABAND_DEFS,
+  generateContrabandPool,
+} from "../src/core/upgrades/contraband/index.js";
 
 const __testDir = dirname(fileURLToPath(import.meta.url));
 const __projectRoot = resolve(__testDir, "..");
 
 function readAsset(path) {
   return readFileSync(resolve(__projectRoot, path), "utf-8");
+}
+
+/**
+ * Skips the bullet-hell boss intro phase so player input takes effect on
+ * the next tick. Tests that exercise intro behaviour itself should not
+ * call this; everything else should call it after `_enterBossFight()`
+ * since the intro freezes player movement and auto-fire.
+ */
+function skipBossIntro(game) {
+  if (game._fight) {
+    game._fight.phase = Game.BOSS_PHASE_1;
+    game._fight._introTicks = 0;
+  }
 }
 
 /**
@@ -1256,6 +1283,7 @@ describe("boss fight", () => {
 
   it("player moves one cell per tick when key held", () => {
     game._enterBossFight();
+    skipBossIntro(game);
     const px = game.grid.playerX;
     const py = game.grid.playerY;
     // Move right (horizontal movement allowed in bullet-hell mode)
@@ -1281,6 +1309,7 @@ describe("boss fight", () => {
 
   it("player dies on wall collision during boss fight", () => {
     game._enterBossFight();
+    skipBossIntro(game);
     // Place player one cell from the east wall
     game.grid.playerX = Game.GRID_W - 2;
     game.grid.playerY = Math.floor(Game.GRID_H / 2);
@@ -1293,6 +1322,7 @@ describe("boss fight", () => {
 
   it("player dies on boss body collision", () => {
     game._enterBossFight();
+    skipBossIntro(game);
     const boss = game._boss;
     // Find a non-weak body cell and position player to walk into it
     const target = boss.cells.find((c) => !c.weak);
@@ -1511,6 +1541,7 @@ describe("bullet-hell movement", () => {
 
   it("snake_hungry allows vertical movement within range", () => {
     game._enterBossFight();
+    skipBossIntro(game);
     game._contraband = [{ id: "snake_hungry" }];
     const spawnY = game._playerSpawnY;
     game.onInput(0, -1);
@@ -1523,6 +1554,7 @@ describe("bullet-hell movement", () => {
 
   it("snake_hungry vertical movement is clamped at range limit", () => {
     game._enterBossFight();
+    skipBossIntro(game);
     game._contraband = [{ id: "snake_hungry" }];
     const spawnY = game._playerSpawnY;
     game.onInput(0, -1);
@@ -1843,6 +1875,7 @@ describe("projectile system", () => {
 
     it("_fight is null after boss death", () => {
       game._enterBossFight();
+      skipBossIntro(game);
       game.grid.playerX = Game.GRID_W - 2;
       game.grid.playerY = Math.floor(Game.GRID_H / 2);
       game.onInput(1, 0);
@@ -2137,7 +2170,6 @@ describe("contraband system (Step 7)", () => {
   });
 
   it("all 6 contraband items have id, apply, and labels", async () => {
-    const { CONTRABAND_DEFS } = await import("../src/core/upgrades/contraband/index.js");
     const { LABELS } = await import("../src/text/labels.js");
     for (const item of CONTRABAND_DEFS) {
       expect(typeof item.id).toBe("string");
@@ -2145,6 +2177,477 @@ describe("contraband system (Step 7)", () => {
       expect(typeof LABELS.upgrades[item.id].name).toBe("string");
       expect(typeof LABELS.upgrades[item.id].desc).toBe("string");
     }
+  });
+});
+
+describe("contraband style filter", () => {
+  // Items with no `styles` field are universal; items listing styles are
+  // restricted to those. The bullet-hell-only set was chosen because its
+  // mechanics rely on weak points / boss HP / Y-lock — none of which exist
+  // in survival.
+  const BULLET_HELL_ONLY = ["danger_noodle", "double_snake", "snake_hungry", "collateral_hissage"];
+
+  it("bullet-hell pool can include every contraband item", () => {
+    // With a deterministic identity rng, the shuffle is a no-op and the
+    // first 3 of the eligible list come out — but eligibility under
+    // bullet-hell is the full set, so all 6 are reachable.
+    const eligibleIds = CONTRABAND_DEFS.filter(
+      (def) => !def.styles || def.styles.includes("bullet_hell")
+    ).map((def) => def.id);
+    expect(eligibleIds).toHaveLength(CONTRABAND_DEFS.length);
+  });
+
+  it("survival pool excludes bullet-hell-only items", () => {
+    const eligible = CONTRABAND_DEFS.filter(
+      (def) => !def.styles || def.styles.includes("survival")
+    );
+    for (const id of BULLET_HELL_ONLY) {
+      expect(eligible.find((def) => def.id === id)).toBeUndefined();
+    }
+  });
+
+  it("survival pool keeps universal contraband (gomu, jail-free)", () => {
+    const eligible = CONTRABAND_DEFS.filter(
+      (def) => !def.styles || def.styles.includes("survival")
+    );
+    expect(eligible.find((def) => def.id === "gomu_gomu")).toBeDefined();
+    expect(eligible.find((def) => def.id === "get_out_of_jail_free")).toBeDefined();
+  });
+
+  it("generateContrabandPool defaults to bullet-hell when style omitted", () => {
+    let calls = 0;
+    const pool = generateContrabandPool(() => 0.5 + 0.001 * calls++);
+    // Default behaviour preserves the pre-styles draft pool size (3).
+    expect(pool).toHaveLength(3);
+  });
+
+  it("generateContrabandPool with survival style returns no locked items", () => {
+    let calls = 0;
+    const pool = generateContrabandPool(() => 0.5 + 0.001 * calls++, "survival");
+    for (const item of pool) {
+      expect(BULLET_HELL_ONLY).not.toContain(item.id);
+    }
+  });
+});
+
+describe("survival style", () => {
+  let game;
+
+  function simpleGridSetup(g) {
+    g.grid.clearMasks("wall");
+    g.grid.clearMasks("snake");
+    g.grid.clearMasks("reserved");
+    g.grid.terrain.fill(0);
+    const cx = Math.floor(Game.GRID_W / 2);
+    const cy = Math.floor(Game.GRID_H / 2);
+    g.snake.init(g.grid, cx, cy, g.snake.snakeLength, 1, 0);
+    g.grid.foodX = cx + g.snake.snakeLength + 1;
+    g.grid.foodY = cy;
+  }
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.generateGrid = simpleGridSetup;
+    game.advanceGrid = (g) => {
+      const hx = g.snake.snakeX[g.snake.headIndex];
+      const hy = g.snake.snakeY[g.snake.headIndex];
+      g.grid.foodX = hx + g.snake.dirX;
+      g.grid.foodY = hy + g.snake.dirY;
+    };
+    game.startRun();
+  });
+
+  it("setup seeds _bossSurvival with SURVIVAL_WIN_TICKS", () => {
+    survivalStyle.setup(game, { id: "test_survival", style: "survival" });
+    expect(game._bossSurvival.ticksLeft).toBe(SURVIVAL_WIN_TICKS);
+  });
+
+  it("setup records snake length at fight entry", () => {
+    survivalStyle.setup(game, { id: "test_survival", style: "survival" });
+    expect(game._bossSurvival.snakeLengthAtEntry).toBe(game.snake.snakeLength);
+  });
+
+  it("setup creates a _boss name shim and nulls _fight", () => {
+    survivalStyle.setup(game, { id: "test_survival", style: "survival" });
+    expect(game._boss).not.toBeNull();
+    expect(typeof game._boss.name).toBe("string");
+    expect(game._fight).toBeNull();
+  });
+
+  it("tick decrements ticksLeft once per BOSS_TICK_MS gate (post-intro)", () => {
+    survivalStyle.setup(game, { id: "test_survival", style: "survival" });
+    game._bossSurvival.introTicks = 0; // skip intro so the countdown advances
+    const before = game._bossSurvival.ticksLeft;
+    game._lastBossTickTime = 0; // force the gate to fire
+    survivalStyle.tick(game);
+    expect(game._bossSurvival.ticksLeft).toBe(before - 1);
+  });
+
+  it("tick is a no-op while inside the BOSS_TICK_MS gate", () => {
+    survivalStyle.setup(game, { id: "test_survival", style: "survival" });
+    game._bossSurvival.introTicks = 0;
+    const before = game._bossSurvival.ticksLeft;
+    // _lastBossTickTime was just set to Date.now() in setup — gate blocks
+    survivalStyle.tick(game);
+    expect(game._bossSurvival.ticksLeft).toBe(before);
+  });
+
+  it("tick decrements introTicks during the intro window", () => {
+    survivalStyle.setup(game, { id: "test_survival", style: "survival" });
+    const intro = game._bossSurvival.introTicks;
+    const ticksLeft = game._bossSurvival.ticksLeft;
+    game._lastBossTickTime = 0;
+    survivalStyle.tick(game);
+    expect(game._bossSurvival.introTicks).toBe(intro - 1);
+    expect(game._bossSurvival.ticksLeft).toBe(ticksLeft); // countdown frozen during intro
+  });
+
+  it("tick triggers _exitBossVictory when ticksLeft hits zero", () => {
+    survivalStyle.setup(game, { id: "test_survival", style: "survival" });
+    game._bossSurvival.introTicks = 0;
+    game._bossSurvival.ticksLeft = 1;
+    game._bossDef = { id: "test_survival", style: "survival" };
+    game.state = Game.STATE_BOSS;
+    game._lastBossTickTime = 0;
+    survivalStyle.tick(game);
+    expect(game.state).toBe(Game.STATE_CONTRABAND);
+  });
+
+  it("survival victory feeds the survival contraband pool (no bullet-hell-only items)", () => {
+    survivalStyle.setup(game, { id: "test_survival", style: "survival" });
+    game._bossSurvival.introTicks = 0;
+    game._bossDef = { id: "test_survival", style: "survival" };
+    game.state = Game.STATE_BOSS;
+    game._bossSurvival.ticksLeft = 1;
+    game._lastBossTickTime = 0;
+    survivalStyle.tick(game);
+    expect(game._contrabandPool).not.toBeNull();
+    const lockedIds = ["danger_noodle", "double_snake", "snake_hungry", "collateral_hissage"];
+    for (const item of game._contrabandPool) {
+      expect(lockedIds).not.toContain(item.id);
+    }
+  });
+
+  it("teardown clears _bossSurvival", () => {
+    survivalStyle.setup(game, { id: "test_survival", style: "survival" });
+    survivalStyle.teardown(game);
+    expect(game._bossSurvival).toBeNull();
+  });
+
+  // ── Step 3: chase mechanics ──────────────────────────────────────
+
+  it("findFurthestPlacement returns BFS-furthest 2×2 from snake head", () => {
+    // Open 31×31 grid (simpleGridSetup), snake centred at (15, 15).
+    // All four corners tie at min-distance 28; row-major iteration picks
+    // top-left (0, 0).
+    const spawn = survivalStyle.findFurthestPlacement(game.grid, 15, 15);
+    expect(spawn).not.toBeNull();
+    expect(spawn.x).toBe(0);
+    expect(spawn.y).toBe(0);
+  });
+
+  it("setup spawns the blob at the BFS-furthest placement", () => {
+    survivalStyle.setup(game, { id: "test_survival", style: "survival" });
+    expect(game._bossSurvival.blob.x).toBe(0);
+    expect(game._bossSurvival.blob.y).toBe(0);
+  });
+
+  it("planBlobMove reduces distance toward the snake head", () => {
+    // Blob at (0, 0), snake at (15, 15). The blob's 2×2 footprint has
+    // min-distance 28 (cell (1,1)); both south and east neighbours
+    // reduce that to 27. NSEW iteration order picks south first.
+    const blob = { x: 0, y: 0, lastDx: 0, lastDy: 0 };
+    const move = survivalStyle.planBlobMove(game.grid, blob, 15, 15);
+    expect(move.dx).toBe(0);
+    expect(move.dy).toBe(1);
+  });
+
+  it("blob blocked by walls picks the only valid neighbour", () => {
+    // Wall the blob into a corridor that only opens to the east.
+    game.grid.setCell("wall", 1, 2); // block south
+    const blob = { x: 0, y: 0, lastDx: 0, lastDy: 0 };
+    const move = survivalStyle.planBlobMove(game.grid, blob, 15, 15);
+    expect(move.dx).toBe(1);
+    expect(move.dy).toBe(0);
+  });
+
+  it("intro ticks freeze both snake and blob", () => {
+    survivalStyle.setup(game, { id: "test_survival", style: "survival" });
+    const blobBefore = { x: game._bossSurvival.blob.x, y: game._bossSurvival.blob.y };
+    const headBefore = {
+      x: game.snake.snakeX[game.snake.headIndex],
+      y: game.snake.snakeY[game.snake.headIndex],
+    };
+    game._lastBossTickTime = 0;
+    survivalStyle.tick(game);
+    expect(game._bossSurvival.blob.x).toBe(blobBefore.x);
+    expect(game._bossSurvival.blob.y).toBe(blobBefore.y);
+    expect(game.snake.snakeX[game.snake.headIndex]).toBe(headBefore.x);
+    expect(game.snake.snakeY[game.snake.headIndex]).toBe(headBefore.y);
+  });
+
+  it("post-intro tick advances snake and steps the blob", () => {
+    survivalStyle.setup(game, { id: "test_survival", style: "survival" });
+    game._bossSurvival.introTicks = 0;
+    game._lastBossTickTime = 0;
+    const blobBefore = { x: game._bossSurvival.blob.x, y: game._bossSurvival.blob.y };
+    const headBefore = {
+      x: game.snake.snakeX[game.snake.headIndex],
+      y: game.snake.snakeY[game.snake.headIndex],
+    };
+    survivalStyle.tick(game);
+    // Snake auto-advances one cell in its facing direction (right).
+    expect(game.snake.snakeX[game.snake.headIndex]).toBe(headBefore.x + 1);
+    expect(game.snake.snakeY[game.snake.headIndex]).toBe(headBefore.y);
+    // Blob steps one cell toward the snake (south first per NSEW order).
+    expect(game._bossSurvival.blob.x).toBe(blobBefore.x);
+    expect(game._bossSurvival.blob.y).toBe(blobBefore.y + 1);
+  });
+
+  it("snake stepping into the blob causes DEATH_BLOB", () => {
+    survivalStyle.setup(game, { id: "test_survival", style: "survival" });
+    game._bossSurvival.introTicks = 0;
+    // Place blob covering (16,14)..(17,15). Snake head at (15,15) facing
+    // right; next snake.step lands head at (16,15) → inside the blob.
+    game._bossSurvival.blob.x = 16;
+    game._bossSurvival.blob.y = 14;
+    game._bossDef = { id: "catacombs_chaser", style: "survival" };
+    game.state = Game.STATE_BOSS;
+    game._lastBossTickTime = 0;
+    survivalStyle.tick(game);
+    game.cancelNameInput(); // _exitBossDeath → STATE_NAME_INPUT → cancel → STATE_DEAD
+    expect(game.state).toBe(Game.STATE_DEAD);
+    expect(game.snake.deathCause).toBe(DEATH_BLOB);
+  });
+
+  it("snake hitting a wall during survival causes DEATH_WALL", () => {
+    game.grid.setCell("wall", 16, 15); // block snake's next step
+    survivalStyle.setup(game, { id: "test_survival", style: "survival" });
+    game._bossSurvival.introTicks = 0;
+    game._bossDef = { id: "catacombs_chaser", style: "survival" };
+    game.state = Game.STATE_BOSS;
+    game._lastBossTickTime = 0;
+    survivalStyle.tick(game);
+    game.cancelNameInput();
+    expect(game.state).toBe(Game.STATE_DEAD);
+    expect(game.snake.deathCause).toBe(DEATH_WALL);
+  });
+
+  it("setup runs def.bootGrid when the snake is uninitialised (practice mode)", () => {
+    // Simulate `_enterPracticeBossFight`: a fresh Snake with snakeLength=0.
+    game.snake = new Snake();
+    let bootCalled = false;
+    const def = {
+      id: "test_chaser",
+      style: "survival",
+      bootGrid(g) {
+        bootCalled = true;
+        // Mimic generateCatacombsGrid: spawn snake at a valid cell.
+        g.snake.init(g.grid, 5, 5, 3, 1, 0);
+      },
+    };
+    survivalStyle.setup(game, def);
+    expect(bootCalled).toBe(true);
+    expect(game.snake.snakeLength).toBe(3);
+    // Blob spawns away from the freshly-positioned snake, not at (0, 0).
+    expect(game._bossSurvival.blob).toBeDefined();
+  });
+
+  it("setup skips def.bootGrid when the snake is already on the maze (production)", () => {
+    // simpleGridSetup in beforeEach already initialised the snake.
+    let bootCalled = false;
+    const def = {
+      id: "test_chaser",
+      style: "survival",
+      bootGrid() {
+        bootCalled = true;
+      },
+    };
+    survivalStyle.setup(game, def);
+    expect(bootCalled).toBe(false);
+  });
+
+  // ── Step 4: path-shift driver + push/stun ────────────────────────
+
+  it("path-shift driver advances the rifts mechanic on tick cadence", () => {
+    survivalStyle.setup(game, { id: "test_chaser", style: "survival" });
+    game._bossSurvival.introTicks = 0;
+    // Stub a minimal rifts mechanic so advanceRifts has somewhere to write.
+    game.mechanic = {
+      type: "rifts",
+      state: "linger",
+      rand: () => 0,
+      biteCounter: 0,
+      pendingRift: null,
+      riftBatch: [],
+    };
+    // One tick before the threshold; the next tick should fire advanceRifts.
+    game._bossSurvival.shiftCounter = SURVIVAL_RIFT_INTERVAL_TICKS - 1;
+    game._lastBossTickTime = 0;
+    survivalStyle.tick(game);
+    expect(game.mechanic.biteCounter).toBe(1);
+    expect(game._bossSurvival.shiftCounter).toBe(0);
+  });
+
+  it("path-shift driver does not fire before the cadence interval elapses", () => {
+    survivalStyle.setup(game, { id: "test_chaser", style: "survival" });
+    game._bossSurvival.introTicks = 0;
+    game.mechanic = {
+      type: "rifts",
+      state: "linger",
+      rand: () => 0,
+      biteCounter: 0,
+      pendingRift: null,
+      riftBatch: [],
+    };
+    // Two ticks under the threshold — biteCounter must stay at 0.
+    game._bossSurvival.shiftCounter = SURVIVAL_RIFT_INTERVAL_TICKS - 3;
+    game._lastBossTickTime = 0;
+    survivalStyle.tick(game);
+    game._lastBossTickTime = 0;
+    survivalStyle.tick(game);
+    expect(game.mechanic.biteCounter).toBe(0);
+  });
+
+  it("flip closing on the blob pushes it back along -lastDir and stuns it", () => {
+    survivalStyle.setup(game, { id: "test_chaser", style: "survival" });
+    game._bossSurvival.introTicks = 0;
+    // Place the blob away from the snake; lastDir = east, so push direction = west.
+    game._bossSurvival.blob.x = 5;
+    game._bossSurvival.blob.y = 5;
+    game._bossSurvival.blob.lastDx = 1;
+    game._bossSurvival.blob.lastDy = 0;
+    // Wall part of the blob's footprint to simulate a flip that just landed
+    // on it. Cells (3, 5)..(4, 6) stay open so the push has somewhere to land.
+    game.grid.setCell("wall", 5, 5);
+    game.grid.setCell("wall", 6, 5);
+    // Force the shift driver to fire on this tick.
+    game._bossSurvival.shiftCounter = SURVIVAL_RIFT_INTERVAL_TICKS - 1;
+    game._lastBossTickTime = 0;
+    survivalStyle.tick(game);
+    // Pushed west to the first valid 2×2 placement: (3, 5).
+    expect(game._bossSurvival.blob.x).toBe(3);
+    expect(game._bossSurvival.blob.y).toBe(5);
+    expect(game._bossSurvival.blob.stunTicks).toBe(SURVIVAL_BOSS_STUN_TICKS);
+    // lastDir cleared so the next plan replans freshly.
+    expect(game._bossSurvival.blob.lastDx).toBe(0);
+    expect(game._bossSurvival.blob.lastDy).toBe(0);
+  });
+
+  it("flip leaves the blob alone when its footprint stays clear", () => {
+    survivalStyle.setup(game, { id: "test_chaser", style: "survival" });
+    game._bossSurvival.introTicks = 0;
+    game._bossSurvival.blob.x = 5;
+    game._bossSurvival.blob.y = 5;
+    game._bossSurvival.blob.lastDx = 1;
+    game._bossSurvival.blob.lastDy = 0;
+    // No walls touching the blob's footprint (5..6, 5..6).
+    game._bossSurvival.shiftCounter = SURVIVAL_RIFT_INTERVAL_TICKS - 1;
+    game._lastBossTickTime = 0;
+    survivalStyle.tick(game);
+    // Blob may have moved one cell via planBlobMove, but no push/stun.
+    expect(game._bossSurvival.blob.stunTicks).toBe(0);
+  });
+
+  it("blob stun ticks count down without movement", () => {
+    survivalStyle.setup(game, { id: "test_survival", style: "survival" });
+    game._bossSurvival.introTicks = 0;
+    game._bossSurvival.blob.x = 5;
+    game._bossSurvival.blob.y = 5;
+    game._bossSurvival.blob.stunTicks = 3;
+    game._lastBossTickTime = 0;
+    survivalStyle.tick(game);
+    expect(game._bossSurvival.blob.stunTicks).toBe(2);
+    // Snake moved one cell, but blob stayed put.
+    expect(game._bossSurvival.blob.x).toBe(5);
+    expect(game._bossSurvival.blob.y).toBe(5);
+  });
+});
+
+describe("catacombs survival integration (Step 5)", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.generateGrid = generateCatacombsGrid;
+    game.advanceGrid = advanceCatacombsGrid;
+    game.startRun();
+    game.upgrades.setMutation("catacombs");
+  });
+
+  it("resolves the boss def to catacombs_chaser with survival style", () => {
+    game._enterBossFight();
+    expect(game._bossDef.id).toBe("catacombs_chaser");
+    expect(game._bossDef.style).toBe("survival");
+    expect(game.state).toBe(Game.STATE_BOSS);
+  });
+
+  it("clears food cells at fight entry", () => {
+    expect(game.grid.foodX).toBeGreaterThanOrEqual(0); // catacombs places food at start
+    game._enterBossFight();
+    expect(game.grid.foodX).toBe(-1);
+    expect(game.grid.foodY).toBe(-1);
+    expect(game.grid.bossFoodX).toBe(-1);
+    expect(game.grid.bossFoodY).toBe(-1);
+  });
+
+  it("spawns the blob at a valid 2×2 corridor placement", () => {
+    game._enterBossFight();
+    const blob = game._bossSurvival.blob;
+    for (let dy = 0; dy < 2; dy++) {
+      for (let dx = 0; dx < 2; dx++) {
+        expect(game.grid.isWallCell(blob.x + dx, blob.y + dy)).toBe(false);
+      }
+    }
+  });
+
+  it("blob spawn is far from the snake head (BFS-furthest)", () => {
+    game._enterBossFight();
+    const blob = game._bossSurvival.blob;
+    const head = {
+      x: game.snake.snakeX[game.snake.headIndex],
+      y: game.snake.snakeY[game.snake.headIndex],
+    };
+    // Manhattan check is cheap and conservative — BFS-furthest in a maze
+    // produces at-least-Manhattan distance. Catacombs is 31×31; the
+    // furthest corridor cell from any other corridor cell is well above
+    // 10 cells away.
+    const dist = Math.abs(blob.x - head.x) + Math.abs(blob.y - head.y);
+    expect(dist).toBeGreaterThan(10);
+  });
+
+  it("survives SURVIVAL_WIN_TICKS → STATE_CONTRABAND", () => {
+    game._enterBossFight();
+    game._bossSurvival.introTicks = 0;
+    game._bossSurvival.ticksLeft = 1;
+    game._lastBossTickTime = 0;
+    game._bossTick();
+    expect(game.state).toBe(Game.STATE_CONTRABAND);
+  });
+
+  it("survival contraband pool excludes bullet-hell-only items", () => {
+    game._enterBossFight();
+    game._bossSurvival.introTicks = 0;
+    game._bossSurvival.ticksLeft = 1;
+    game._lastBossTickTime = 0;
+    game._bossTick();
+    expect(game._contrabandPool).not.toBeNull();
+    const lockedIds = ["danger_noodle", "double_snake", "snake_hungry", "collateral_hissage"];
+    for (const item of game._contrabandPool) {
+      expect(lockedIds).not.toContain(item.id);
+    }
+  });
+
+  it("rifts mechanic stays initialised across the boss-fight transition", () => {
+    // generateCatacombsGrid sets up rifts; survival.setup must not clobber it
+    // because the path-shift driver relies on advanceRifts(game).
+    expect(game.mechanic).not.toBeNull();
+    expect(game.mechanic.type).toBe("rifts");
+    game._enterBossFight();
+    expect(game.mechanic).not.toBeNull();
+    expect(game.mechanic.type).toBe("rifts");
   });
 });
 
@@ -2737,6 +3240,7 @@ describe("player invulnerability (Step 5)", () => {
 
   it("walking into the weak point passes through (no ram damage)", () => {
     game._enterBossFight();
+    skipBossIntro(game);
     const boss = game._boss;
     const wp = boss.getWeakPoint();
     // Expose the weak point by destroying adjacent body cells

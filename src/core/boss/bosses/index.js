@@ -6,25 +6,33 @@
 import trafficJam from "./traffic-jam.js";
 import theAlgorithm from "./the-algorithm.js";
 import absoluteUnit from "./absolute-unit.js";
+import catacombsChaser from "./catacombs-chaser.js";
 
 // ── Type ─────────────────────────────────────────────────────────
 
 /**
  * @typedef {Object} BossDef
  * @property {string} id           — stable identifier (used by future save/analytics)
+ * @property {string} [style]      — boss style key (e.g. "bullet_hell", "survival"). Defaults to "bullet_hell" if unset.
  * @property {string} name         — display name shown in the HUD and intro card
- * @property {number} maxHp        — hit points required to defeat
- * @property {number} [bodyHp]     — HP per destructible body cell (default 3)
- * @property {number} width        — horizontal cell count
- * @property {number} height       — vertical cell count
- * @property {number} weakX        — weak-point column offset from top-left (0-indexed)
- * @property {number} weakY        — weak-point row offset from top-left (0-indexed)
- * @property {object} [shape]      — parsed .boss shape (cells, width, height)
- * @property {string} [arena]      — arena name from .arena file (e.g. "Box", "Pillars")
- * @property {string} [shapeFile]  — .boss filename stem (e.g. "traffic-jam")
- * @property {((game: object) => void) | null} special
- *   Called every BOSS_SPECIAL_INTERVAL ticks after the intro window ends.
+ * @property {number} [maxHp]      — bullet-hell only: hit points required to defeat
+ * @property {number} [bodyHp]     — bullet-hell only: HP per destructible body cell (default 3)
+ * @property {number} [width]      — bullet-hell only: horizontal cell count
+ * @property {number} [height]     — bullet-hell only: vertical cell count
+ * @property {number} [weakX]      — bullet-hell only: weak-point column offset from top-left (0-indexed)
+ * @property {number} [weakY]      — bullet-hell only: weak-point row offset from top-left (0-indexed)
+ * @property {object} [shape]      — bullet-hell only: parsed .boss shape (cells, width, height)
+ * @property {string} [arena]      — bullet-hell only: arena name from .arena file (e.g. "Box", "Pillars")
+ * @property {string} [shapeFile]  — bullet-hell only: .boss filename stem (e.g. "traffic-jam")
+ * @property {((game: object) => void) | null} [special]
+ *   Bullet-hell only: called every BOSS_SPECIAL_INTERVAL ticks after the intro window ends.
  *   Null means no special ability (Absolute Unit / future stubs).
+ * @property {((game: object) => void)} [bootGrid]
+ *   Style-agnostic: called by the style's setup when the grid/snake are
+ *   uninitialised (e.g. practice mode entered via the boss picker, where
+ *   `_enterPracticeBossFight` builds a fresh Snake). Should leave the
+ *   grid in a playable state and spawn the snake at a valid cell.
+ *   Skipped in normal play because the run's `generateGrid` already ran.
  */
 
 // ── Registry ──────────────────────────────────────────────────────
@@ -33,6 +41,7 @@ import absoluteUnit from "./absolute-unit.js";
 const BOSS_DEFS = {
   crystalline: trafficJam,
   wildlands: theAlgorithm,
+  catacombs: catacombsChaser,
 };
 
 // ── Fallback ──────────────────────────────────────────────────────
@@ -64,7 +73,7 @@ export function getBossDef(mutation) {
  *
  * @type {ReadonlyArray<BossDef>}
  */
-export const ALL_BOSS_DEFS = [trafficJam, theAlgorithm, absoluteUnit];
+export const ALL_BOSS_DEFS = [trafficJam, theAlgorithm, absoluteUnit, catacombsChaser];
 
 /**
  * Returns the boss definition matching `id`, or null if no boss exists with

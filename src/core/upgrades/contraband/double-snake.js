@@ -11,5 +11,6 @@
 // Player-facing name/desc lives in src/text/labels.js (LABELS.upgrades.double_snake).
 export default {
   id: "double_snake",
+  styles: ["bullet_hell"], // echo zones damage boss — bullet-hell only (survival blob has no HP)
   apply: (_game) => {}, // Checked at movement + damage time in boss-tick.js
 };

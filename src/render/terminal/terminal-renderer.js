@@ -13,7 +13,7 @@
 import { CELL_EMPTY, CELL_SNAKE_HEAD } from "../renderer.js";
 import { Renderer } from "../renderer.js";
 import { ESC_HIDE_CURSOR, ESC_SHOW_CURSOR } from "./palette.js";
-import { drawHUD, drawBossInfo, drawBossIntroOverlay } from "./hud.js";
+import { drawHUD, drawBossInfo, drawSurvivalInfo, drawBossIntroOverlay } from "./hud.js";
 import {
   drawScreen,
   drawDraftScreen,
@@ -117,6 +117,10 @@ export class TerminalRenderer extends Renderer {
 
   drawBossInfo(name, hp, maxHp, phase) {
     drawBossInfo(this, name, hp, maxHp, phase);
+  }
+
+  drawSurvivalInfo(name, ticksLeft, totalTicks) {
+    drawSurvivalInfo(this, name, ticksLeft, totalTicks);
   }
 
   drawHUD(

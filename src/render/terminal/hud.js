@@ -101,6 +101,39 @@ export function drawBossInfo(r, name, hp, maxHp, phase) {
   }
 }
 
+// ── Survival countdown ───────────────────────────────────────────
+
+/**
+ * Replaces the second HUD line with a survival countdown bar (depletes
+ * left-to-right) and a mm:ss remaining at BOSS_TICK_MS = 120 ms/tick.
+ *
+ * @param {import('./terminal-renderer.js').TerminalRenderer} r
+ * @param {string} name
+ * @param {number} ticksLeft
+ * @param {number} totalTicks
+ */
+export function drawSurvivalInfo(r, name, ticksLeft, totalTicks) {
+  const BAR_LEN = 10;
+  const filled = totalTicks > 0 ? Math.round((ticksLeft / totalTicks) * BAR_LEN) : 0;
+  const bar =
+    GREEN + "▓".repeat(filled) + RESET + DIM + "░".repeat(BAR_LEN - filled) + RESET;
+
+  const secs = Math.max(0, Math.ceil((ticksLeft * 120) / 1000));
+  const mm = String(Math.floor(secs / 60)).padStart(2, "0");
+  const ss = String(secs % 60).padStart(2, "0");
+
+  const line = `${RED}${name}${RESET}  ${bar}  ${mm}:${ss}`;
+
+  const lines = r._hudLine.split("\n");
+  lines[1] = line;
+  r._hudLine = lines.join("\n");
+
+  const rawLen = line.replace(/\x1b\[[0-9;]*m/g, "").length;
+  if (rawLen > r._maxHudLen) {
+    r._maxHudLen = rawLen;
+  }
+}
+
 // ── Boss intro overlay ───────────────────────────────────────────
 
 /**
