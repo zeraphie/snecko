@@ -153,8 +153,8 @@ function placeStage0(game, c) {
   // Allocate ownership masks sized for the largest stage's bbox.
   const stage1 = crystal.stages[1] ?? crystal.stages[0];
   const stage1Shape = stage1.rotations[c.rotation % stage1.rotations.length];
-  c.ownedSolid = new Array(stage1Shape.height).fill(0);
-  c.ownedInterior = new Array(stage1Shape.height).fill(0);
+  c.ownedSolid = Array.from({ length: stage1Shape.height }, () => 0);
+  c.ownedInterior = Array.from({ length: stage1Shape.height }, () => 0);
 
   clearTelegraphFor(grid, shape, c.x, c.y);
   stamp(grid, c, shape);

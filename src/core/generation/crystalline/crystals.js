@@ -120,7 +120,7 @@ function computeInteriorRows(width, height, solidRows) {
   }
 
   // Empty cells not reached from outside are interior.
-  const interiorRows = new Array(height).fill(0);
+  const interiorRows = Array.from({ length: height }, () => 0);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < width; x++) {
       if (!isSolid(x, y) && !visited[y * width + x]) {
