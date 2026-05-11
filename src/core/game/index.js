@@ -187,6 +187,7 @@ export class Game {
     this.generateGrid = null;
     this.advanceGrid = null;
     this._heldDirection = null;
+    this._heldDirections = [];
 
     this._playerFacing = { dx: 1, dy: 0 };
     this._playerSpawnY = 0;
@@ -248,6 +249,7 @@ export class Game {
     this._wormholeB = null;
     this.mechanic = null;
     this._heldDirection = null;
+    this._heldDirections = [];
     this._runRecorded = false;
     this._pendingRunRecord = null;
     this._nameInput = "";
@@ -303,6 +305,13 @@ export class Game {
    * @param {number} dy
    */
   onInput(dx, dy) {
+    // Soulslike tracks a stack of held directions so a release falls
+    // back to the previously-held direction (e.g. hold W, tap A, release
+    // A → keep going up). Other styles keep last-pressed-wins.
+    if (this._soulslike && (dx !== 0 || dy !== 0)) {
+      this._heldDirections = this._heldDirections.filter((d) => !(d.dx === dx && d.dy === dy));
+      this._heldDirections.push({ dx, dy });
+    }
     if (this.state === STATE_PLAYING) {
       this.snake.setNextDirection(dx, dy);
     } else if (this.state === STATE_BOSS) {
@@ -322,8 +331,17 @@ export class Game {
    * @param {number} dy
    */
   onInputRelease(dx, dy) {
+    if (this._soulslike) {
+      this._heldDirections = this._heldDirections.filter((d) => !(d.dx === dx && d.dy === dy));
+      if (this._heldDirections.length > 0) {
+        const top = this._heldDirections[this._heldDirections.length - 1];
+        this._bossOnInput(top.dx, top.dy);
+        return;
+      }
+    }
     if (this._heldDirection && this._heldDirection.dx === dx && this._heldDirection.dy === dy) {
       this._heldDirection = null;
+      this._heldDirections = [];
     }
   }
 

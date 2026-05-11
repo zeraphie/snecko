@@ -198,6 +198,12 @@ export function drawSoulslikeInfo(
   ctx.textAlign = "left";
   ctx.fillStyle = "#888";
   ctx.fillText(`${bossHp}/${bossHpMax}`, bossBarX + bossBarW + 8, y2);
+
+  // Line 2, right: J/K/L control hints.
+  ctx.textAlign = "right";
+  ctx.fillStyle = "#888";
+  ctx.fillText(LABELS.hud.soulslikeControls, this._gridW - 8, y2);
+  ctx.textAlign = "left";
 }
 
 export function drawYouDiedOverlay(causeText) {

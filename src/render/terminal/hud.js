@@ -177,7 +177,7 @@ export function drawSoulslikeInfo(
   const filledSt = Math.max(0, Math.min(staminaMax, stamina));
   const stPips =
     CYAN + "●".repeat(filledSt) + RESET + DIM + "○".repeat(staminaMax - filledSt) + RESET;
-  const line2 = `${LABELS.hud.hp} ${hpBar}  ${LABELS.hud.stamina} ${stPips}`;
+  const line2 = `${LABELS.hud.hp} ${hpBar}  ${LABELS.hud.stamina} ${stPips}  ${DIM}${LABELS.hud.soulslikeControls}${RESET}`;
 
   r._hudLine = `${line1}\n${line2}`;
 

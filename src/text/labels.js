@@ -17,6 +17,7 @@ export const LABELS = {
     // Soulslike-style HUD short labels.
     hp: "HP",
     stamina: "ST",
+    soulslikeControls: "J=Knife, K=Dodge, L=Parry",
   },
   dead: {
     title: "G A M E   O V E R",
@@ -62,7 +63,11 @@ export const LABELS = {
       desc: "Do quantum mechanics things",
     },
     // Mutations
-    wildlands: { name: "Wildlands", short: "Wildlands", desc: "FBM terrain generation" },
+    wildlands: {
+      name: "Wildlands",
+      short: "Wildlands",
+      desc: "FBM terrain generation",
+    },
     crystalline: {
       name: "Crystalline",
       short: "Crystalline",

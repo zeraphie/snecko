@@ -47,6 +47,7 @@ export function setup(game, def) {
   // state from a prior fight doesn't leak.
   game._fight = null;
   game._heldDirection = null;
+  game._heldDirections = [];
 
   // Soulslike always re-lays the arena — no host mutation grid to
   // inherit from (D2). bootGrid handles wall layout + snake spawn;
