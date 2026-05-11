@@ -8,6 +8,7 @@ import {
   CELL_WALL_HIGH,
   CELL_FOOD,
   CELL_SNAKE,
+  CELL_SNAKE_HEAD,
   CELL_CURRENT_RIGHT,
   CELL_CURRENT_LEFT,
   CELL_CURRENT_DOWN,
@@ -28,9 +29,9 @@ import {
   CELL_ECHO_ZONE,
   CELL_PLAYER_BULLET,
   CELL_EXHAUST,
-  CELL_BLOB,
 } from "../../render/renderer.js";
-import { SURVIVAL_BLOB_SIZE } from "./constants.js";
+import { drawCell } from "../grid/cell/index.js";
+import { setActiveRenderer } from "../../render/active.js";
 import { getPlayerCells } from "../boss/player.js";
 import {
   TERRAIN_LOW,
@@ -81,7 +82,6 @@ function currentCellType(mechanic, x, y) {
  * wall — handles the spawn position near the south wall gracefully.
  */
 export function _drawBossArena() {
-  const renderer = this.renderer;
   const grid = this.grid;
 
   // 1. Arena walls — anchor-lock cells (tracked in _bossModifiers) render as
@@ -101,7 +101,7 @@ export function _drawBossArena() {
     for (let x = 0; x < grid.width; x++) {
       if (grid.isWallCell(x, y)) {
         const cellType = lockCellSet.has(lockCellKey(x, y)) ? CELL_ANCHOR_LOCK : CELL_WALL_ARENA;
-        renderer.drawCell(x, y, cellType);
+        drawCell(x, y, cellType);
       }
     }
   }
@@ -130,21 +130,21 @@ export function _drawBossArena() {
                 ? CELL_CURRENT_DOWN
                 : CELL_CURRENT_UP;
       }
-      renderer.drawCell(cell.x, cell.y, cellType);
+      drawCell(cell.x, cell.y, cellType);
     }
   }
 
   // 1c. Danger trail cells
   for (const mod of this._bossModifiers) {
     if (mod.type === "danger_trail" && grid.isInBounds(mod.x, mod.y)) {
-      renderer.drawCell(mod.x, mod.y, CELL_DANGER_TRAIL);
+      drawCell(mod.x, mod.y, CELL_DANGER_TRAIL);
     }
   }
 
   // 1d. Echo zone cells
   for (const mod of this._bossModifiers) {
     if (mod.type === "echo_zone" && grid.isInBounds(mod.x, mod.y)) {
-      renderer.drawCell(mod.x, mod.y, CELL_ECHO_ZONE);
+      drawCell(mod.x, mod.y, CELL_ECHO_ZONE);
     }
   }
 
@@ -165,21 +165,21 @@ export function _drawBossArena() {
       } else {
         type = CELL_BOSS_BODY;
       }
-      renderer.drawCell(cell.x, cell.y, type);
+      drawCell(cell.x, cell.y, type);
     }
   }
 
   // 3. Projectiles
   for (const p of this._projectiles) {
     if (grid.isInBounds(p.x, p.y)) {
-      renderer.drawCell(p.x, p.y, CELL_PROJECTILE);
+      drawCell(p.x, p.y, CELL_PROJECTILE);
     }
   }
 
   // 3b. Player bullets
   for (const pb of this._playerBullets) {
     if (grid.isInBounds(pb.x, pb.y)) {
-      renderer.drawCell(pb.x, pb.y, CELL_PLAYER_BULLET);
+      drawCell(pb.x, pb.y, CELL_PLAYER_BULLET);
     }
   }
 
@@ -195,63 +195,37 @@ export function _drawBossArena() {
     // Primary flame — always visible
     const ey1 = tailY + 1;
     if (grid.isInBounds(grid.playerX, ey1) && !grid.isWallCell(grid.playerX, ey1)) {
-      renderer.drawCell(grid.playerX, ey1, CELL_EXHAUST);
+      drawCell(grid.playerX, ey1, CELL_EXHAUST);
     }
     // Wing flames — alternate sides
     const wingX = fc % 2 === 0 ? grid.playerX - 1 : grid.playerX + 1;
     if (fc % 3 !== 0 && grid.isInBounds(wingX, ey1) && !grid.isWallCell(wingX, ey1)) {
-      renderer.drawCell(wingX, ey1, CELL_EXHAUST);
+      drawCell(wingX, ey1, CELL_EXHAUST);
     }
     // Tongue — occasional
     const ey2 = tailY + 2;
     if (fc % 3 === 0 && grid.isInBounds(grid.playerX, ey2) && !grid.isWallCell(grid.playerX, ey2)) {
-      renderer.drawCell(grid.playerX, ey2, CELL_EXHAUST);
+      drawCell(grid.playerX, ey2, CELL_EXHAUST);
     }
 
     // Body cells (indices 1-5): skip invalid positions
     for (let i = 1; i < cells.length; i++) {
       const c = cells[i];
       if (grid.isInBounds(c.x, c.y) && !grid.isWallCell(c.x, c.y)) {
-        renderer.drawCell(c.x, c.y, invul ? CELL_PLAYER_INVUL : CELL_SNAKE);
+        drawCell(c.x, c.y, invul ? CELL_PLAYER_INVUL : CELL_SNAKE);
       }
     }
 
     // Tip (index 0): directional head, cyan-flickering when invulnerable
-    if (invul) {
-      renderer.drawSnakeHeadInvul(grid.playerX, grid.playerY, dir.dx, dir.dy);
-    } else {
-      renderer.drawSnakeHead(grid.playerX, grid.playerY, dir.dx, dir.dy);
-    }
-  }
-}
-
-/**
- * Draws the survival arena: the maze + snake (via _drawGrid), with the
- * 2×2 chasing blob on top. The catacombs grid stays in place during a
- * survival fight, so this is mostly a regular play render with the blob
- * overlay.
- */
-export function _drawSurvivalArena() {
-  this._drawGrid();
-  const sv = this._bossSurvival;
-  if (!sv) {
-    return;
-  }
-  const blob = sv.blob;
-  for (let dy = 0; dy < SURVIVAL_BLOB_SIZE; dy++) {
-    for (let dx = 0; dx < SURVIVAL_BLOB_SIZE; dx++) {
-      const x = blob.x + dx;
-      const y = blob.y + dy;
-      if (this.grid.isInBounds(x, y)) {
-        this.renderer.drawCell(x, y, CELL_BLOB);
-      }
-    }
+    drawCell(grid.playerX, grid.playerY, CELL_SNAKE_HEAD, {
+      facing: { dx: dir.dx, dy: dir.dy },
+      invul,
+    });
   }
 }
 
 /** Draws all grid cells (walls, food, terrain, snake, portals) to the renderer. */
 export function _drawGrid() {
-  const renderer = this.renderer;
   const grid = this.grid;
   const ironJawActive = this.upgrades.hasBites("iron_jaw");
   for (let y = 0; y < grid.height; y++) {
@@ -266,17 +240,17 @@ export function _drawGrid() {
         } else {
           cell = CELL_WALL;
         }
-        renderer.drawCell(x, y, cell);
+        drawCell(x, y, cell);
       } else if (x === grid.foodX && y === grid.foodY) {
-        renderer.drawCell(x, y, CELL_FOOD);
+        drawCell(x, y, CELL_FOOD);
       } else if (x === grid.bossFoodX && y === grid.bossFoodY) {
-        renderer.drawCell(x, y, CELL_RED_FOOD);
+        drawCell(x, y, CELL_RED_FOOD);
       } else {
         const t = grid.terrain[y * grid.width + x];
         if (t === TERRAIN_CURRENT) {
-          renderer.drawCell(x, y, currentCellType(this.mechanic, x, y));
+          drawCell(x, y, currentCellType(this.mechanic, x, y));
         } else if (t === TERRAIN_TELEGRAPH) {
-          renderer.drawCell(x, y, CELL_TELEGRAPH);
+          drawCell(x, y, CELL_TELEGRAPH);
         }
       }
     }
@@ -285,22 +259,19 @@ export function _drawGrid() {
   const snake = this.snake;
   let idx = snake.tailIndex;
   while (idx !== snake.headIndex) {
-    renderer.drawCell(snake.snakeX[idx], snake.snakeY[idx], CELL_SNAKE);
+    drawCell(snake.snakeX[idx], snake.snakeY[idx], CELL_SNAKE);
     idx = (idx + 1) % Snake.MAX_CELLS;
   }
-  renderer.drawSnakeHead(
-    snake.snakeX[snake.headIndex],
-    snake.snakeY[snake.headIndex],
-    snake.dirX,
-    snake.dirY
-  );
+  drawCell(snake.snakeX[snake.headIndex], snake.snakeY[snake.headIndex], CELL_SNAKE_HEAD, {
+    facing: { dx: snake.dirX, dy: snake.dirY },
+  });
 
   // Draw wormhole portals on top
   if (this._wormholeA) {
-    renderer.drawCell(this._wormholeA.x, this._wormholeA.y, CELL_WORMHOLE_A);
+    drawCell(this._wormholeA.x, this._wormholeA.y, CELL_WORMHOLE_A);
   }
   if (this._wormholeB) {
-    renderer.drawCell(this._wormholeB.x, this._wormholeB.y, CELL_WORMHOLE_B);
+    drawCell(this._wormholeB.x, this._wormholeB.y, CELL_WORMHOLE_B);
   }
 }
 
@@ -310,6 +281,11 @@ export function renderFrame() {
   if (!renderer) {
     return;
   }
+
+  // Sync the active renderer so the cell adapter (and any cell file
+  // import that touches `activeRenderer`) writes to whatever renderer
+  // the game currently has — including test mocks swapped in mid-run.
+  setActiveRenderer(renderer);
 
   const screen = getScreen(this.state);
   if (screen) {

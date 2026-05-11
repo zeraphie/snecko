@@ -7,3 +7,6 @@ PLAN*.md
 .DS_Store
 dist
 ai/
+
+# Local visual reference images dropped alongside soulslike code.
+*.webp

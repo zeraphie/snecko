@@ -19,6 +19,7 @@ import { nameInputScreen } from "./nameInput.js";
 import { practiceHubScreen } from "./practiceHub.js";
 import { bossPickerScreen } from "./bossPicker.js";
 import { bossRushCompleteScreen } from "./bossRushComplete.js";
+import { youDiedScreen } from "./youDied.js";
 
 /** @type {Map<string, { draw(renderer: object, game: object): void }>} */
 const SCREENS = new Map();
@@ -61,3 +62,4 @@ registerScreen("name_input", nameInputScreen);
 registerScreen("practice_hub", practiceHubScreen);
 registerScreen("boss_picker", bossPickerScreen);
 registerScreen("boss_rush_complete", bossRushCompleteScreen);
+registerScreen("dead_soulslike", youDiedScreen);

@@ -23,6 +23,12 @@ export const ACTION_RELEASE_DOWN = "release_down";
 export const ACTION_RELEASE_LEFT = "release_left";
 export const ACTION_RELEASE_RIGHT = "release_right";
 
+// Soulslike fight action keys (J / K / L). Boss-state only — other
+// styles ignore.
+export const ACTION_STAB = "stab";
+export const ACTION_DODGE = "dodge";
+export const ACTION_PARRY = "parry";
+
 // ── Dispatcher ────────────────────────────────────────────────────
 
 /**
@@ -212,6 +218,22 @@ export function dispatchAction(game, action) {
         break;
     }
     return;
+  }
+
+  // ── Boss fight (action keys for soulslike; falls through for movement) ──
+  if (state === "boss") {
+    if (action === ACTION_STAB) {
+      game.onPlayerAction("stab");
+      return;
+    }
+    if (action === ACTION_DODGE) {
+      game.onPlayerAction("dodge");
+      return;
+    }
+    if (action === ACTION_PARRY) {
+      game.onPlayerAction("parry");
+      return;
+    }
   }
 
   // ── All other states (start, playing, dead, boss, targeting, wormhole) ──

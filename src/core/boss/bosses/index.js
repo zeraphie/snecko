@@ -7,6 +7,7 @@ import trafficJam from "./traffic-jam.js";
 import theAlgorithm from "./the-algorithm.js";
 import absoluteUnit from "./absolute-unit.js";
 import catacombsChaser from "./catacombs-chaser.js";
+import hissalia from "./hissalia.js";
 
 // ── Type ─────────────────────────────────────────────────────────
 
@@ -73,7 +74,7 @@ export function getBossDef(mutation) {
  *
  * @type {ReadonlyArray<BossDef>}
  */
-export const ALL_BOSS_DEFS = [trafficJam, theAlgorithm, absoluteUnit, catacombsChaser];
+export const ALL_BOSS_DEFS = [trafficJam, theAlgorithm, absoluteUnit, catacombsChaser, hissalia];
 
 /**
  * Returns the boss definition matching `id`, or null if no boss exists with

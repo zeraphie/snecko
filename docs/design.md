@@ -148,6 +148,37 @@ place → telegraph_grow → grow → linger → decay`) is the soul; if
   (`SURVIVAL_BOSS_PATH_RECOMPUTE_TICKS`); how much rift telegraphing
   should remain visible during the fight.
 
+### Hissalia, Blade of Wormwood (— → soulslike)
+
+Status: in playtest tuning (labelled "(WIP)" in the boss picker). Not
+wired to any mutation; reachable via the boss picker only in v1.
+
+- **Fantasy:** a Souls/Sekiro duel inside Snake. You are no longer a
+  growing snake — you are a fighter with a knife, an arena, and a
+  giant in front of you who wants you dead.
+- **Core mechanic:** stamina-gated melee. Read the boss's telegraph,
+  pick the right defensive (dodge through, parry, walk out of
+  range), counter on the opening. Stamina is the limiter on every
+  action — committing to dodge means you can't immediately stab,
+  whiffing a parry means you're out of breath for the next swing.
+- **Signature moment:** the parry. Pressing L into a sweep tell,
+  the boss freezes white, and you get three or four free hits
+  before the stagger ends. Or: the Waterfowl. Three dashes you
+  have to bait then dodge, with a 360° glaive swipe at each
+  landing — the moment where you stop reading individual attacks
+  and start reading patterns.
+- **Don't become:** a bullet-hell with extra steps. The fight has
+  to reward positioning and reading tells; if it collapses into
+  "mash stab whenever stamina allows", the stamina system is too
+  generous or the telegraphs aren't readable enough. Conversely
+  if players never feel safe enough to attack, the windows are
+  too tight.
+- **Open:** Hissalia is in playtest. Currently being tuned:
+  movement cadence, dash speed, swipe ring density, scenery
+  density / clarity, water surface readability vs combat
+  legibility. Numbers in `soulslike/constants.js` are starting
+  values — expect them to keep moving.
+
 ## How to use this file
 
 - Open it before sitting down to balance or extend a fight. Re-read

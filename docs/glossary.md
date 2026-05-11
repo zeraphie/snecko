@@ -125,6 +125,7 @@ the dispatcher and shared transitions work.
 | **Style**                       | The fight family of a boss def (`def.style`). Defaults to `"bullet_hell"` if unset. Dispatches to `boss/styles/<name>.js`.      | Not surfaced.                                        |
 | **Bullet-hell**                 | Style: player Y-locked, auto-fires up; boss has body cells + weak point + HP.                                                   | Not labelled.                                        |
 | **Survival**                    | Style: free movement on the host's grid; chasing entity instead of HP; win by surviving a fixed timer.                          | Not labelled.                                        |
+| **Soulslike**                   | Style: melee duel on a dedicated arena; snake becomes a 1×1 fighter with stamina, dodge, parry, stab. HP-based on both sides.   | Not labelled.                                        |
 | **Phase**                       | Bullet-hell combat phase: `BOSS_PHASE_INTRO` / `_1` / `_2` / `_3`. **Reserved for bosses** — mutation lifecycles use **state**. | "Phase 2!"                                           |
 | **Weak point** / **Body cell**  | Bullet-hell only. Damage targeting: weak point = HP, body = destructible cover.                                                 | "Weak point" surfaces in HUD; body cells are visual. |
 | **Modifier** (`_bossModifiers`) | Bullet-hell only. Temporary boss-spawned hazard or cover (`anchor_lock`, `algorithm_current`, `danger_trail`, `echo_zone`).     | Not exposed by name.                                 |
@@ -144,6 +145,38 @@ timer, and path-shift detail.
 | **The Roomba** | Display name for the catacombs survival boss (def id `catacombs_chaser`, label under `LABELS.bosses.catacombs_chaser`).                                                       | "The Roomba"                               |
 | **Stun**       | Post-flip freeze; blob doesn't move while `stunTicks > 0`. BFS still recomputes so the blob has a fresh path the moment stun ends.                                            | Visible as the blob freezing for ~1 s.     |
 | **Push**       | The relocation that follows a flip closing on the blob — linear walk along `-lastDir` to the nearest valid 2×2 placement (BFS-nearest fallback if the linear walk dead-ends). | Implicit — players see the blob jump back. |
+
+## Soulslike style
+
+A melee-duel boss style. The snake is reinterpreted as a 1×1 fighter
+with HP and a stamina meter; the boss has HP, telegraphed attacks, a
+multi-beat special, and phases. The fight is hosted on a dedicated
+arena (no host mutation grid). The fight ends on either side's HP
+reaching zero. See [`mechanics.md` → Soulslike](./mechanics.md#soulslike)
+for the action loop, attack pipeline, and arena layout.
+
+| Term                       | Internal meaning                                                                                                                                                                                                                                                               | Player-facing                                  |
+| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------- |
+| **Hissalia**               | The first soulslike boss (def id `hissalia`). Full label "Hissalia, Blade of Wormwood".                                                                                                                                                                                        | "Hissalia, Blade of Wormwood"                  |
+| **Snake-fighter**          | The reinterpretation of the snake during a soulslike fight: 1×1 cell, no body, held-direction movement, separate HP + stamina pools on `_soulslike`.                                                                                                                           | Implicit — the player sees the fighter cell.   |
+| **Glaive** / **Halberd**   | The boss's 2-cell weapon (handle + tip). The tip is the live hitbox during execute.                                                                                                                                                                                            | Visible as the boss's swept weapon.            |
+| **Knife**                  | The snake-fighter's 1-cell weapon — sits to the player's right when idle, jumps 1 cell forward on stab.                                                                                                                                                                        | Visible as the fighter's right-hand blade.     |
+| **Stamina**                | Player resource for actions (`_soulslike.stamina`). Regenerates on a delay after every action. Hard-block when below cost.                                                                                                                                                     | "Stamina"                                      |
+| **Stab**                   | Player attack action. Consumes stamina; one-tick active hitbox at the knife's forward position. Default key J.                                                                                                                                                                 | "Stab"                                         |
+| **Dodge** / **Dodge-roll** | Player defensive action. Consumes stamina; travels `DODGE_DISTANCE` cells in the held direction with iframes + recovery. Default key K.                                                                                                                                        | "Dodge"                                        |
+| **Iframes**                | Damage-immunity window during the active phase of a dodge (`dodgeIframes > 0`). All `takeDamage` calls no-op.                                                                                                                                                                  | Implicit — boss attacks don't connect.         |
+| **Parry**                  | Player counter action. Consumes stamina; opens a short window (`parryWindow`). If a **parryable** boss attack lands during the window, it's converted into a boss **stagger** instead of damage. Key L.                                                                        | "Parry"                                        |
+| **Attack node**            | A boss-attack definition in the registry (`ATTACK_NODES`, `attacks.js`). Carries id, windup/execute/recovery timings, parryable flag, damage, pose helpers, and an optional `gate` predicate.                                                                                  | Not surfaced — players see attack name + tell. |
+| **Sweep**                  | Boss attack: adjacent (D≤1), parryable. The tip arcs across the 3 cells in front of the boss.                                                                                                                                                                                  | Visible as a horizontal slash.                 |
+| **Regular**                | Boss attack: 1 cell between (D=2), parryable. Straight thrust at reach 2.                                                                                                                                                                                                      | Visible as a forward stab.                     |
+| **Overhead**               | Boss attack: 2+ cells between (D≥3), **not parryable**. Boss lunges 1 cell forward then swings at reach 3.                                                                                                                                                                     | Visible as the boss closing distance + slam.   |
+| **Kick**                   | Boss attack: adjacent + gated on a recent attack ending. Parryable. Boss model lunges, snake takes damage and is shoved 1 cell.                                                                                                                                                | Visible as the boss bodying the player.        |
+| **Waterfowl**              | Boss special: a multi-beat pattern (lock → dash → 360° swipe ×3, plus a secondary AoE). Triggered by phase transitions or a force-fire timer.                                                                                                                                  | "Waterfowl" implicit; players see the pattern. |
+| **Stagger** (soulslike)    | Boss-frozen state opened by a successful parry. Player hits during the window deal `STAGGER_MULTIPLIER` damage.                                                                                                                                                                | Visible as the boss being briefly white.       |
+| **Pond**                   | The circular central area of Hissalia's arena, rendered as ankle-deep water (`CELL_WATER`). The main fight area — no flowers, no obstacles.                                                                                                                                    | Visible as the wet patch in the middle.        |
+| **Scenery**                | Non-essential arena dressing parsed from `.arena` markers: tree (T), gravestone (G), flower (f), water (w). Uppercase = blocking, lowercase = non-blocking.                                                                                                                    | Implicit — players see the decoration.         |
+| **Region** (scenery)       | A set of 4-connected cells sharing the same scenery marker, grouped by the arena parser. Carries `{ type, blocking, cells, bounds, id }`; passed to the cell render so adapters can size their drawing to the region (1×1 flower vs 3×3 patch, single tree vs corner cluster). | Not surfaced.                                  |
+| **"YOU DIED"**             | The death overlay for soulslike fights (`STATE_DEAD_SOULSLIKE`). Red text on black with the death-cause attack id below.                                                                                                                                                       | "YOU DIED"                                     |
 
 ## Upgrades
 
@@ -172,6 +205,22 @@ type semantics, contraband, and label fields.
 | **Reserved cell**        | Generation-time reservation, e.g. spawn buffer. Cleared after generation.                                                                                        |
 | **Terrain**              | A separate per-cell value: `TERRAIN_NONE` / `TERRAIN_TELEGRAPH` / `TERRAIN_CURRENT` / `TERRAIN_LOW` / `TERRAIN_HIGH` / `TERRAIN_INTERIOR` (`grid/constants.js`). |
 | **Food** / **Boss food** | Single-position flags on the grid (`foodX/Y`, `bossFoodX/Y`).                                                                                                    |
+
+## Cell rendering
+
+The cell adapter under `src/core/grid/cell/` owns how every cell type
+draws on screen. Each cell type registers a single render method that
+the renderer-agnostic adapter dispatches at frame time. See
+[`mechanics.md` → Cell rendering](./mechanics.md#cell-rendering) for
+the spec shape, animation convention, and folder layout.
+
+| Term                | Meaning                                                                                                                                                   |
+| ------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Cell**            | One `(x, y)` render dispatched via `drawCell(x, y, type, context?)`. Each cell type has one registered render method.                                     |
+| **Entity**          | A logical grouping of cells with shared state (snake, bullet-hell boss, survival blob, soulslike fighter+halberd). Owns _which_ cells it occupies.        |
+| **`defineCell`**    | Registers a cell type's render spec at module load (`core/grid/cell/registry.js`). Per-cell files call this at top level for the side effect.             |
+| **`drawCell`**      | Adapter entry point exported from `core/grid/cell/index.js`. Routes `(x, y, type, context?)` to the registered spec's `render` method.                    |
+| **Active renderer** | Module-level renderer reference (`render/active.js`). Set once at boot via `setActiveRenderer(...)`; cell render methods call `activeRenderer.cell(...)`. |
 
 ## Snake
 

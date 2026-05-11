@@ -1,61 +1,7 @@
-// colors.js — Canvas color constants
-
-import {
-  CELL_EMPTY,
-  CELL_WALL,
-  CELL_WALL_LOW,
-  CELL_SNAKE,
-  CELL_SNAKE_HEAD,
-  CELL_FOOD,
-  CELL_CURRENT_RIGHT,
-  CELL_CURRENT_LEFT,
-  CELL_CURRENT_DOWN,
-  CELL_CURRENT_UP,
-  CELL_TELEGRAPH,
-  CELL_RED_FOOD,
-  CELL_BOSS_BODY,
-  CELL_BOSS_WEAK,
-  CELL_PROJECTILE,
-  CELL_PLAYER_INVUL,
-  CELL_BOSS_HIT,
-  CELL_WALL_ARENA,
-  CELL_ANCHOR_LOCK,
-  CELL_DANGER_TRAIL,
-  CELL_ECHO_ZONE,
-  CELL_BOSS_DAMAGED,
-  CELL_EXHAUST,
-  CELL_WALL_HIGH,
-  CELL_WALL_LOW_EDIBLE,
-  CELL_BLOB,
-} from "../renderer.js";
-
-export const COLORS = {};
-COLORS[CELL_EMPTY] = null;
-COLORS[CELL_WALL] = "#5C3D11";
-COLORS[CELL_WALL_LOW] = "#7A5529";
-COLORS[CELL_WALL_HIGH] = "#3A2510";
-COLORS[CELL_WALL_LOW_EDIBLE] = "#D9A95C";
-COLORS[CELL_SNAKE] = "#27ae60";
-COLORS[CELL_SNAKE_HEAD] = "#5ddb8a";
-COLORS[CELL_FOOD] = "#f1c40f";
-COLORS[CELL_CURRENT_RIGHT] = "#00e5ff";
-COLORS[CELL_CURRENT_LEFT] = "#00e5ff";
-COLORS[CELL_CURRENT_DOWN] = "#00e5ff";
-COLORS[CELL_CURRENT_UP] = "#00e5ff";
-COLORS[CELL_TELEGRAPH] = "#555566";
-COLORS[CELL_RED_FOOD] = "#e74c3c";
-COLORS[CELL_BOSS_BODY] = "#8e44ad";
-COLORS[CELL_BOSS_WEAK] = "#f39c12";
-COLORS[CELL_PROJECTILE] = "#e74c3c";
-COLORS[CELL_PLAYER_INVUL] = "#00e5ff";
-COLORS[CELL_BOSS_HIT] = "#ffffff";
-COLORS[CELL_WALL_ARENA] = "#3d1a3d";
-COLORS[CELL_ANCHOR_LOCK] = "#e67e22";
-COLORS[CELL_DANGER_TRAIL] = "#ff8c00";
-COLORS[CELL_ECHO_ZONE] = "#27ae60";
-COLORS[CELL_BOSS_DAMAGED] = "#6a2d8e";
-COLORS[CELL_EXHAUST] = "#e67e22";
-COLORS[CELL_BLOB] = "#8e44ad"; // same purple family as bullet-hell boss; differentiates from snake green
+// colors.js — Canvas-only background / HUD colors.
+//
+// Per-cell colors live in `core/grid/cell/`. This file is now just the
+// canvas frame backdrop palette.
 
 export const BG_LIGHT = "#222034";
 export const BG_DARK = "#1a1a2e";

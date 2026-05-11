@@ -1,7 +1,7 @@
 // overlays.js — Canvas targeting and wormhole overlays
 
 import { CELL_WORMHOLE_A } from "../renderer.js";
-import { _drawPortal } from "./cells.js";
+import { drawCell } from "../../core/grid/cell/index.js";
 
 export function drawTargetingOverlay(cursorX, cursorY, boardW, boardH) {
   const ctx = this._ctx;
@@ -38,7 +38,7 @@ export function drawWormholeOverlay(cursorX, cursorY, phase, portalA, _boardW, _
   const cs = this._cellSize;
 
   if (phase === 2 && portalA) {
-    _drawPortal.call(this, portalA.x, portalA.y, CELL_WORMHOLE_A);
+    drawCell(portalA.x, portalA.y, CELL_WORMHOLE_A);
   }
 
   const color = phase === 1 ? "#ff6600" : "#3399ff";

@@ -23,6 +23,9 @@ import {
   ACTION_RELEASE_DOWN,
   ACTION_RELEASE_LEFT,
   ACTION_RELEASE_RIGHT,
+  ACTION_STAB,
+  ACTION_DODGE,
+  ACTION_PARRY,
 } from "./actions.js";
 
 // ── Key name → action mapping ─────────────────────────────────────
@@ -40,6 +43,10 @@ const KEY_MAP = {
   space: ACTION_USE_CONSUMABLE,
   escape: ACTION_CANCEL,
   tab: ACTION_CYCLE_CONSUMABLE,
+  // Soulslike action keys.
+  j: ACTION_STAB,
+  k: ACTION_DODGE,
+  l: ACTION_PARRY,
 };
 
 /** Maps directional actions to their release counterparts. */
@@ -146,6 +153,12 @@ export class KeyboardTerminalController extends Controller {
       (game.state === "start" || game.state === "dead" || game.state === "playing")
     ) {
       game.openMenu();
+      return;
+    }
+
+    // Esc on the soulslike YOU DIED overlay returns to the practice hub.
+    if (key.name === "escape" && game.state === "dead_soulslike") {
+      game.dismissYouDied();
       return;
     }
 

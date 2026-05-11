@@ -2,9 +2,14 @@
 
 import { Renderer } from "../renderer.js";
 import { BG_LIGHT, BG_DARK, HUD_BG } from "./colors.js";
-import { drawCell } from "./cells.js";
-import { drawSnakeHead, drawSnakeHeadInvul } from "./snake.js";
-import { drawHUD, drawBossInfo, drawSurvivalInfo, drawBossIntroOverlay } from "./hud.js";
+import {
+  drawHUD,
+  drawBossInfo,
+  drawSurvivalInfo,
+  drawSoulslikeInfo,
+  drawBossIntroOverlay,
+  drawYouDiedOverlay,
+} from "./hud.js";
 import {
   drawScreen,
   drawDraftScreen,
@@ -52,17 +57,30 @@ export class CanvasRenderer extends Renderer {
   }
 
   flush() {}
+
+  cell(x, y, spec) {
+    const cs = this._cellSize;
+    const px = x * cs;
+    const py = y * cs;
+    if (spec.detailed) {
+      spec.detailed(this._ctx, px, py, cs);
+      return;
+    }
+    if (spec.color) {
+      this._ctx.fillStyle = spec.color;
+      this._ctx.fillRect(px, py, cs, cs);
+    }
+  }
 }
 
 // ── Prototype wiring ──────────────────────────────────────────────
 
-CanvasRenderer.prototype.drawCell = drawCell;
-CanvasRenderer.prototype.drawSnakeHead = drawSnakeHead;
-CanvasRenderer.prototype.drawSnakeHeadInvul = drawSnakeHeadInvul;
 CanvasRenderer.prototype.drawHUD = drawHUD;
 CanvasRenderer.prototype.drawBossInfo = drawBossInfo;
 CanvasRenderer.prototype.drawSurvivalInfo = drawSurvivalInfo;
+CanvasRenderer.prototype.drawSoulslikeInfo = drawSoulslikeInfo;
 CanvasRenderer.prototype.drawBossIntroOverlay = drawBossIntroOverlay;
+CanvasRenderer.prototype.drawYouDiedOverlay = drawYouDiedOverlay;
 CanvasRenderer.prototype.drawScreen = drawScreen;
 CanvasRenderer.prototype.drawDraftScreen = drawDraftScreen;
 CanvasRenderer.prototype.drawContrabandScreen = drawContrabandScreen;

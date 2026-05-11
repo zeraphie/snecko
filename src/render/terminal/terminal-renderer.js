@@ -10,10 +10,18 @@
 //   flush.js     – frame compositor (writes buffer to stdout)
 //   loader.js    – 3×3 dot-grid startup loader
 
-import { CELL_EMPTY, CELL_SNAKE_HEAD } from "../renderer.js";
+import { CELL_EMPTY } from "../renderer.js";
 import { Renderer } from "../renderer.js";
-import { ESC_HIDE_CURSOR, ESC_SHOW_CURSOR } from "./palette.js";
-import { drawHUD, drawBossInfo, drawSurvivalInfo, drawBossIntroOverlay } from "./hud.js";
+import { ESC_HIDE_CURSOR, ESC_SHOW_CURSOR, RESET } from "./palette.js";
+import { drawCell } from "../../core/grid/cell/index.js";
+import {
+  drawHUD,
+  drawBossInfo,
+  drawSurvivalInfo,
+  drawSoulslikeInfo,
+  drawBossIntroOverlay,
+  drawYouDiedOverlay,
+} from "./hud.js";
 import {
   drawScreen,
   drawDraftScreen,
@@ -37,20 +45,20 @@ export class TerminalRenderer extends Renderer {
     this._w = boardWidth;
     this._h = boardHeight;
     this._grid = [];
-    this._headDir = { dx: 1, dy: 0 };
-    this._headInvul = false;
     this._targeting = null;
     this._wormholeOverlay = null;
-    this._headX = -1;
-    this._headY = -1;
     this._hudLine = "";
     this._maxHudLen = 0;
     this._screenOverlay = null;
     this._introOverlay = null;
     this._animTime = 0;
 
+    // Buffer holds either an integer cell type (legacy path → resolved
+    // via CELL_CHARS at flush) or a pre-formatted ANSI string (new
+    // adapter path: `cell()` stamps `glyphColor + glyph + RESET`).
+    // flush.js distinguishes by typeof at emit time.
     for (let y = 0; y < boardHeight; y++) {
-      this._grid[y] = new Uint8Array(boardWidth);
+      this._grid[y] = Array.from({ length: boardWidth }, () => CELL_EMPTY);
     }
 
     stdout.write(ESC_HIDE_CURSOR);
@@ -60,14 +68,18 @@ export class TerminalRenderer extends Renderer {
 
   clear() {
     this._animTime = Date.now() / 1000;
+    // Populate the buffer with the registered EMPTY cell. CELL_EMPTY is
+    // no longer in CELL_CHARS — `drawCell` routes through the registry,
+    // calls `cell()` here, and stamps the pre-formatted glyph string
+    // into each buffer slot. Subsequent draws (walls, snake, etc.)
+    // overwrite the slots they cover.
     for (let y = 0; y < this._h; y++) {
-      this._grid[y].fill(CELL_EMPTY);
+      for (let x = 0; x < this._w; x++) {
+        drawCell(x, y, CELL_EMPTY);
+      }
     }
     this._targeting = null;
     this._wormholeOverlay = null;
-    this._headX = -1;
-    this._headY = -1;
-    this._headInvul = false;
     this._hudLine = "";
     this._screenOverlay = null;
     this._introOverlay = null;
@@ -79,26 +91,14 @@ export class TerminalRenderer extends Renderer {
 
   // ── Cell drawing ─────────────────────────────────────────────
 
-  drawCell(x, y, type) {
-    this._grid[y][x] = type;
-  }
-
-  drawSnakeHead(x, y, dx, dy) {
-    this._grid[y][x] = CELL_SNAKE_HEAD;
-    this._headX = x;
-    this._headY = y;
-    this._headDir.dx = dx;
-    this._headDir.dy = dy;
-    this._headInvul = false;
-  }
-
-  drawSnakeHeadInvul(x, y, dx, dy) {
-    this._grid[y][x] = CELL_SNAKE_HEAD;
-    this._headX = x;
-    this._headY = y;
-    this._headDir.dx = dx;
-    this._headDir.dy = dy;
-    this._headInvul = true;
+  cell(x, y, spec) {
+    // Stamp pre-formatted string into the buffer. flush.js emits
+    // strings directly — animation lives in the cell file's render
+    // method (animation = state-machine cell-type changes + per-frame
+    // computed glyphColor; no central pulse logic here).
+    const fg = spec.glyphColor || "";
+    const glyph = spec.glyph || "";
+    this._grid[y][x] = fg + glyph + RESET;
   }
 
   // ── Delegated methods ────────────────────────────────────────
@@ -115,12 +115,20 @@ export class TerminalRenderer extends Renderer {
     drawBossIntroOverlay(this, name, ticksLeft, total);
   }
 
+  drawYouDiedOverlay(causeText) {
+    drawYouDiedOverlay(this, causeText);
+  }
+
   drawBossInfo(name, hp, maxHp, phase) {
     drawBossInfo(this, name, hp, maxHp, phase);
   }
 
   drawSurvivalInfo(name, ticksLeft, totalTicks) {
     drawSurvivalInfo(this, name, ticksLeft, totalTicks);
+  }
+
+  drawSoulslikeInfo(snakeHp, snakeHpMax, stamina, staminaMax, bossName, bossHp, bossHpMax) {
+    drawSoulslikeInfo(this, snakeHp, snakeHpMax, stamina, staminaMax, bossName, bossHp, bossHpMax);
   }
 
   drawHUD(

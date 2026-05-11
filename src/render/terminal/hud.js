@@ -1,6 +1,6 @@
 // hud.js — HUD, boss info bar, and boss intro overlay
 
-import { GREEN, RED, YELLOW, WHITE, DIM, RESET } from "./palette.js";
+import { GREEN, CYAN, RED, YELLOW, MAGENTA, WHITE, DIM, RESET } from "./palette.js";
 import { LABELS } from "../../text/labels.js";
 
 // ── Main HUD ─────────────────────────────────────────────────────
@@ -131,6 +131,81 @@ export function drawSurvivalInfo(r, name, ticksLeft, totalTicks) {
   if (rawLen > r._maxHudLen) {
     r._maxHudLen = rawLen;
   }
+}
+
+// ── Soulslike HUD ────────────────────────────────────────────────
+
+/**
+ * Two-line soulslike HUD:
+ *   Line 1: boss name + boss HP bar + hp/max  (matches drawBossInfo's
+ *           shape — readable signal that this is the boss bar).
+ *   Line 2: snake HP bar + stamina pips  (player vitals, left-aligned).
+ *
+ * @param {import('./terminal-renderer.js').TerminalRenderer} r
+ * @param {number} snakeHp
+ * @param {number} snakeHpMax
+ * @param {number} stamina
+ * @param {number} staminaMax
+ * @param {string} bossName
+ * @param {number} bossHp
+ * @param {number} bossHpMax
+ */
+export function drawSoulslikeInfo(
+  r,
+  snakeHp,
+  snakeHpMax,
+  stamina,
+  staminaMax,
+  bossName,
+  bossHp,
+  bossHpMax
+) {
+  // Boss line — large bar, matches drawBossInfo styling.
+  const BOSS_BAR_LEN = 15;
+  const filledBoss =
+    bossHpMax > 0
+      ? Math.max(0, Math.min(BOSS_BAR_LEN, Math.round((bossHp / bossHpMax) * BOSS_BAR_LEN)))
+      : 0;
+  const bossBar =
+    MAGENTA + "▓".repeat(filledBoss) + RESET + DIM + "░".repeat(BOSS_BAR_LEN - filledBoss) + RESET;
+  const line1 = `${RED}${bossName}${RESET}  ${bossBar}  ${bossHp}/${bossHpMax}`;
+
+  // Snake / stamina line — small segmented bar + 5 discrete pips.
+  const filledHp = Math.max(0, Math.min(snakeHpMax, snakeHp));
+  const hpBar =
+    GREEN + "▓".repeat(filledHp) + RESET + DIM + "░".repeat(snakeHpMax - filledHp) + RESET;
+  const filledSt = Math.max(0, Math.min(staminaMax, stamina));
+  const stPips =
+    CYAN + "●".repeat(filledSt) + RESET + DIM + "○".repeat(staminaMax - filledSt) + RESET;
+  const line2 = `${LABELS.hud.hp} ${hpBar}  ${LABELS.hud.stamina} ${stPips}`;
+
+  r._hudLine = `${line1}\n${line2}`;
+
+  const visLen = Math.max(
+    line1.replace(/\x1b\[[0-9;]*m/g, "").length,
+    line2.replace(/\x1b\[[0-9;]*m/g, "").length
+  );
+  if (visLen > r._maxHudLen) {
+    r._maxHudLen = visLen;
+  }
+}
+
+// ── YOU DIED overlay ─────────────────────────────────────────────
+
+/**
+ * Full-screen YOU DIED overlay. Stamps a `_screenOverlay` that
+ * `flush.js` already knows how to render (centred title-card, used by
+ * the existing dead/start screens). Plain text — flush.js measures
+ * with `.length` for centring, so ANSI escapes would offset the layout.
+ *
+ * @param {import('./terminal-renderer.js').TerminalRenderer} r
+ * @param {string} causeText
+ */
+export function drawYouDiedOverlay(r, causeText) {
+  r._screenOverlay = {
+    name: "you_died",
+    lines: ["Y O U   D I E D", "", `Killed by ${causeText}`, "", "Esc — return"],
+  };
 }
 
 // ── Boss intro overlay ───────────────────────────────────────────

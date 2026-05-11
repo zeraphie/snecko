@@ -61,7 +61,10 @@ function skipBossIntro(game) {
  */
 function buildTestManifest() {
   return {
-    arenas: parseArenaFile(readAsset("assets/arenas/default.arena")),
+    arenas: [
+      ...parseArenaFile(readAsset("assets/arenas/default.arena")),
+      ...parseArenaFile(readAsset("assets/arenas/hissalia.arena")),
+    ],
     bossShapes: {
       "absolute-unit": parseBossShape(readAsset("assets/bosses/absolute-unit.boss")),
       "traffic-jam": parseBossShape(readAsset("assets/bosses/traffic-jam.boss")),
@@ -2601,16 +2604,22 @@ describe("catacombs survival integration (Step 5)", () => {
   });
 
   it("blob spawn is far from the snake head (BFS-furthest)", () => {
+    // Pin the seed: BFS-furthest in a maze is "far" by maze-distance,
+    // but the *Manhattan* distance varies with the specific layout —
+    // some mazes wind back so the BFS-furthest 2×2 is geographically
+    // close. With random seeds this asserted-on Manhattan threshold
+    // flaked rarely (~1 in 20 runs). Pinning the seed makes the
+    // layout reproducible while still exercising the BFS placement.
+    game._pendingRunSeed = 1;
+    game.startRun();
+    game.upgrades.setMutation("catacombs");
+
     game._enterBossFight();
     const blob = game._bossSurvival.blob;
     const head = {
       x: game.snake.snakeX[game.snake.headIndex],
       y: game.snake.snakeY[game.snake.headIndex],
     };
-    // Manhattan check is cheap and conservative — BFS-furthest in a maze
-    // produces at-least-Manhattan distance. Catacombs is 31×31; the
-    // furthest corridor cell from any other corridor cell is well above
-    // 10 cells away.
     const dist = Math.abs(blob.x - head.x) + Math.abs(blob.y - head.y);
     expect(dist).toBeGreaterThan(10);
   });
@@ -2645,6 +2654,2109 @@ describe("catacombs survival integration (Step 5)", () => {
     game._enterBossFight();
     expect(game.mechanic).not.toBeNull();
     expect(game.mechanic.type).toBe("rifts");
+  });
+});
+
+describe("hissalia / soulslike scaffolding (Step 1)", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.startRun();
+  });
+
+  it("Hissalia is in ALL_BOSS_DEFS and reachable via id", async () => {
+    const { ALL_BOSS_DEFS, getBossDefById } = await import("../src/core/boss/bosses/index.js");
+    expect(ALL_BOSS_DEFS.find((d) => d.id === "hissalia")).toBeDefined();
+    const def = getBossDefById("hissalia");
+    expect(def).not.toBeNull();
+    expect(def.style).toBe("soulslike");
+  });
+
+  it("entering Hissalia via practice resolves to soulslike style without crashing", () => {
+    game._practiceBossId = "hissalia";
+    game._enterBossFight();
+    expect(game.state).toBe(Game.STATE_BOSS);
+    expect(game._bossDef.id).toBe("hissalia");
+    expect(game._bossDef.style).toBe("soulslike");
+    // The minimal _boss shim carries Hissalia's display name.
+    expect(game._boss).not.toBeNull();
+    expect(game._boss.name).toBe("Hissalia, Blade of Wormwood (WIP)");
+  });
+
+  it("tick + teardown on the scaffold don't throw", () => {
+    game._practiceBossId = "hissalia";
+    game._enterBossFight();
+    expect(() => game._bossTick()).not.toThrow();
+    expect(() => game._bossTick()).not.toThrow();
+    // Practice victory transitions cleanly back to the hub.
+    game._practiceMode = "single";
+    expect(() => game._exitBossVictory()).not.toThrow();
+    expect(game.state).toBe(Game.STATE_PRACTICE_HUB);
+    expect(game._boss).toBeNull();
+    expect(game._soulslike).toBeNull();
+  });
+});
+
+describe("hissalia / soulslike arena (Step 2)", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.startRun();
+    game._practiceBossId = "hissalia";
+    game._enterBossFight();
+  });
+
+  it("carves a 29×29 inner playable area at (1..29, 1..29)", () => {
+    // Scenery (tree, gravestones) sit inside the playable area and
+    // still report as wall cells for collision. The arena parser
+    // exposes the scenery regions on `game._arenaScenery`; skip
+    // those cells before asserting "everything else is floor."
+    const blocked = new Set();
+    for (const region of game._arenaScenery ?? []) {
+      if (!region.blocking) {
+        continue;
+      }
+      for (const cell of region.cells) {
+        blocked.add(cell.y * game.grid.width + cell.x);
+      }
+    }
+    for (let dy = 0; dy < 29; dy++) {
+      for (let dx = 0; dx < 29; dx++) {
+        const x = 1 + dx;
+        const y = 1 + dy;
+        if (blocked.has(y * game.grid.width + x)) {
+          continue;
+        }
+        expect(game.grid.isWallCell(x, y)).toBe(false);
+      }
+    }
+  });
+
+  it("loads the parsed scenery onto game._arenaScenery", () => {
+    expect(Array.isArray(game._arenaScenery)).toBe(true);
+    const types = new Set(game._arenaScenery.map((r) => r.type));
+    expect(types.has("tree")).toBe(true);
+    expect(types.has("gravestone")).toBe(true);
+    expect(types.has("flower")).toBe(true);
+  });
+
+  it("walls the border around the inner area", () => {
+    // Single-cell wall ring around a 29×29 floor.
+    for (let i = 0; i < 31; i++) {
+      expect(game.grid.isWallCell(0, i)).toBe(true); // west border
+      expect(game.grid.isWallCell(30, i)).toBe(true); // east border
+      expect(game.grid.isWallCell(i, 0)).toBe(true); // north border
+      expect(game.grid.isWallCell(i, 30)).toBe(true); // south border
+    }
+  });
+
+  it("spawns the snake as a 1-cell fighter south-centred facing north", () => {
+    expect(game.snake.snakeLength).toBe(1);
+    expect(game.snake.snakeX[game.snake.headIndex]).toBe(15);
+    expect(game.snake.snakeY[game.snake.headIndex]).toBe(24);
+    expect(game.snake.dirX).toBe(0);
+    expect(game.snake.dirY).toBe(-1);
+  });
+
+  it("places the 2×2 boss at the north-centred spawn", () => {
+    // Inner area is 20×20 at (5, 5); 2×2 boss top-left at (14, 5)
+    // spans (14..15, 5..6) — top of the playable area, centred
+    // horizontally around x=15 (matches the snake's column).
+    expect(game._soulslike.bossX).toBe(14);
+    expect(game._soulslike.bossY).toBe(5);
+  });
+
+  it("snake and boss footprints don't overlap", () => {
+    const headX = game.snake.snakeX[game.snake.headIndex];
+    const headY = game.snake.snakeY[game.snake.headIndex];
+    for (let dy = 0; dy < 2; dy++) {
+      for (let dx = 0; dx < 2; dx++) {
+        const overlap =
+          game._soulslike.bossX + dx === headX && game._soulslike.bossY + dy === headY;
+        expect(overlap).toBe(false);
+      }
+    }
+  });
+
+  it("clears food cells (no food during a soulslike fight)", () => {
+    expect(game.grid.foodX).toBe(-1);
+    expect(game.grid.foodY).toBe(-1);
+    expect(game.grid.bossFoodX).toBe(-1);
+    expect(game.grid.bossFoodY).toBe(-1);
+  });
+
+  it("seeds _soulslike with HP, stamina, boss HP at v1 defaults", () => {
+    const sl = game._soulslike;
+    expect(sl.snakeHp).toBe(5);
+    expect(sl.snakeHpMax).toBe(5);
+    expect(sl.stamina).toBe(5);
+    expect(sl.staminaMax).toBe(5);
+    expect(sl.bossHp).toBe(30);
+    expect(sl.bossHpMax).toBe(30);
+    expect(sl.bossPhase).toBe(1);
+  });
+
+  it("seeds _soulslike with zeroed counters and idle anim states", () => {
+    const sl = game._soulslike;
+    expect(sl.staminaRegenCounter).toBe(0);
+    expect(sl.staminaDelayCounter).toBe(0);
+    expect(sl.dodgeIframes).toBe(0);
+    expect(sl.dodgeRecovery).toBe(0);
+    expect(sl.parryWindow).toBe(0);
+    expect(sl.bossAttackId).toBeNull();
+    expect(sl.phaseTransitionTicks).toBe(0);
+    expect(sl.waterfowlPhase).toBe(0);
+    expect(sl.deathScreenTicks).toBe(0);
+    expect(sl.snakeAnim).toEqual({ state: "idle", framesIn: 0 });
+    expect(sl.bossAnim).toEqual({ state: "idle", framesIn: 0 });
+  });
+});
+
+describe("hissalia / soulslike fighter movement (Step 3)", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.startRun();
+    game._practiceBossId = "hissalia";
+    game._enterBossFight();
+  });
+
+  function forceMoveSubtick(g) {
+    g._lastBossMoveTime = 0;
+    g._bossTick();
+  }
+
+  it("onInput sets _heldDirection and _playerFacing", () => {
+    game.onInput(1, 0);
+    expect(game._heldDirection).toEqual({ dx: 1, dy: 0 });
+    expect(game._playerFacing).toEqual({ dx: 1, dy: 0 });
+  });
+
+  it("vertical input is allowed (no Y-lock in soulslike)", () => {
+    game.onInput(0, 1);
+    expect(game._heldDirection).toEqual({ dx: 0, dy: 1 });
+    expect(game._playerFacing).toEqual({ dx: 0, dy: 1 });
+  });
+
+  it("tick moves the snake one cell in the held direction", () => {
+    const startX = game.snake.snakeX[game.snake.headIndex];
+    const startY = game.snake.snakeY[game.snake.headIndex];
+    game.onInput(1, 0);
+    forceMoveSubtick(game);
+    expect(game.snake.snakeX[game.snake.headIndex]).toBe(startX + 1);
+    expect(game.snake.snakeY[game.snake.headIndex]).toBe(startY);
+  });
+
+  it("snake doesn't auto-advance without held direction", () => {
+    const startX = game.snake.snakeX[game.snake.headIndex];
+    const startY = game.snake.snakeY[game.snake.headIndex];
+    forceMoveSubtick(game);
+    forceMoveSubtick(game);
+    expect(game.snake.snakeX[game.snake.headIndex]).toBe(startX);
+    expect(game.snake.snakeY[game.snake.headIndex]).toBe(startY);
+  });
+
+  it("snake stops when input is released", () => {
+    game.onInput(1, 0);
+    forceMoveSubtick(game);
+    const afterX = game.snake.snakeX[game.snake.headIndex];
+    game.onInputRelease(1, 0);
+    forceMoveSubtick(game);
+    forceMoveSubtick(game);
+    expect(game.snake.snakeX[game.snake.headIndex]).toBe(afterX);
+  });
+
+  it("snake is blocked by the arena's southern wall", () => {
+    // Spawn at (15, 24); the south wall ring is at y=30 — hold south
+    // long enough to reach it and assert the snake stops there.
+    game.onInput(0, 1);
+    for (let i = 0; i < 10; i++) {
+      forceMoveSubtick(game);
+    }
+    expect(game.snake.snakeY[game.snake.headIndex]).toBe(29);
+    forceMoveSubtick(game);
+    expect(game.snake.snakeY[game.snake.headIndex]).toBe(29);
+  });
+
+  it("snake reaches the eastern wall and stops, doesn't leak past", () => {
+    // Snake spawns at (15, 24); the SE-corner tree blocks col 26+ on
+    // this row, so the snake should stop at col 25.
+    game.onInput(1, 0);
+    for (let i = 0; i < 30; i++) {
+      forceMoveSubtick(game);
+    }
+    expect(game.snake.snakeX[game.snake.headIndex]).toBe(25);
+    forceMoveSubtick(game);
+    expect(game.snake.snakeX[game.snake.headIndex]).toBe(25);
+  });
+
+  it("facing follows input even on a blocked move", () => {
+    // Snake at (8, 8), input west — blocked but facing should still
+    // update.
+    game.onInput(-1, 0);
+    forceMoveSubtick(game);
+    expect(game._playerFacing).toEqual({ dx: -1, dy: 0 });
+  });
+
+  it("takeDamage decrements snakeHp and stops at zero", async () => {
+    const { takeDamage } = await import("../src/core/boss/styles/soulslike/player.js");
+    expect(game._soulslike.snakeHp).toBe(5);
+    takeDamage(game, 2, "overhead");
+    expect(game._soulslike.snakeHp).toBe(3);
+    takeDamage(game, 10, "overhead");
+    expect(game._soulslike.snakeHp).toBe(0);
+  });
+
+  it("takeDamage at zero HP records the attack name as the death cause", async () => {
+    const { takeDamage } = await import("../src/core/boss/styles/soulslike/player.js");
+    takeDamage(game, 99, "waterfowl");
+    expect(game._soulslike.snakeHp).toBe(0);
+    expect(game.snake.deathCause).toBe("waterfowl");
+  });
+});
+
+describe("hissalia / soulslike stamina (Step 4)", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.startRun();
+    game._practiceBossId = "hissalia";
+    game._enterBossFight();
+  });
+
+  function forceBossSubtick(g) {
+    g._lastBossTickTime = 0;
+    g._bossTick();
+  }
+
+  it("tryConsume succeeds when stamina is sufficient and arms the regen delay", async () => {
+    const { tryConsume } = await import("../src/core/boss/styles/soulslike/stamina.js");
+    const ok = tryConsume(game, 2);
+    expect(ok).toBe(true);
+    expect(game._soulslike.stamina).toBe(3);
+    expect(game._soulslike.staminaDelayCounter).toBe(6);
+    expect(game._soulslike.staminaRegenCounter).toBe(0);
+  });
+
+  it("tryConsume fails (no-op) when stamina is insufficient", async () => {
+    const { tryConsume } = await import("../src/core/boss/styles/soulslike/stamina.js");
+    game._soulslike.stamina = 1;
+    const ok = tryConsume(game, 2);
+    expect(ok).toBe(false);
+    expect(game._soulslike.stamina).toBe(1);
+    // Delay counter unaffected on failure.
+    expect(game._soulslike.staminaDelayCounter).toBe(0);
+  });
+
+  it("regen decrements the delay counter before accruing regen", async () => {
+    const { regenStamina } = await import("../src/core/boss/styles/soulslike/stamina.js");
+    game._soulslike.stamina = 3;
+    game._soulslike.staminaDelayCounter = 2;
+    regenStamina(game);
+    expect(game._soulslike.staminaDelayCounter).toBe(1);
+    expect(game._soulslike.stamina).toBe(3);
+    regenStamina(game);
+    expect(game._soulslike.staminaDelayCounter).toBe(0);
+    expect(game._soulslike.stamina).toBe(3);
+  });
+
+  it("regen accrues 10 ticks → +1 stamina", async () => {
+    const { regenStamina } = await import("../src/core/boss/styles/soulslike/stamina.js");
+    game._soulslike.stamina = 2;
+    game._soulslike.staminaDelayCounter = 0;
+    for (let i = 0; i < 9; i++) {
+      regenStamina(game);
+      expect(game._soulslike.stamina).toBe(2);
+    }
+    regenStamina(game);
+    expect(game._soulslike.stamina).toBe(3);
+    expect(game._soulslike.staminaRegenCounter).toBe(0);
+  });
+
+  it("regen caps at staminaMax", async () => {
+    const { regenStamina } = await import("../src/core/boss/styles/soulslike/stamina.js");
+    expect(game._soulslike.stamina).toBe(5); // starts full
+    for (let i = 0; i < 30; i++) {
+      regenStamina(game);
+    }
+    expect(game._soulslike.stamina).toBe(5);
+  });
+
+  it("the boss sub-tick fires regen on its 120 ms gate", async () => {
+    const { tryConsume } = await import("../src/core/boss/styles/soulslike/stamina.js");
+    // Spend 1 stamina + clear the delay so regen can accrue this run.
+    tryConsume(game, 1);
+    game._soulslike.staminaDelayCounter = 0;
+    expect(game._soulslike.stamina).toBe(4);
+    // Ten boss-tick gates → +1 stamina.
+    for (let i = 0; i < 10; i++) {
+      forceBossSubtick(game);
+    }
+    expect(game._soulslike.stamina).toBe(5);
+  });
+});
+
+describe("hissalia / soulslike stab (Step 5)", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.startRun();
+    game._practiceBossId = "hissalia";
+    game._enterBossFight();
+  });
+
+  function forceBossSubtick(g) {
+    g._lastBossTickTime = 0;
+    g._bossTick();
+  }
+
+  it("knifePosition rest: 1 cell to the player's right", async () => {
+    const { knifePosition } = await import("../src/core/boss/styles/soulslike/combat.js");
+    // Facing east → right is south. Rest knife at (10, 11).
+    expect(knifePosition(10, 10, 1, 0, false)).toEqual({ x: 10, y: 11 });
+    // Facing south → right is west. Rest at (9, 10).
+    expect(knifePosition(10, 10, 0, 1, false)).toEqual({ x: 9, y: 10 });
+    // Facing west → right is north. Rest at (10, 9).
+    expect(knifePosition(10, 10, -1, 0, false)).toEqual({ x: 10, y: 9 });
+    // Facing north → right is east. Rest at (11, 10).
+    expect(knifePosition(10, 10, 0, -1, false)).toEqual({ x: 11, y: 10 });
+  });
+
+  it("knifePosition stab: rest position + 1 cell forward", async () => {
+    const { knifePosition } = await import("../src/core/boss/styles/soulslike/combat.js");
+    // Facing east: rest (10, 11) + forward (1, 0) = (11, 11).
+    expect(knifePosition(10, 10, 1, 0, true)).toEqual({ x: 11, y: 11 });
+    // Facing north: rest (11, 10) + forward (0, -1) = (11, 9).
+    expect(knifePosition(10, 10, 0, -1, true)).toEqual({ x: 11, y: 9 });
+  });
+
+  it("stab consumes 1 stamina and arms the stab_active animation", async () => {
+    const { stab } = await import("../src/core/boss/styles/soulslike/combat.js");
+    expect(game._soulslike.stamina).toBe(5);
+    const ok = stab(game);
+    expect(ok).toBe(true);
+    expect(game._soulslike.stamina).toBe(4);
+    expect(game._soulslike.snakeAnim.state).toBe("stab_active");
+  });
+
+  it("stab no-ops when stamina is insufficient", async () => {
+    const { stab } = await import("../src/core/boss/styles/soulslike/combat.js");
+    game._soulslike.stamina = 0;
+    const ok = stab(game);
+    expect(ok).toBe(false);
+    expect(game._soulslike.stamina).toBe(0);
+    expect(game._soulslike.snakeAnim.state).toBe("idle");
+  });
+
+  it("stab + boss sub-tick deals 1 damage when knife tip overlaps boss", async () => {
+    const { stab } = await import("../src/core/boss/styles/soulslike/combat.js");
+    // 1×1 boss at (15, 5). Place snake at (14, 4) facing east → handle
+    // (15, 4), tip (15, 5) — knife tip on the boss cell.
+    const head = game.snake.headIndex;
+    game.grid.clearCell("snake", game.snake.snakeX[head], game.snake.snakeY[head]);
+    game.snake.snakeX[head] = 14;
+    game.snake.snakeY[head] = 4;
+    game.grid.setCell("snake", 14, 4);
+    game._playerFacing = { dx: 1, dy: 0 };
+
+    const before = game._soulslike.bossHp;
+    stab(game);
+    forceBossSubtick(game);
+    expect(game._soulslike.bossHp).toBe(before - 1);
+    expect(game._soulslike.snakeAnim.state).toBe("idle");
+  });
+
+  it("stab + boss sub-tick misses when the knife tip is off the boss", async () => {
+    const { stab } = await import("../src/core/boss/styles/soulslike/combat.js");
+    // Default spawn at (15, 24) facing north; tip lands at (16, 23) —
+    // far from the boss top-left at (14, 5).
+    const before = game._soulslike.bossHp;
+    stab(game);
+    forceBossSubtick(game);
+    expect(game._soulslike.bossHp).toBe(before);
+    expect(game._soulslike.snakeAnim.state).toBe("idle");
+  });
+
+  it('game.onPlayerAction("stab") triggers a stab in STATE_BOSS', () => {
+    expect(game._soulslike.stamina).toBe(5);
+    game.onPlayerAction("stab");
+    expect(game._soulslike.stamina).toBe(4);
+    expect(game._soulslike.snakeAnim.state).toBe("stab_active");
+  });
+
+  it("onPlayerAction is a no-op outside STATE_BOSS", () => {
+    game._practiceMode = "single";
+    game._exitBossVictory();
+    expect(game.state).not.toBe(Game.STATE_BOSS);
+    // Soulslike state is torn down; this should not throw.
+    expect(() => game.onPlayerAction("stab")).not.toThrow();
+  });
+
+  it("dispatchAction(ACTION_STAB) routes to stab in STATE_BOSS", async () => {
+    const { dispatchAction, ACTION_STAB } = await import("../src/input/actions.js");
+    expect(game._soulslike.stamina).toBe(5);
+    dispatchAction(game, ACTION_STAB);
+    expect(game._soulslike.stamina).toBe(4);
+  });
+});
+
+describe("hissalia / soulslike dodge (Step 6)", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.startRun();
+    game._practiceBossId = "hissalia";
+    game._enterBossFight();
+  });
+
+  function forceBossSubtick(g) {
+    g._lastBossTickTime = 0;
+    g._bossTick();
+  }
+
+  function forceMoveSubtick(g) {
+    g._lastBossMoveTime = 0;
+    g._bossTick();
+  }
+
+  it("dodge moves the snake DODGE_DISTANCE cells in the held direction", async () => {
+    const { dodge } = await import("../src/core/boss/styles/soulslike/combat.js");
+    const startX = game.snake.snakeX[game.snake.headIndex];
+    game.onInput(1, 0); // hold east
+    const ok = dodge(game);
+    expect(ok).toBe(true);
+    expect(game.snake.snakeX[game.snake.headIndex]).toBe(startX + 2);
+  });
+
+  it("dodge falls back to facing when no held direction", async () => {
+    const { dodge } = await import("../src/core/boss/styles/soulslike/combat.js");
+    const startY = game.snake.snakeY[game.snake.headIndex];
+    expect(game._heldDirection).toBeNull();
+    expect(game._playerFacing).toEqual({ dx: 0, dy: -1 });
+    dodge(game);
+    expect(game.snake.snakeY[game.snake.headIndex]).toBe(startY - 2);
+  });
+
+  it("dodge stops at a wall", async () => {
+    const { dodge } = await import("../src/core/boss/styles/soulslike/combat.js");
+    // Place the snake adjacent to the south wall (row 30) so a south
+    // dodge has nowhere to advance.
+    const head = game.snake.headIndex;
+    game.grid.clearCell("snake", game.snake.snakeX[head], game.snake.snakeY[head]);
+    game.snake.snakeX[head] = 15;
+    game.snake.snakeY[head] = 29;
+    game.grid.setCell("snake", 15, 29);
+    game.onInput(0, 1);
+    dodge(game);
+    expect(game.snake.snakeY[head]).toBe(29);
+  });
+
+  it("dodge consumes 2 stamina", async () => {
+    const { dodge } = await import("../src/core/boss/styles/soulslike/combat.js");
+    expect(game._soulslike.stamina).toBe(5);
+    dodge(game);
+    expect(game._soulslike.stamina).toBe(3);
+  });
+
+  it("dodge no-ops when stamina is below cost", async () => {
+    const { dodge } = await import("../src/core/boss/styles/soulslike/combat.js");
+    game._soulslike.stamina = 1;
+    const startX = game.snake.snakeX[game.snake.headIndex];
+    const ok = dodge(game);
+    expect(ok).toBe(false);
+    expect(game._soulslike.stamina).toBe(1);
+    expect(game.snake.snakeX[game.snake.headIndex]).toBe(startX);
+  });
+
+  it("dodge sets iframes + recovery + dodge_active anim", async () => {
+    const { dodge } = await import("../src/core/boss/styles/soulslike/combat.js");
+    game.onInput(1, 0);
+    dodge(game);
+    expect(game._soulslike.dodgeIframes).toBe(4);
+    expect(game._soulslike.dodgeRecovery).toBe(4);
+    expect(game._soulslike.snakeAnim.state).toBe("dodge_active");
+  });
+
+  it("takeDamage during iframes is a no-op", async () => {
+    const { dodge } = await import("../src/core/boss/styles/soulslike/combat.js");
+    const { takeDamage } = await import("../src/core/boss/styles/soulslike/player.js");
+    game.onInput(1, 0);
+    dodge(game);
+    expect(game._soulslike.snakeHp).toBe(5);
+    takeDamage(game, 3, "overhead");
+    expect(game._soulslike.snakeHp).toBe(5);
+  });
+
+  it("takeDamage during recovery (post-iframes) does deal damage", async () => {
+    const { dodge } = await import("../src/core/boss/styles/soulslike/combat.js");
+    const { takeDamage } = await import("../src/core/boss/styles/soulslike/player.js");
+    game.onInput(1, 0);
+    dodge(game);
+    for (let i = 0; i < 4; i++) {
+      forceBossSubtick(game);
+    }
+    expect(game._soulslike.dodgeIframes).toBe(0);
+    expect(game._soulslike.dodgeRecovery).toBeGreaterThan(0);
+    expect(game._soulslike.snakeAnim.state).toBe("dodge_recovery");
+    takeDamage(game, 1, "overhead");
+    expect(game._soulslike.snakeHp).toBe(4);
+  });
+
+  it("stab is blocked during iframes and recovery", async () => {
+    const { dodge, stab } = await import("../src/core/boss/styles/soulslike/combat.js");
+    game.onInput(1, 0);
+    dodge(game);
+    expect(stab(game)).toBe(false); // during iframes
+    for (let i = 0; i < 4; i++) {
+      forceBossSubtick(game);
+    }
+    expect(stab(game)).toBe(false); // during recovery
+  });
+
+  it("dodge is blocked during iframes and recovery", async () => {
+    const { dodge } = await import("../src/core/boss/styles/soulslike/combat.js");
+    game.onInput(1, 0);
+    dodge(game);
+    const staminaAfterFirst = game._soulslike.stamina;
+    expect(dodge(game)).toBe(false);
+    expect(game._soulslike.stamina).toBe(staminaAfterFirst);
+  });
+
+  it("held-direction movement is locked out during dodge", async () => {
+    const { dodge } = await import("../src/core/boss/styles/soulslike/combat.js");
+    game.onInput(1, 0);
+    dodge(game);
+    const xAfterDodge = game.snake.snakeX[game.snake.headIndex];
+    forceMoveSubtick(game);
+    forceMoveSubtick(game);
+    expect(game.snake.snakeX[game.snake.headIndex]).toBe(xAfterDodge);
+  });
+
+  it("full state machine: dodge_active → dodge_recovery → idle over 8 boss sub-ticks", async () => {
+    const { dodge } = await import("../src/core/boss/styles/soulslike/combat.js");
+    game.onInput(1, 0);
+    dodge(game);
+    expect(game._soulslike.snakeAnim.state).toBe("dodge_active");
+    for (let i = 0; i < 4; i++) {
+      forceBossSubtick(game);
+    }
+    expect(game._soulslike.snakeAnim.state).toBe("dodge_recovery");
+    for (let i = 0; i < 4; i++) {
+      forceBossSubtick(game);
+    }
+    expect(game._soulslike.snakeAnim.state).toBe("idle");
+    expect(game._soulslike.dodgeIframes).toBe(0);
+    expect(game._soulslike.dodgeRecovery).toBe(0);
+  });
+
+  it("dispatchAction(ACTION_DODGE) routes to dodge in STATE_BOSS", async () => {
+    const { dispatchAction, ACTION_DODGE } = await import("../src/input/actions.js");
+    expect(game._soulslike.stamina).toBe(5);
+    game.onInput(1, 0);
+    dispatchAction(game, ACTION_DODGE);
+    expect(game._soulslike.stamina).toBe(3);
+    expect(game._soulslike.snakeAnim.state).toBe("dodge_active");
+  });
+});
+
+describe("hissalia / soulslike parry (Step 7)", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.startRun();
+    game._practiceBossId = "hissalia";
+    game._enterBossFight();
+  });
+
+  function forceBossSubtick(g) {
+    g._lastBossTickTime = 0;
+    g._bossTick();
+  }
+
+  it("parry consumes 1 stamina + sets parryWindow + parry_active anim", async () => {
+    const { parry } = await import("../src/core/boss/styles/soulslike/combat.js");
+    expect(game._soulslike.stamina).toBe(5);
+    const ok = parry(game);
+    expect(ok).toBe(true);
+    expect(game._soulslike.stamina).toBe(4);
+    expect(game._soulslike.parryWindow).toBe(2);
+    expect(game._soulslike.snakeAnim.state).toBe("parry_active");
+  });
+
+  it("parry no-ops when stamina is below cost", async () => {
+    const { parry } = await import("../src/core/boss/styles/soulslike/combat.js");
+    game._soulslike.stamina = 0;
+    const ok = parry(game);
+    expect(ok).toBe(false);
+    expect(game._soulslike.parryWindow).toBe(0);
+    expect(game._soulslike.snakeAnim.state).toBe("idle");
+  });
+
+  it("parry is blocked during dodge iframes/recovery", async () => {
+    const { dodge, parry } = await import("../src/core/boss/styles/soulslike/combat.js");
+    game.onInput(1, 0);
+    dodge(game);
+    // During iframes
+    expect(parry(game)).toBe(false);
+    for (let i = 0; i < 4; i++) {
+      forceBossSubtick(game);
+    }
+    // During recovery
+    expect(parry(game)).toBe(false);
+  });
+
+  it("stab and dodge are blocked during the parry window", async () => {
+    const { parry, stab, dodge } = await import("../src/core/boss/styles/soulslike/combat.js");
+    parry(game);
+    expect(stab(game)).toBe(false);
+    expect(dodge(game)).toBe(false);
+  });
+
+  it("tickParry decrements the window + reverts anim to idle on close", async () => {
+    const { parry } = await import("../src/core/boss/styles/soulslike/combat.js");
+    parry(game);
+    expect(game._soulslike.parryWindow).toBe(2);
+    forceBossSubtick(game);
+    expect(game._soulslike.parryWindow).toBe(1);
+    expect(game._soulslike.snakeAnim.state).toBe("parry_active");
+    forceBossSubtick(game);
+    expect(game._soulslike.parryWindow).toBe(0);
+    expect(game._soulslike.snakeAnim.state).toBe("idle");
+  });
+
+  it("parryable hit during the window: stagger triggered, no damage, window consumed", async () => {
+    const { parry } = await import("../src/core/boss/styles/soulslike/combat.js");
+    const { takeDamage } = await import("../src/core/boss/styles/soulslike/player.js");
+    parry(game);
+    const hpBefore = game._soulslike.snakeHp;
+    takeDamage(game, 2, "sweep", true /* parryable */);
+    expect(game._soulslike.snakeHp).toBe(hpBefore); // no damage
+    expect(game._soulslike.staggerTicks).toBe(12);
+    expect(game._soulslike.bossAnim.state).toBe("stagger");
+    expect(game._soulslike.parryWindow).toBe(0); // consumed
+    expect(game._soulslike.snakeAnim.state).toBe("idle");
+  });
+
+  it("non-parryable hit during the window: damage applied, no stagger", async () => {
+    const { parry } = await import("../src/core/boss/styles/soulslike/combat.js");
+    const { takeDamage } = await import("../src/core/boss/styles/soulslike/player.js");
+    parry(game);
+    const hpBefore = game._soulslike.snakeHp;
+    takeDamage(game, 2, "overhead", false /* non-parryable */);
+    expect(game._soulslike.snakeHp).toBe(hpBefore - 2);
+    expect(game._soulslike.staggerTicks).toBe(0);
+  });
+
+  it("parryable hit outside the window: damage applied", async () => {
+    const { takeDamage } = await import("../src/core/boss/styles/soulslike/player.js");
+    expect(game._soulslike.parryWindow).toBe(0);
+    takeDamage(game, 1, "sweep", true);
+    expect(game._soulslike.snakeHp).toBe(4);
+    expect(game._soulslike.staggerTicks).toBe(0);
+  });
+
+  it("tickStagger counts down + reverts bossAnim to idle on zero", async () => {
+    // Direct unit test of tickStagger so the boss attack pipeline
+    // (which would re-enter windup once stagger hits 0) doesn't
+    // race with this assertion.
+    const { tickStagger } = await import("../src/core/boss/styles/soulslike/combat.js");
+    game._soulslike.staggerTicks = 2;
+    game._soulslike.bossAnim = { state: "stagger", framesIn: 0 };
+    tickStagger(game);
+    expect(game._soulslike.staggerTicks).toBe(1);
+    expect(game._soulslike.bossAnim.state).toBe("stagger");
+    tickStagger(game);
+    expect(game._soulslike.staggerTicks).toBe(0);
+    expect(game._soulslike.bossAnim.state).toBe("idle");
+  });
+
+  it("stab during stagger deals 3× damage", async () => {
+    const { stab } = await import("../src/core/boss/styles/soulslike/combat.js");
+    // Position snake at (14, 4) facing east so knife tip lands on the
+    // 1×1 boss at (15, 5).
+    const head = game.snake.headIndex;
+    game.grid.clearCell("snake", game.snake.snakeX[head], game.snake.snakeY[head]);
+    game.snake.snakeX[head] = 14;
+    game.snake.snakeY[head] = 4;
+    game.grid.setCell("snake", 14, 4);
+    game._playerFacing = { dx: 1, dy: 0 };
+    // Force the boss into stagger.
+    game._soulslike.staggerTicks = 12;
+    game._soulslike.bossAnim = { state: "stagger", framesIn: 0 };
+    const hpBefore = game._soulslike.bossHp;
+    stab(game);
+    forceBossSubtick(game);
+    expect(game._soulslike.bossHp).toBe(hpBefore - 3);
+  });
+
+  it("dispatchAction(ACTION_PARRY) routes to parry in STATE_BOSS", async () => {
+    const { dispatchAction, ACTION_PARRY } = await import("../src/input/actions.js");
+    expect(game._soulslike.stamina).toBe(5);
+    dispatchAction(game, ACTION_PARRY);
+    expect(game._soulslike.stamina).toBe(4);
+    expect(game._soulslike.parryWindow).toBe(2);
+  });
+});
+
+describe("hissalia / soulslike boss attacks (Step 8)", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.startRun();
+    game._practiceBossId = "hissalia";
+    game._enterBossFight();
+  });
+
+  // A deterministic rand: always 0.5 (above the 0.1 alternate-roll
+  // threshold, so primary distance bracket always wins).
+  const detRand = () => 0.5;
+
+  it("ATTACK_NODES contains the four v1 attacks with correct shapes", async () => {
+    const { ATTACK_NODES } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    for (const id of ["sweep", "regular", "overhead", "kick"]) {
+      expect(ATTACK_NODES.has(id)).toBe(true);
+      const node = ATTACK_NODES.get(id);
+      expect(node.id).toBe(id);
+      expect(typeof node.windupTicks).toBe("number");
+      expect(typeof node.executeTicks).toBe("number");
+      expect(typeof node.recoveryTicks).toBe("number");
+      expect(typeof node.parryable).toBe("boolean");
+      expect(typeof node.telegraphPose).toBe("function");
+      expect(typeof node.executePose).toBe("function");
+    }
+    // D7 parryability table.
+    expect(ATTACK_NODES.get("sweep").parryable).toBe(true);
+    expect(ATTACK_NODES.get("regular").parryable).toBe(true);
+    expect(ATTACK_NODES.get("overhead").parryable).toBe(false);
+    expect(ATTACK_NODES.get("kick").parryable).toBe(true);
+  });
+
+  it("manhattanToBoss returns distance to the 2×2 boss footprint", async () => {
+    const { manhattanToBoss } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    // Boss top-left (21, 21) spans (21..22, 21..22).
+    expect(manhattanToBoss(20, 20, 21, 21)).toBe(2); // NW diagonal
+    expect(manhattanToBoss(20, 21, 21, 21)).toBe(1); // adjacent west
+    expect(manhattanToBoss(21, 21, 21, 21)).toBe(0); // inside
+    expect(manhattanToBoss(25, 21, 21, 21)).toBe(3); // 3 east of east edge
+  });
+
+  it("computeBossFacing snaps to dominant cardinal direction", async () => {
+    const { computeBossFacing } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    // Boss at (21, 21). Snake far west:
+    expect(computeBossFacing(21, 21, 8, 22)).toEqual({ dx: -1, dy: 0 });
+    // Snake far north:
+    expect(computeBossFacing(21, 21, 22, 5)).toEqual({ dx: 0, dy: -1 });
+    // Snake east:
+    expect(computeBossFacing(21, 21, 30, 22)).toEqual({ dx: 1, dy: 0 });
+    // Snake south:
+    expect(computeBossFacing(21, 21, 22, 30)).toEqual({ dx: 0, dy: 1 });
+  });
+
+  it("attack node has telegraph + execute pose helpers", async () => {
+    const { ATTACK_NODES } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    for (const id of ["sweep", "regular", "overhead", "kick"]) {
+      const node = ATTACK_NODES.get(id);
+      expect(typeof node.telegraphPose).toBe("function");
+      expect(typeof node.executePose).toBe("function");
+    }
+  });
+
+  it("sweep execute pose arcs tip through 3 distinct cells outside the boss", async () => {
+    const { ATTACK_NODES } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    const sweep = ATTACK_NODES.get("sweep");
+    const facing = { dx: 0, dy: 1 }; // south
+    const tips = [0, 1, 2].map((t) => sweep.executePose(10, 10, facing, t).tip);
+    // Three distinct cells, all outside the 2×2 footprint (10..11, 10..11).
+    const keys = new Set(tips.map((c) => `${c.x},${c.y}`));
+    expect(keys.size).toBe(3);
+    for (const t of tips) {
+      const insideBoss = t.x >= 10 && t.x <= 11 && t.y >= 10 && t.y <= 11;
+      expect(insideBoss).toBe(false);
+    }
+  });
+
+  it("regular execute pose tip extends to reach 2 beyond the front edge", async () => {
+    const { ATTACK_NODES } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    const regular = ATTACK_NODES.get("regular");
+    const facing = { dx: 0, dy: 1 };
+    // 2×2 boss top-left (10, 10) → south front edge y=11. Reach 2 = y=13.
+    const mid = regular.executePose(10, 10, facing, 1).tip;
+    expect(mid).toEqual({ x: 10, y: 13 });
+  });
+
+  it("overhead execute pose tip reaches 3 cells beyond the front edge at peak", async () => {
+    const { ATTACK_NODES } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    const overhead = ATTACK_NODES.get("overhead");
+    const facing = { dx: 0, dy: 1 };
+    // 2×2 boss top-left (10, 10) → south front edge y=11. Reach 3 = y=14.
+    const peak = overhead.executePose(10, 10, facing, 2).tip;
+    expect(peak).toEqual({ x: 10, y: 14 });
+  });
+
+  it("selectNextAttack picks sweep at adjacent (no kick gate)", async () => {
+    const { selectNextAttack } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    // 2×2 boss at (14, 5)..(15, 6). Place snake at (13, 5) — adjacent west.
+    const head = game.snake.headIndex;
+    game.grid.clearCell("snake", game.snake.snakeX[head], game.snake.snakeY[head]);
+    game.snake.snakeX[head] = 13;
+    game.snake.snakeY[head] = 5;
+    game.grid.setCell("snake", 13, 5);
+    // ticksSinceLastAttack large so kick gate is closed.
+    game._soulslike.ticksSinceLastAttack = 999;
+    const node = selectNextAttack(game, detRand);
+    expect(node.id).toBe("sweep");
+  });
+
+  it("selectNextAttack picks kick at adjacent when recent-attack gate is open", async () => {
+    const { selectNextAttack } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    const head = game.snake.headIndex;
+    game.grid.clearCell("snake", game.snake.snakeX[head], game.snake.snakeY[head]);
+    game.snake.snakeX[head] = 13;
+    game.snake.snakeY[head] = 5;
+    game.grid.setCell("snake", 13, 5);
+    game._soulslike.ticksSinceLastAttack = 5; // < KICK_RECENT_THRESHOLD = 18
+    const node = selectNextAttack(game, detRand);
+    expect(node.id).toBe("kick");
+  });
+
+  it("selectNextAttack picks regular at distance 2", async () => {
+    const { selectNextAttack } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    const head = game.snake.headIndex;
+    game.grid.clearCell("snake", game.snake.snakeX[head], game.snake.snakeY[head]);
+    // (12, 5) — 2 west of boss footprint.
+    game.snake.snakeX[head] = 12;
+    game.snake.snakeY[head] = 5;
+    game.grid.setCell("snake", 12, 5);
+    expect(selectNextAttack(game, detRand).id).toBe("regular");
+  });
+
+  it("selectNextAttack picks overhead at distance 3+", async () => {
+    const { selectNextAttack } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    expect(selectNextAttack(game, detRand).id).toBe("overhead");
+  });
+
+  it("90/10 alt-roll picks a different bracket when rand below 0.1", async () => {
+    const { selectNextAttack } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    // Snake adjacent → primary "sweep". Rand 0.05 < 0.1 → roll alt.
+    const head = game.snake.headIndex;
+    game.grid.clearCell("snake", game.snake.snakeX[head], game.snake.snakeY[head]);
+    game.snake.snakeX[head] = 13;
+    game.snake.snakeY[head] = 5;
+    game.grid.setCell("snake", 13, 5);
+    game._soulslike.ticksSinceLastAttack = 999;
+    // First rand call (0.05) triggers alt; second call picks index in
+    // the others array. With 0.0 we pick the first non-primary.
+    const calls = [0.05, 0.0];
+    let i = 0;
+    const seq = () => calls[i++] ?? 0.5;
+    const node = selectNextAttack(game, seq);
+    expect(["regular", "overhead"]).toContain(node.id);
+  });
+
+  it("state machine: idle → windup → execute → recovery → idle", async () => {
+    const { tickBossAttacks, ATTACK_NODES } =
+      await import("../src/core/boss/styles/soulslike/attacks.js");
+    // Snake stays at default (8, 8) → overhead bracket; deterministic.
+    const sl = game._soulslike;
+    expect(sl.bossAttackId).toBeNull();
+    // Tick 1: idle → start windup (overhead).
+    tickBossAttacks(game, detRand);
+    expect(sl.bossAttackId).toBe("overhead");
+    expect(sl.bossAttackPhase).toBe("windup");
+    expect(sl.bossAttackTicks).toBe(ATTACK_NODES.get("overhead").windupTicks);
+    // Tick down windup.
+    const node = ATTACK_NODES.get("overhead");
+    for (let i = 0; i < node.windupTicks; i++) {
+      tickBossAttacks(game, detRand);
+    }
+    expect(sl.bossAttackPhase).toBe("execute");
+    // Tick down execute.
+    for (let i = 0; i < node.executeTicks; i++) {
+      tickBossAttacks(game, detRand);
+    }
+    expect(sl.bossAttackPhase).toBe("recovery");
+    for (let i = 0; i < node.recoveryTicks; i++) {
+      tickBossAttacks(game, detRand);
+    }
+    expect(sl.bossAttackId).toBeNull();
+    expect(sl.bossAttackPhase).toBeNull();
+    expect(sl.bossAnim.state).toBe("idle");
+  });
+
+  it("hit detection: regular thrust hits the snake mid-execute at reach 2", async () => {
+    const { tickBossAttacks, ATTACK_NODES } =
+      await import("../src/core/boss/styles/soulslike/attacks.js");
+    // 2×2 boss top-left (14, 5); snake at (12, 5) — distance 2 → regular.
+    // Regular's swing: tip at reach 1 → 2 → 1. Mid-tick lands at the
+    // snake; the other two ticks miss.
+    const head = game.snake.headIndex;
+    game.grid.clearCell("snake", game.snake.snakeX[head], game.snake.snakeY[head]);
+    game.snake.snakeX[head] = 12;
+    game.snake.snakeY[head] = 5;
+    game.grid.setCell("snake", 12, 5);
+
+    const sl = game._soulslike;
+    const hpBefore = sl.snakeHp;
+    const node = ATTACK_NODES.get("regular");
+    const total = 1 + node.windupTicks + node.executeTicks + node.recoveryTicks;
+    for (let i = 0; i < total; i++) {
+      tickBossAttacks(game, detRand);
+    }
+    // Exactly one hit (mid-tick at reach 2).
+    expect(sl.snakeHp).toBe(hpBefore - 1);
+    expect(game.snake.deathCause).toBeNull();
+  });
+
+  it("hit detection: snake at iframes takes no damage during attack execute", async () => {
+    const { tickBossAttacks, ATTACK_NODES } =
+      await import("../src/core/boss/styles/soulslike/attacks.js");
+    const head = game.snake.headIndex;
+    game.grid.clearCell("snake", game.snake.snakeX[head], game.snake.snakeY[head]);
+    game.snake.snakeX[head] = 13;
+    game.snake.snakeY[head] = 5;
+    game.grid.setCell("snake", 13, 5);
+
+    const sl = game._soulslike;
+    // Force snake into iframes.
+    sl.dodgeIframes = 99;
+    const hpBefore = sl.snakeHp;
+    const node = ATTACK_NODES.get("regular");
+    const total = 1 + node.windupTicks + node.executeTicks + node.recoveryTicks;
+    for (let i = 0; i < total; i++) {
+      tickBossAttacks(game, detRand);
+    }
+    expect(sl.snakeHp).toBe(hpBefore);
+  });
+
+  it("stagger pauses attack progression", async () => {
+    const { tickBossAttacks } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    const sl = game._soulslike;
+    // Start an attack (tick 1).
+    tickBossAttacks(game, detRand);
+    const ticksBefore = sl.bossAttackTicks;
+    // Now stagger.
+    sl.staggerTicks = 12;
+    // Tick — should not progress.
+    tickBossAttacks(game, detRand);
+    expect(sl.bossAttackTicks).toBe(ticksBefore);
+    expect(sl.bossAttackId).toBe("overhead");
+  });
+
+  it("boss-defeated stops attack pipeline (no new attacks picked)", async () => {
+    const { tickBossAttacks } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    const sl = game._soulslike;
+    sl.bossHp = 0;
+    tickBossAttacks(game, detRand);
+    expect(sl.bossAttackId).toBeNull();
+  });
+
+  it("snake reaching 0 HP from a boss attack records the attack id as death cause", async () => {
+    const { tickBossAttacks, ATTACK_NODES } =
+      await import("../src/core/boss/styles/soulslike/attacks.js");
+    // 2×2 boss at (14, 5); snake at (12, 5) — distance 2 → regular.
+    const head = game.snake.headIndex;
+    game.grid.clearCell("snake", game.snake.snakeX[head], game.snake.snakeY[head]);
+    game.snake.snakeX[head] = 12;
+    game.snake.snakeY[head] = 5;
+    game.grid.setCell("snake", 12, 5);
+    // Reduce snake HP so a single attack kills.
+    game._soulslike.snakeHp = 1;
+    const node = ATTACK_NODES.get("regular");
+    const total = 1 + node.windupTicks + node.executeTicks + node.recoveryTicks;
+    for (let i = 0; i < total; i++) {
+      tickBossAttacks(game, detRand);
+    }
+    expect(game._soulslike.snakeHp).toBe(0);
+    expect(game.snake.deathCause).toBe("regular");
+  });
+
+  it("parryable attack converts to stagger when parry window is open", async () => {
+    const { tickBossAttacks, ATTACK_NODES } =
+      await import("../src/core/boss/styles/soulslike/attacks.js");
+    const { parry } = await import("../src/core/boss/styles/soulslike/combat.js");
+    // Distance 2 → regular (parryable). Regular hits at mid-execute
+    // (tick 1) when tip extends to reach 2; tick 0 and tick 2 are at
+    // reach 1 and don't touch the snake.
+    const head = game.snake.headIndex;
+    game.grid.clearCell("snake", game.snake.snakeX[head], game.snake.snakeY[head]);
+    game.snake.snakeX[head] = 12;
+    game.snake.snakeY[head] = 5;
+    game.grid.setCell("snake", 12, 5);
+
+    const sl = game._soulslike;
+    const node = ATTACK_NODES.get("regular");
+    // Burn idle → start → all windup ticks → execute phase entry.
+    tickBossAttacks(game, detRand); // start
+    for (let i = 0; i < node.windupTicks; i++) {
+      tickBossAttacks(game, detRand);
+    }
+    expect(sl.bossAttackPhase).toBe("execute");
+    // First execute tick (tick 0) — tip at reach 1, snake at reach 2 →
+    // no hit yet. Time the parry so the window is still open at tick 1.
+    tickBossAttacks(game, detRand);
+    const hpBefore = sl.snakeHp;
+    expect(sl.snakeHp).toBe(hpBefore); // no hit on tick 0
+    // Parry window opens just before the mid-tick strike.
+    expect(parry(game)).toBe(true);
+    expect(sl.parryWindow).toBe(2);
+    tickBossAttacks(game, detRand); // tick 1 — the hit lands here
+    expect(sl.snakeHp).toBe(hpBefore); // parry caught it
+    expect(sl.staggerTicks).toBeGreaterThan(0);
+  });
+});
+
+describe("hissalia / soulslike phase transitions (Step 9)", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.startRun();
+    game._practiceBossId = "hissalia";
+    game._enterBossFight();
+  });
+
+  it("HP just above 60% does not arm a phase transition", async () => {
+    const { tickPhases } = await import("../src/core/boss/styles/soulslike/phases.js");
+    const sl = game._soulslike;
+    // 30 max HP × 0.6 = 18.0; 19 is just above.
+    sl.bossHp = 19;
+    tickPhases(game);
+    expect(sl.bossPhase).toBe(1);
+    expect(sl.phaseTransitionTicks).toBe(0);
+  });
+
+  it("HP at 60% arms phase 2 transition", async () => {
+    const { tickPhases } = await import("../src/core/boss/styles/soulslike/phases.js");
+    const sl = game._soulslike;
+    sl.bossHp = 18; // exactly 60%
+    tickPhases(game);
+    expect(sl.bossPhase).toBe(2);
+    expect(sl.phaseTransitionTicks).toBe(12);
+    expect(sl.bossAnim.state).toBe("phase_pause");
+  });
+
+  it("HP at 30% arms phase 3 transition (when in phase 2)", async () => {
+    const { tickPhases } = await import("../src/core/boss/styles/soulslike/phases.js");
+    const sl = game._soulslike;
+    sl.bossPhase = 2;
+    sl.bossHp = 9; // 30%
+    tickPhases(game);
+    expect(sl.bossPhase).toBe(3);
+    expect(sl.phaseTransitionTicks).toBe(12);
+  });
+
+  it("phase transition cancels in-progress attack", async () => {
+    const { tickPhases } = await import("../src/core/boss/styles/soulslike/phases.js");
+    const sl = game._soulslike;
+    sl.bossAttackId = "regular";
+    sl.bossAttackPhase = "windup";
+    sl.bossAttackTicks = 5;
+    sl.bossAttackAim = { x: 10, y: 10 };
+    sl.bossHp = 17;
+    tickPhases(game);
+    expect(sl.bossAttackId).toBeNull();
+    expect(sl.bossAttackPhase).toBeNull();
+    expect(sl.bossAttackTicks).toBe(0);
+    expect(sl.bossAttackAim).toBeNull();
+  });
+
+  it("tickBossAttacks no-ops during phase pause", async () => {
+    const { tickBossAttacks } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    const sl = game._soulslike;
+    sl.phaseTransitionTicks = 8;
+    sl.bossAttackId = null;
+    tickBossAttacks(game, () => 0.5);
+    expect(sl.bossAttackId).toBeNull();
+    // Counter doesn't accumulate during pause.
+    expect(sl.ticksSinceLastAttack).toBe(0);
+  });
+
+  it("stab during phase pause deals no damage to the boss", async () => {
+    const { stab, tickStab } = await import("../src/core/boss/styles/soulslike/combat.js");
+    const sl = game._soulslike;
+    // Position snake adjacent to boss.
+    const head = game.snake.headIndex;
+    game.grid.clearCell("snake", game.snake.snakeX[head], game.snake.snakeY[head]);
+    game.snake.snakeX[head] = 20;
+    game.snake.snakeY[head] = 20;
+    game.grid.setCell("snake", 20, 20);
+    game._playerFacing = { dx: 1, dy: 0 };
+    sl.phaseTransitionTicks = 12;
+    const hpBefore = sl.bossHp;
+    stab(game);
+    tickStab(game);
+    expect(sl.bossHp).toBe(hpBefore);
+  });
+
+  it("phase pause counts down and ends with pendingSpecial set", async () => {
+    const { tickPhases } = await import("../src/core/boss/styles/soulslike/phases.js");
+    const sl = game._soulslike;
+    sl.phaseTransitionTicks = 3;
+    sl.bossAnim = { state: "phase_pause", framesIn: 0 };
+    sl.pendingSpecial = false;
+
+    tickPhases(game);
+    expect(sl.phaseTransitionTicks).toBe(2);
+    expect(sl.pendingSpecial).toBe(false);
+    tickPhases(game);
+    expect(sl.phaseTransitionTicks).toBe(1);
+    tickPhases(game);
+    expect(sl.phaseTransitionTicks).toBe(0);
+    expect(sl.pendingSpecial).toBe(true);
+    expect(sl.bossAnim.state).toBe("idle");
+  });
+
+  it("HP zero doesn't trigger further phase transitions", async () => {
+    const { tickPhases } = await import("../src/core/boss/styles/soulslike/phases.js");
+    const sl = game._soulslike;
+    sl.bossPhase = 3;
+    sl.bossHp = 0;
+    tickPhases(game);
+    expect(sl.phaseTransitionTicks).toBe(0);
+    expect(sl.bossPhase).toBe(3);
+  });
+
+  it("phase 3 transition doesn't refire if already in phase 3", async () => {
+    const { tickPhases } = await import("../src/core/boss/styles/soulslike/phases.js");
+    const sl = game._soulslike;
+    sl.bossPhase = 3;
+    sl.bossHp = 1; // way below threshold
+    tickPhases(game);
+    expect(sl.phaseTransitionTicks).toBe(0);
+    expect(sl.bossPhase).toBe(3);
+  });
+});
+
+describe("hissalia / soulslike Waterfowl special (Step 10)", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.startRun();
+    game._practiceBossId = "hissalia";
+    game._enterBossFight();
+  });
+
+  function placeSnake(x, y) {
+    const head = game.snake.headIndex;
+    game.grid.clearCell("snake", game.snake.snakeX[head], game.snake.snakeY[head]);
+    game.snake.snakeX[head] = x;
+    game.snake.snakeY[head] = y;
+    game.grid.setCell("snake", x, y);
+  }
+
+  it("inactive: idle ticks accumulate ticksSinceLastSpecial", async () => {
+    const { tickWaterfowl } = await import("../src/core/boss/styles/soulslike/waterfowl.js");
+    const sl = game._soulslike;
+    expect(sl.ticksSinceLastSpecial).toBe(0);
+    tickWaterfowl(game);
+    tickWaterfowl(game);
+    tickWaterfowl(game);
+    expect(sl.ticksSinceLastSpecial).toBe(3);
+    expect(sl.waterfowlPhase).toBe(0);
+  });
+
+  it("pendingSpecial triggers waterfowl on next tick", async () => {
+    const { tickWaterfowl } = await import("../src/core/boss/styles/soulslike/waterfowl.js");
+    const sl = game._soulslike;
+    sl.pendingSpecial = true;
+    placeSnake(12, 14);
+    tickWaterfowl(game);
+    expect(sl.waterfowlPhase).toBe(1); // LOCK_1
+    expect(sl.waterfowlLockX).toBe(12);
+    expect(sl.waterfowlLockY).toBe(14);
+    expect(sl.waterfowlTicks).toBe(8); // WATERFOWL_LOCK_TICKS
+  });
+
+  it("SPECIAL_FORCE_TICKS failsafe triggers waterfowl", async () => {
+    const { tickWaterfowl } = await import("../src/core/boss/styles/soulslike/waterfowl.js");
+    const sl = game._soulslike;
+    sl.ticksSinceLastSpecial = 360; // SPECIAL_FORCE_TICKS
+    placeSnake(12, 12);
+    tickWaterfowl(game);
+    expect(sl.waterfowlPhase).toBe(1);
+  });
+
+  it("lock holds for WATERFOWL_LOCK_TICKS without advancing", async () => {
+    const { tickWaterfowl } = await import("../src/core/boss/styles/soulslike/waterfowl.js");
+    const sl = game._soulslike;
+    sl.pendingSpecial = true;
+    placeSnake(12, 12);
+    tickWaterfowl(game); // enter lock_1
+    expect(sl.waterfowlPhase).toBe(1);
+    // Run 7 more ticks — each decrements waterfowlTicks but doesn't
+    // advance phase (8-tick lock).
+    for (let i = 0; i < 7; i++) {
+      tickWaterfowl(game);
+    }
+    expect(sl.waterfowlPhase).toBe(1);
+    // Next tick: waterfowlTicks reaches 0, advance to JUMP_1.
+    tickWaterfowl(game);
+    expect(sl.waterfowlPhase).toBe(2);
+  });
+
+  it("bait window: snake moving during lock shifts the jump target", async () => {
+    const { tickWaterfowl } = await import("../src/core/boss/styles/soulslike/waterfowl.js");
+    const sl = game._soulslike;
+    sl.pendingSpecial = true;
+    placeSnake(12, 12);
+    tickWaterfowl(game); // lock at (12, 12)
+    expect(sl.waterfowlLockX).toBe(12);
+    expect(sl.waterfowlLockY).toBe(12);
+    // Player baits — moves to a different cell. Lock stays put.
+    placeSnake(18, 18);
+    expect(sl.waterfowlLockX).toBe(12);
+    expect(sl.waterfowlLockY).toBe(12);
+    // Run out the rest of the lock (7) + full dash (3) + advance into
+    // SWIPE_1 (1) = 11 ticks. The dash lands the boss exactly on the
+    // locked target on its final sub-tick before advancing.
+    for (let i = 0; i < 11; i++) {
+      tickWaterfowl(game);
+    }
+    expect(sl.waterfowlPhase).toBe(3); // SWIPE_1 (dash complete)
+    // Boss dashed to the OLD lock position (where the player was), not
+    // the new one.
+    expect(sl.bossX).toBe(12);
+    expect(sl.bossY).toBe(12);
+  });
+
+  it("jump teleports boss; swipe damages snake along the sword path", async () => {
+    const { tickWaterfowl } = await import("../src/core/boss/styles/soulslike/waterfowl.js");
+    const sl = game._soulslike;
+    sl.pendingSpecial = true;
+    placeSnake(15, 15);
+    tickWaterfowl(game); // enter LOCK_1
+    // Bait: snake moves to (15, 14) — the N-left handle cell of the
+    // 12-cell swipe ring around the (15, 15) landing site. Hit on
+    // swipe step 0.
+    placeSnake(15, 14);
+    // Run lock (7 more) + dash (3) + enter SWIPE_1 (1) + first swipe
+    // sub-tick (1) = 12 ticks. The sub-tick at ring step 0 (N-left)
+    // checks (15, 14) and damages.
+    for (let i = 0; i < 12; i++) {
+      tickWaterfowl(game);
+    }
+    expect(sl.waterfowlPhase).toBe(3); // SWIPE_1
+    expect(sl.bossX).toBe(15);
+    expect(sl.bossY).toBe(15);
+    expect(sl.snakeHp).toBe(4);
+  });
+
+  it("swipe misses snake outside the ring (after baiting away)", async () => {
+    const { tickWaterfowl } = await import("../src/core/boss/styles/soulslike/waterfowl.js");
+    const sl = game._soulslike;
+    sl.pendingSpecial = true;
+    placeSnake(10, 10);
+    tickWaterfowl(game); // lock at (10, 10)
+    // Bait: snake runs far away. Boss lands at (10, 10); the 12-cell
+    // swipe ring around it doesn't reach (20, 20).
+    placeSnake(20, 20);
+    for (let i = 0; i < 25; i++) {
+      tickWaterfowl(game);
+    }
+    expect(sl.snakeHp).toBe(5);
+  });
+
+  it("iframes block waterfowl swipe damage", async () => {
+    const { tickWaterfowl } = await import("../src/core/boss/styles/soulslike/waterfowl.js");
+    const sl = game._soulslike;
+    sl.pendingSpecial = true;
+    placeSnake(15, 15);
+    tickWaterfowl(game); // enter LOCK_1
+    // Place snake on a ring cell — would normally take damage on a
+    // swipe sub-tick — and give it long-lived iframes.
+    placeSnake(15, 14);
+    sl.dodgeIframes = 999;
+    for (let i = 0; i < 25; i++) {
+      tickWaterfowl(game);
+    }
+    expect(sl.snakeHp).toBe(5);
+  });
+
+  it("stagger pauses waterfowl progression", async () => {
+    const { tickWaterfowl } = await import("../src/core/boss/styles/soulslike/waterfowl.js");
+    const sl = game._soulslike;
+    sl.pendingSpecial = true;
+    placeSnake(12, 12);
+    tickWaterfowl(game); // enter lock_1
+    expect(sl.waterfowlPhase).toBe(1);
+    const ticksAtLock = sl.waterfowlTicks;
+    sl.staggerTicks = 5;
+    tickWaterfowl(game);
+    // Stagger gates the entire tick — counter doesn't decrement.
+    expect(sl.waterfowlTicks).toBe(ticksAtLock);
+  });
+
+  it("tickBossAttacks no-ops while waterfowl is active", async () => {
+    const { tickBossAttacks } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    const sl = game._soulslike;
+    sl.waterfowlPhase = 1;
+    sl.bossAttackId = null;
+    tickBossAttacks(game, () => 0.5);
+    expect(sl.bossAttackId).toBeNull();
+    expect(sl.ticksSinceLastAttack).toBe(0);
+  });
+
+  it("pattern advances through all 13 beats and exits cleanly", async () => {
+    const { tickWaterfowl } = await import("../src/core/boss/styles/soulslike/waterfowl.js");
+    const sl = game._soulslike;
+    sl.pendingSpecial = true;
+    placeSnake(15, 15);
+    sl.dodgeIframes = 999; // immune throughout — focus on phase progression
+
+    const observedPhases = new Set();
+    // Run until waterfowl resets to inactive (phase=0 after entering at
+    // least one non-zero phase). Capped at 200 ticks as a safety net.
+    let started = false;
+    for (let i = 0; i < 200; i++) {
+      observedPhases.add(sl.waterfowlPhase);
+      tickWaterfowl(game);
+      if (sl.waterfowlPhase > 0) {
+        started = true;
+      } else if (started) {
+        break;
+      }
+    }
+    // Every phase 1..13 should have been observed at least once.
+    for (let p = 1; p <= 13; p++) {
+      expect(observedPhases.has(p)).toBe(true);
+    }
+    // After the secondary completes, waterfowl resets to inactive and
+    // pendingSpecial is cleared.
+    expect(sl.waterfowlPhase).toBe(0);
+    expect(sl.pendingSpecial).toBe(false);
+    expect(sl.ticksSinceLastSpecial).toBe(0);
+  });
+
+  it("secondary circle catches snake at distance > primary radius", async () => {
+    const { tickWaterfowl } = await import("../src/core/boss/styles/soulslike/waterfowl.js");
+    const sl = game._soulslike;
+    sl.pendingSpecial = true;
+    placeSnake(15, 15);
+    sl.dodgeIframes = 999;
+    // Walk the state machine until we're in phase 12 (the 1-tick gap
+    // immediately before SECONDARY). Bounded loop so a regression
+    // can't infinite-loop the test.
+    for (let i = 0; i < 200 && sl.waterfowlPhase !== 12; i++) {
+      tickWaterfowl(game);
+    }
+    expect(sl.waterfowlPhase).toBe(12);
+    // Drop iframes and reposition the snake at a cell that's outside
+    // primary RADIUS=3 but inside secondary RADIUS_FINAL=4 of the
+    // boss centre. The boss's final position depends on where snake
+    // was pushed during the dashes, so compute relative to bossX/Y.
+    // (bossX+4, bossY): dx=3.5, dy=-0.5 → dist²=12.5, dist=3.54.
+    sl.dodgeIframes = 0;
+    sl.snakeHp = 5;
+    placeSnake(sl.bossX + 4, sl.bossY);
+    tickWaterfowl(game); // gap → SECONDARY entry, fires circleHit
+    expect(sl.waterfowlPhase).toBe(13);
+    expect(sl.snakeHp).toBe(4); // secondary radius 4 caught the hit
+  });
+});
+
+describe("hissalia / soulslike rendering (Step 11)", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.startRun();
+    game._practiceBossId = "hissalia";
+    game._enterBossFight();
+  });
+
+  it("fighterCellByAnim maps each animation state to a distinct cell", async () => {
+    const { fighterCellByAnim } = await import("../src/core/boss/styles/soulslike/animation.js");
+    const {
+      CELL_FIGHTER_IDLE,
+      CELL_FIGHTER_STAB_ACTIVE,
+      CELL_FIGHTER_DODGE_ACTIVE,
+      CELL_FIGHTER_DODGE_RECOVERY,
+      CELL_FIGHTER_PARRY_ACTIVE,
+    } = await import("../src/render/renderer.js");
+    expect(fighterCellByAnim("idle")).toBe(CELL_FIGHTER_IDLE);
+    expect(fighterCellByAnim("stab_active")).toBe(CELL_FIGHTER_STAB_ACTIVE);
+    expect(fighterCellByAnim("dodge_active")).toBe(CELL_FIGHTER_DODGE_ACTIVE);
+    expect(fighterCellByAnim("dodge_recovery")).toBe(CELL_FIGHTER_DODGE_RECOVERY);
+    expect(fighterCellByAnim("parry_active")).toBe(CELL_FIGHTER_PARRY_ACTIVE);
+    // Unknown state falls back to idle (defensive default).
+    expect(fighterCellByAnim("__bogus__")).toBe(CELL_FIGHTER_IDLE);
+  });
+
+  it("glaivePose idle: default forward pose 1 + 2 cells beyond front edge", async () => {
+    const { glaivePose } = await import("../src/core/boss/styles/soulslike/animation.js");
+    const sl = {
+      bossX: 10,
+      bossY: 10,
+      bossFacing: { dx: 0, dy: 1 },
+      bossAttackId: null,
+      bossAttackPhase: null,
+      bossAttackTicks: 0,
+    };
+    // 2×2 boss top-left (10, 10) → south front edge y=11.
+    // Handle 1 cell beyond = y=12; tip at y=13.
+    const pose = glaivePose(sl);
+    expect(pose.handle).toEqual({ x: 10, y: 12 });
+    expect(pose.tip).toEqual({ x: 10, y: 13 });
+    expect(pose.isSignifier).toBe(false);
+  });
+
+  it("glaivePose during windup uses attack telegraph; last tick is signifier", async () => {
+    const { glaivePose } = await import("../src/core/boss/styles/soulslike/animation.js");
+    const sl = {
+      bossX: 10,
+      bossY: 10,
+      bossFacing: { dx: 0, dy: 1 },
+      bossAttackId: "sweep",
+      bossAttackPhase: "windup",
+      bossAttackTicks: 1, // last tick → signifier
+    };
+    const pose = glaivePose(sl);
+    expect(pose.isSignifier).toBe(true);
+  });
+
+  it("glaivePose during execute uses swing pose at current tick", async () => {
+    const { glaivePose } = await import("../src/core/boss/styles/soulslike/animation.js");
+    const { ATTACK_NODES } = await import("../src/core/boss/styles/soulslike/attacks.js");
+    const reg = ATTACK_NODES.get("regular");
+    const sl = {
+      bossX: 10,
+      bossY: 10,
+      bossFacing: { dx: 0, dy: 1 },
+      bossAttackId: "regular",
+      bossAttackPhase: "execute",
+      bossAttackTicks: reg.executeTicks - 1, // tick 1 (mid)
+    };
+    const pose = glaivePose(sl);
+    // 2×2 boss; mid-tick = reach 2 south from front edge y=11 → y=13.
+    expect(pose.tip).toEqual({ x: 10, y: 13 });
+  });
+
+  // Helpers that intercept the cell adapter via spec overrides — same
+  // pattern as the Step 3 "CELL_WALL_ARENA, not CELL_WALL" test.
+  function captureCells(cellIds) {
+    const calls = new Map();
+    for (const id of cellIds) {
+      calls.set(id, []);
+    }
+    return calls;
+  }
+
+  async function withCellSpies(cellIds, fn) {
+    const { defineCell } = await import("../src/core/grid/cell/index.js");
+    const { getCellSpec } = await import("../src/core/grid/cell/registry.js");
+    const captured = captureCells(cellIds);
+    const originals = new Map();
+    for (const id of cellIds) {
+      originals.set(id, getCellSpec(id));
+      defineCell(id, {
+        render: (x, y, context) => captured.get(id).push({ x, y, context }),
+      });
+    }
+    try {
+      await fn(captured);
+    } finally {
+      for (const id of cellIds) {
+        defineCell(id, originals.get(id));
+      }
+    }
+  }
+
+  it("draws the 2×2 hissalia footprint as 4 CELL_HISSALIA calls", async () => {
+    const { CELL_HISSALIA } = await import("../src/render/renderer.js");
+    await withCellSpies([CELL_HISSALIA], (captured) => {
+      game.renderer = {
+        clear: () => {},
+        drawCell: () => {},
+        cell: () => {},
+        drawHUD: () => {},
+        drawScreen: () => {},
+        drawBossInfo: () => {},
+        drawSurvivalInfo: () => {},
+        drawSoulslikeInfo: () => {},
+        drawBossIntroOverlay: () => {},
+        flush: () => {},
+      };
+      game.renderFrame();
+      const sl = game._soulslike;
+      const calls = captured.get(CELL_HISSALIA);
+      expect(calls.length).toBe(4);
+      const coords = calls.map((c) => `${c.x},${c.y}`).sort();
+      expect(coords).toEqual([
+        `${sl.bossX},${sl.bossY}`,
+        `${sl.bossX},${sl.bossY + 1}`,
+        `${sl.bossX + 1},${sl.bossY}`,
+        `${sl.bossX + 1},${sl.bossY + 1}`,
+      ]);
+    });
+  });
+
+  it("hissalia context.staggered reflects staggerTicks", async () => {
+    const { CELL_HISSALIA } = await import("../src/render/renderer.js");
+    await withCellSpies([CELL_HISSALIA], async (captured) => {
+      game.renderer = {
+        clear: () => {},
+        drawCell: () => {},
+        cell: () => {},
+        drawHUD: () => {},
+        drawScreen: () => {},
+        drawBossInfo: () => {},
+        drawSurvivalInfo: () => {},
+        drawSoulslikeInfo: () => {},
+        drawBossIntroOverlay: () => {},
+        flush: () => {},
+      };
+      game._soulslike.staggerTicks = 0;
+      game.renderFrame();
+      expect(captured.get(CELL_HISSALIA).at(-1).context.staggered).toBe(false);
+
+      game._soulslike.staggerTicks = 6;
+      game.renderFrame();
+      expect(captured.get(CELL_HISSALIA).at(-1).context.staggered).toBe(true);
+    });
+  });
+
+  it("snake fighter cell type tracks snakeAnim.state", async () => {
+    const { CELL_FIGHTER_IDLE, CELL_FIGHTER_STAB_ACTIVE, CELL_FIGHTER_PARRY_ACTIVE } =
+      await import("../src/render/renderer.js");
+    await withCellSpies(
+      [CELL_FIGHTER_IDLE, CELL_FIGHTER_STAB_ACTIVE, CELL_FIGHTER_PARRY_ACTIVE],
+      async (captured) => {
+        game.renderer = {
+          clear: () => {},
+          drawCell: () => {},
+          cell: () => {},
+          drawHUD: () => {},
+          drawScreen: () => {},
+          drawBossInfo: () => {},
+          drawSurvivalInfo: () => {},
+          drawSoulslikeInfo: () => {},
+          drawBossIntroOverlay: () => {},
+          flush: () => {},
+        };
+        game._soulslike.snakeAnim = { state: "idle", framesIn: 0 };
+        game.renderFrame();
+        expect(captured.get(CELL_FIGHTER_IDLE).length).toBeGreaterThan(0);
+
+        game._soulslike.snakeAnim = { state: "stab_active", framesIn: 0 };
+        game.renderFrame();
+        expect(captured.get(CELL_FIGHTER_STAB_ACTIVE).length).toBeGreaterThan(0);
+
+        game._soulslike.snakeAnim = { state: "parry_active", framesIn: 0 };
+        game.renderFrame();
+        expect(captured.get(CELL_FIGHTER_PARRY_ACTIVE).length).toBeGreaterThan(0);
+      }
+    );
+  });
+
+  it("halberd tip context.tickInExecute > 0 during execute phase", async () => {
+    const { CELL_HALBERD_TIP } = await import("../src/render/renderer.js");
+    await withCellSpies([CELL_HALBERD_TIP], async (captured) => {
+      game.renderer = {
+        clear: () => {},
+        drawCell: () => {},
+        cell: () => {},
+        drawHUD: () => {},
+        drawScreen: () => {},
+        drawBossInfo: () => {},
+        drawSurvivalInfo: () => {},
+        drawSoulslikeInfo: () => {},
+        drawBossIntroOverlay: () => {},
+        flush: () => {},
+      };
+      // Idle → attackPhase null, no signifier.
+      game.renderFrame();
+      expect(captured.get(CELL_HALBERD_TIP).at(-1).context.attackPhase).toBeNull();
+      expect(captured.get(CELL_HALBERD_TIP).at(-1).context.isSignifier).toBe(false);
+
+      // Force into execute mid-attack.
+      game._soulslike.bossAttackId = "regular";
+      game._soulslike.bossAttackPhase = "execute";
+      game._soulslike.bossAttackTicks = 2;
+      game.renderFrame();
+      expect(captured.get(CELL_HALBERD_TIP).at(-1).context.attackPhase).toBe("execute");
+    });
+  });
+
+  it("halberd tip context.isSignifier flashes on last tick of windup", async () => {
+    const { CELL_HALBERD_TIP } = await import("../src/render/renderer.js");
+    await withCellSpies([CELL_HALBERD_TIP], async (captured) => {
+      game.renderer = {
+        clear: () => {},
+        drawCell: () => {},
+        cell: () => {},
+        drawHUD: () => {},
+        drawScreen: () => {},
+        drawBossInfo: () => {},
+        drawSurvivalInfo: () => {},
+        drawSoulslikeInfo: () => {},
+        drawBossIntroOverlay: () => {},
+        flush: () => {},
+      };
+      // Mid-windup — not yet the signifier.
+      game._soulslike.bossAttackId = "regular";
+      game._soulslike.bossAttackPhase = "windup";
+      game._soulslike.bossAttackTicks = 5;
+      game.renderFrame();
+      expect(captured.get(CELL_HALBERD_TIP).at(-1).context.isSignifier).toBe(false);
+
+      // Last windup tick — signifier flash.
+      game._soulslike.bossAttackTicks = 1;
+      game.renderFrame();
+      expect(captured.get(CELL_HALBERD_TIP).at(-1).context.isSignifier).toBe(true);
+    });
+  });
+
+  it("knife tip context.snakeAnimState passes the current state", async () => {
+    const { CELL_KNIFE_TIP } = await import("../src/render/renderer.js");
+    await withCellSpies([CELL_KNIFE_TIP], async (captured) => {
+      game.renderer = {
+        clear: () => {},
+        drawCell: () => {},
+        cell: () => {},
+        drawHUD: () => {},
+        drawScreen: () => {},
+        drawBossInfo: () => {},
+        drawSurvivalInfo: () => {},
+        drawSoulslikeInfo: () => {},
+        drawBossIntroOverlay: () => {},
+        flush: () => {},
+      };
+      game._soulslike.snakeAnim = { state: "stab_active", framesIn: 0 };
+      // Make sure the knife tip lands inside the arena, not on a wall.
+      // The snake spawns at (8, 8) with facing east; tip is 1 east, 1
+      // south of that = (9, 9). Inside the inner playable area.
+      game.renderFrame();
+      const last = captured.get(CELL_KNIFE_TIP).at(-1);
+      expect(last).toBeDefined();
+      expect(last.context.snakeAnimState).toBe("stab_active");
+    });
+  });
+});
+
+describe("hissalia / soulslike HUD (Step 12)", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.startRun();
+    game._practiceBossId = "hissalia";
+    game._enterBossFight();
+  });
+
+  function captureHud() {
+    const calls = [];
+    const mock = {
+      clear: () => {},
+      drawCell: () => {},
+      cell: () => {},
+      drawHUD: () => {},
+      drawScreen: () => {},
+      drawBossInfo: () => {},
+      drawSurvivalInfo: () => {},
+      drawSoulslikeInfo: (...args) => calls.push(args),
+      drawBossIntroOverlay: () => {},
+      flush: () => {},
+    };
+    game.renderer = mock;
+    return calls;
+  }
+
+  it("drawSoulslikeInfo receives all 7 stats from `_soulslike` + `_boss`", () => {
+    const calls = captureHud();
+    game.renderFrame();
+    expect(calls.length).toBe(1);
+    const [snakeHp, snakeHpMax, stamina, staminaMax, bossName, bossHp, bossHpMax] = calls[0];
+    const sl = game._soulslike;
+    expect(snakeHp).toBe(sl.snakeHp);
+    expect(snakeHpMax).toBe(sl.snakeHpMax);
+    expect(stamina).toBe(sl.stamina);
+    expect(staminaMax).toBe(sl.staminaMax);
+    expect(bossName).toBe(game._boss.name);
+    expect(bossHp).toBe(sl.bossHp);
+    expect(bossHpMax).toBe(sl.bossHpMax);
+  });
+
+  it("HUD reflects depleted snake HP", () => {
+    const calls = captureHud();
+    game._soulslike.snakeHp = 2;
+    game.renderFrame();
+    expect(calls.at(-1)[0]).toBe(2); // snakeHp
+    expect(calls.at(-1)[1]).toBe(5); // snakeHpMax (default)
+  });
+
+  it("HUD reflects depleted stamina", () => {
+    const calls = captureHud();
+    game._soulslike.stamina = 1;
+    game.renderFrame();
+    expect(calls.at(-1)[2]).toBe(1); // stamina
+    expect(calls.at(-1)[3]).toBe(5); // staminaMax
+  });
+
+  it("HUD reflects boss HP changes", () => {
+    const calls = captureHud();
+    game._soulslike.bossHp = 12;
+    game.renderFrame();
+    expect(calls.at(-1)[5]).toBe(12); // bossHp
+    expect(calls.at(-1)[6]).toBe(30); // bossHpMax (default)
+  });
+
+  it("renderer base drawSoulslikeInfo default is a safe no-op", async () => {
+    const { Renderer } = await import("../src/render/renderer.js");
+    class TestR extends Renderer {
+      clear() {}
+      drawHUD() {}
+      drawScreen() {}
+      flush() {}
+    }
+    const r = new TestR();
+    expect(() => r.drawSoulslikeInfo(5, 5, 5, 5, "x", 30, 30)).not.toThrow();
+  });
+});
+
+describe("hissalia / soulslike boss movement", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.startRun();
+    game._practiceBossId = "hissalia";
+    game._enterBossFight();
+  });
+
+  function placeSnake(x, y) {
+    const head = game.snake.headIndex;
+    game.grid.clearCell("snake", game.snake.snakeX[head], game.snake.snakeY[head]);
+    game.snake.snakeX[head] = x;
+    game.snake.snakeY[head] = y;
+    game.grid.setCell("snake", x, y);
+  }
+
+  it("default mode is idle", () => {
+    expect(game._soulslike.movementMode).toBe("idle");
+  });
+
+  it("boss does not move while committed to an attack", async () => {
+    const { tickBossMovement } = await import("../src/core/boss/styles/soulslike/movement.js");
+    const sl = game._soulslike;
+    sl.bossAttackId = "regular";
+    sl.bossAttackPhase = "windup";
+    sl.bossAttackTicks = 4;
+    const { bossX, bossY } = sl;
+    // Force the movement timer to fire.
+    sl.movementTimer = 1;
+    tickBossMovement(game);
+    expect(sl.bossX).toBe(bossX);
+    expect(sl.bossY).toBe(bossY);
+  });
+
+  it("boss does not move while staggered / phase-paused / waterfowling", async () => {
+    const { tickBossMovement } = await import("../src/core/boss/styles/soulslike/movement.js");
+    const sl = game._soulslike;
+    const { bossX, bossY } = sl;
+    sl.movementTimer = 1;
+
+    sl.staggerTicks = 5;
+    tickBossMovement(game);
+    expect(sl.bossX).toBe(bossX);
+    sl.staggerTicks = 0;
+
+    sl.phaseTransitionTicks = 5;
+    tickBossMovement(game);
+    expect(sl.bossX).toBe(bossX);
+    sl.phaseTransitionTicks = 0;
+
+    sl.waterfowlPhase = 1;
+    tickBossMovement(game);
+    expect(sl.bossX).toBe(bossX);
+    sl.waterfowlPhase = 0;
+    expect(sl.bossY).toBe(bossY);
+  });
+
+  it("sustained closeness flips boss to defensive mode", async () => {
+    const { tickBossMovement } = await import("../src/core/boss/styles/soulslike/movement.js");
+    const { CLOSENESS_TRIGGER_TICKS } =
+      await import("../src/core/boss/styles/soulslike/constants.js");
+    const sl = game._soulslike;
+    // Place snake adjacent to boss.
+    placeSnake(sl.bossX + 1, sl.bossY);
+    for (let i = 0; i <= CLOSENESS_TRIGGER_TICKS; i++) {
+      tickBossMovement(game);
+    }
+    expect(sl.movementMode).toBe("defensive");
+  });
+
+  it("multiple boss hits flip boss to defensive mode", async () => {
+    const { tickBossMovement, recordBossHit } =
+      await import("../src/core/boss/styles/soulslike/movement.js");
+    const { HITS_FOR_DEFENSIVE } = await import("../src/core/boss/styles/soulslike/constants.js");
+    const sl = game._soulslike;
+    // Place snake mid-arena so closeness doesn't also trigger.
+    placeSnake(15, 12);
+    for (let i = 0; i < HITS_FOR_DEFENSIVE; i++) {
+      recordBossHit(sl);
+    }
+    tickBossMovement(game);
+    expect(sl.movementMode).toBe("defensive");
+  });
+
+  it("sustained farness flips boss to aggressive mode", async () => {
+    const { tickBossMovement } = await import("../src/core/boss/styles/soulslike/movement.js");
+    const { FARNESS_TRIGGER_TICKS } =
+      await import("../src/core/boss/styles/soulslike/constants.js");
+    const sl = game._soulslike;
+    // Snake far from boss — default spawn at (15, 24) vs boss (15, 5)
+    // is distance 19, well past FARNESS_THRESHOLD.
+    for (let i = 0; i <= FARNESS_TRIGGER_TICKS; i++) {
+      tickBossMovement(game);
+    }
+    expect(sl.movementMode).toBe("aggressive");
+  });
+
+  it("aggressive boss closes distance toward the snake over time", async () => {
+    const { tickBossMovement } = await import("../src/core/boss/styles/soulslike/movement.js");
+    const { AGGRESSIVE_DURATION_TICKS, MOVE_INTERVAL_TICKS } =
+      await import("../src/core/boss/styles/soulslike/constants.js");
+    const sl = game._soulslike;
+    // Force aggressive mode + reset timer for predictable movement.
+    sl.movementMode = "aggressive";
+    sl.movementModeLeft = AGGRESSIVE_DURATION_TICKS;
+    sl.movementTimer = 1;
+    placeSnake(15, 24); // south-centre snake; boss at (15, 5)
+    const startDist = Math.abs(sl.bossX - 15) + Math.abs(sl.bossY - 24);
+    // Run enough ticks for at least one move.
+    for (let i = 0; i < MOVE_INTERVAL_TICKS + 1; i++) {
+      tickBossMovement(game);
+    }
+    const endDist = Math.abs(sl.bossX - 15) + Math.abs(sl.bossY - 24);
+    expect(endDist).toBeLessThan(startDist);
+  });
+
+  it("defensive boss retreats from the snake over time", async () => {
+    const { tickBossMovement } = await import("../src/core/boss/styles/soulslike/movement.js");
+    const { DEFENSIVE_DURATION_TICKS, MOVE_INTERVAL_TICKS } =
+      await import("../src/core/boss/styles/soulslike/constants.js");
+    const sl = game._soulslike;
+    // Put boss mid-arena so it has retreat room (the default north
+    // spawn at y=5 is hard against the top wall — no retreat north).
+    sl.bossX = 15;
+    sl.bossY = 15;
+    sl.movementMode = "defensive";
+    sl.movementModeLeft = DEFENSIVE_DURATION_TICKS;
+    sl.movementTimer = 1;
+    // Snake 2 cells north of boss → defensive boss retreats south.
+    const snakeX = 15;
+    const snakeY = 13;
+    placeSnake(snakeX, snakeY);
+    const startDist = Math.abs(sl.bossX - snakeX) + Math.abs(sl.bossY - snakeY);
+    for (let i = 0; i < MOVE_INTERVAL_TICKS + 1; i++) {
+      tickBossMovement(game);
+    }
+    const endDist = Math.abs(sl.bossX - snakeX) + Math.abs(sl.bossY - snakeY);
+    expect(endDist).toBeGreaterThan(startDist);
+  });
+
+  it("idle boss holds ground when snake is closing", async () => {
+    const { tickBossMovement } = await import("../src/core/boss/styles/soulslike/movement.js");
+    const sl = game._soulslike;
+    sl.movementMode = "idle";
+    sl.movementTimer = 1;
+    placeSnake(15, 10);
+    sl.prevPlayerDistance = 10; // snake was farther last tick
+    // Snake at distance ~5 — closer than 10 → "snake is closing".
+    const { bossX, bossY } = sl;
+    tickBossMovement(game);
+    expect(sl.bossX).toBe(bossX);
+    expect(sl.bossY).toBe(bossY);
+  });
+
+  it("idle boss strafes when snake holds distance", async () => {
+    const { tickBossMovement } = await import("../src/core/boss/styles/soulslike/movement.js");
+    const sl = game._soulslike;
+    sl.movementMode = "idle";
+    sl.movementTimer = 1;
+    placeSnake(15, 10);
+    // Snake distance same as prevPlayerDistance → not closing → strafe.
+    sl.prevPlayerDistance = Math.abs(sl.bossX - 15) + Math.abs(sl.bossY - 10);
+    const { bossX, bossY } = sl;
+    tickBossMovement(game);
+    // Either bossX or bossY changed (strafed perpendicular).
+    expect(sl.bossX !== bossX || sl.bossY !== bossY).toBe(true);
+  });
+
+  it("non-idle mode reverts to idle after its duration expires", async () => {
+    const { tickBossMovement } = await import("../src/core/boss/styles/soulslike/movement.js");
+    const sl = game._soulslike;
+    sl.movementMode = "aggressive";
+    sl.movementModeLeft = 1;
+    // Snake placed mid-arena to avoid trigger-bouncing on a counter.
+    placeSnake(15, 12);
+    tickBossMovement(game);
+    expect(sl.movementMode).toBe("idle");
+  });
+
+  it("hit decay resets the hitsTaken counter after HIT_DECAY_TICKS", async () => {
+    const { tickBossMovement, recordBossHit } =
+      await import("../src/core/boss/styles/soulslike/movement.js");
+    const { HIT_DECAY_TICKS } = await import("../src/core/boss/styles/soulslike/constants.js");
+    const sl = game._soulslike;
+    placeSnake(15, 12);
+    recordBossHit(sl);
+    expect(sl.hitsTaken).toBe(1);
+    for (let i = 0; i < HIT_DECAY_TICKS; i++) {
+      tickBossMovement(game);
+    }
+    expect(sl.hitsTaken).toBe(0);
+  });
+});
+
+describe("hissalia / soulslike YOU DIED screen (Step 13)", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.startRun();
+    game._practiceBossId = "hissalia";
+    game._enterBossFight();
+  });
+
+  function tickOnce(g) {
+    g._lastBossTickTime = 0;
+    g.tick();
+  }
+
+  it("snake HP zero starts the death-pose hold without changing state", () => {
+    const sl = game._soulslike;
+    sl.snakeHp = 0;
+    expect(sl.deathScreenTicks).toBe(0);
+    tickOnce(game);
+    expect(game.state).toBe(Game.STATE_BOSS);
+    expect(sl.deathScreenTicks).toBe(1);
+  });
+
+  it("after DEATH_HOLD_TICKS, state flips to STATE_DEAD_SOULSLIKE", async () => {
+    const { DEATH_HOLD_TICKS } = await import("../src/core/boss/styles/soulslike/constants.js");
+    const sl = game._soulslike;
+    sl.snakeHp = 0;
+    for (let i = 0; i < DEATH_HOLD_TICKS; i++) {
+      tickOnce(game);
+    }
+    expect(game.state).toBe(Game.STATE_DEAD_SOULSLIKE);
+  });
+
+  it("regular boss / status ticks are paused while dead", async () => {
+    const sl = game._soulslike;
+    sl.snakeHp = 0;
+    sl.bossAttackId = null;
+    sl.ticksSinceLastAttack = 0;
+    sl.stamina = 0;
+    sl.staminaDelayCounter = 0;
+    tickOnce(game);
+    // No regen, no boss attack pickup, no phase transitions during the
+    // death hold.
+    expect(sl.bossAttackId).toBeNull();
+    expect(sl.ticksSinceLastAttack).toBe(0);
+    expect(sl.stamina).toBe(0);
+  });
+
+  it("STATE_DEAD_SOULSLIKE renders the YOU DIED overlay with the death cause", () => {
+    game.snake.deathCause = "overhead";
+    game.state = Game.STATE_DEAD_SOULSLIKE;
+    let overlayCause = null;
+    game.renderer = {
+      clear: () => {},
+      drawCell: () => {},
+      cell: () => {},
+      drawHUD: () => {},
+      drawScreen: () => {},
+      drawBossInfo: () => {},
+      drawSurvivalInfo: () => {},
+      drawSoulslikeInfo: () => {},
+      drawBossIntroOverlay: () => {},
+      drawYouDiedOverlay: (cause) => {
+        overlayCause = cause;
+      },
+      flush: () => {},
+    };
+    game.renderFrame();
+    expect(overlayCause).toBe("overhead");
+  });
+
+  it("YOU DIED overlay falls back to 'boss' when deathCause is unset", () => {
+    game.snake.deathCause = null;
+    game.state = Game.STATE_DEAD_SOULSLIKE;
+    let overlayCause = null;
+    game.renderer = {
+      clear: () => {},
+      drawCell: () => {},
+      cell: () => {},
+      drawHUD: () => {},
+      drawScreen: () => {},
+      drawBossInfo: () => {},
+      drawSurvivalInfo: () => {},
+      drawSoulslikeInfo: () => {},
+      drawBossIntroOverlay: () => {},
+      drawYouDiedOverlay: (cause) => {
+        overlayCause = cause;
+      },
+      flush: () => {},
+    };
+    game.renderFrame();
+    expect(overlayCause).toBe("boss");
+  });
+
+  it("dismissYouDied returns to STATE_PRACTICE_HUB and tears down soulslike state", () => {
+    // _exitBossDeath routes to STATE_PRACTICE_HUB only when _practiceMode
+    // is set; otherwise it ends the run via the normal death path. The
+    // soulslike fight is practice-only in v1, so simulate the practice flag.
+    game._practiceMode = "single";
+    game.state = Game.STATE_DEAD_SOULSLIKE;
+    expect(game._soulslike).not.toBeNull();
+    game.dismissYouDied();
+    expect(game.state).toBe(Game.STATE_PRACTICE_HUB);
+    expect(game._soulslike).toBeNull();
+    expect(game._bossDef).toBeNull();
+  });
+
+  it("dismissYouDied is a no-op outside STATE_DEAD_SOULSLIKE", () => {
+    expect(game.state).toBe(Game.STATE_BOSS);
+    game.dismissYouDied();
+    expect(game.state).toBe(Game.STATE_BOSS);
+    expect(game._soulslike).not.toBeNull();
+  });
+
+  it("base Renderer.drawYouDiedOverlay default is a safe no-op", async () => {
+    const { Renderer } = await import("../src/render/renderer.js");
+    class TestR extends Renderer {
+      clear() {}
+      drawHUD() {}
+      drawScreen() {}
+      flush() {}
+    }
+    const r = new TestR();
+    expect(() => r.drawYouDiedOverlay("overhead")).not.toThrow();
   });
 });
 
@@ -3360,28 +5472,41 @@ describe("renderer support (Step 9)", () => {
 
   it("arena walls render as CELL_WALL_ARENA (not CELL_WALL) during boss fight", async () => {
     const { CELL_WALL, CELL_WALL_ARENA } = await import("../src/render/renderer.js");
+    const { defineCell } = await import("../src/core/grid/cell/index.js");
+    const { getCellSpec } = await import("../src/core/grid/cell/registry.js");
     game._enterBossFight();
 
-    const wallCells = [];
-    game.renderer = {
-      clear: () => {},
-      drawCell: (x, y, type) => wallCells.push({ x, y, type }),
-      drawSnakeHead: () => {},
-      drawSnakeHeadInvul: () => {},
-      drawHUD: () => {},
-      drawBossInfo: () => {},
-      drawBossIntroOverlay: () => {},
-      flush: () => {},
-    };
+    // Walls go through the cell adapter (Step 3 onward) — intercept by
+    // overriding the registered render methods, then restore.
+    const arenaCalls = [];
+    const wallCalls = [];
+    const origArena = getCellSpec(CELL_WALL_ARENA);
+    const origWall = getCellSpec(CELL_WALL);
+    defineCell(CELL_WALL_ARENA, { render: (x, y) => arenaCalls.push({ x, y }) });
+    defineCell(CELL_WALL, { render: (x, y) => wallCalls.push({ x, y }) });
 
-    game.renderFrame();
+    try {
+      game.renderer = {
+        clear: () => {},
+        drawCell: () => {},
+        cell: () => {},
+        drawSnakeHead: () => {},
+        drawSnakeHeadInvul: () => {},
+        drawHUD: () => {},
+        drawBossInfo: () => {},
+        drawBossIntroOverlay: () => {},
+        flush: () => {},
+      };
 
-    // Every wall cell must be CELL_WALL_ARENA, not CELL_WALL
-    const wallTypeCells = wallCells.filter(
-      (c) => c.type === CELL_WALL || c.type === CELL_WALL_ARENA
-    );
-    expect(wallTypeCells.length).toBeGreaterThan(0);
-    expect(wallTypeCells.every((c) => c.type === CELL_WALL_ARENA)).toBe(true);
+      game.renderFrame();
+
+      // Boss arena uses CELL_WALL_ARENA, never CELL_WALL.
+      expect(arenaCalls.length).toBeGreaterThan(0);
+      expect(wallCalls.length).toBe(0);
+    } finally {
+      defineCell(CELL_WALL_ARENA, origArena);
+      defineCell(CELL_WALL, origWall);
+    }
   });
 
   it("drawBossIntroOverlay is called during BOSS_PHASE_INTRO", () => {
@@ -3393,6 +5518,7 @@ describe("renderer support (Step 9)", () => {
     game.renderer = {
       clear: () => {},
       drawCell: () => {},
+      cell: () => {},
       drawSnakeHead: () => {},
       drawSnakeHeadInvul: () => {},
       drawHUD: () => {},
@@ -3419,6 +5545,7 @@ describe("renderer support (Step 9)", () => {
     game.renderer = {
       clear: () => {},
       drawCell: () => {},
+      cell: () => {},
       drawSnakeHead: () => {},
       drawSnakeHeadInvul: () => {},
       drawHUD: () => {},
@@ -3441,6 +5568,7 @@ describe("renderer support (Step 9)", () => {
     game.renderer = {
       clear: () => {},
       drawCell: () => {},
+      cell: () => {},
       drawSnakeHead: () => {},
       drawSnakeHeadInvul: () => {},
       drawHUD: () => {},
@@ -3695,6 +5823,11 @@ describe("boss special abilities", () => {
     const lockCell = lock.cells[0];
     game.grid.playerX = lockCell.x - 1;
     game.grid.playerY = lockCell.y;
+    // Clear in-flight projectiles from the special-interval fire pattern.
+    // Without this the bossTick can land a projectile on the relocated
+    // player before the lock-clear path runs (a flake we hit with random
+    // RNG: ~1 in 25 runs the player would die mid-charge to a stale shot).
+    game._projectiles = [];
     game.onInput(1, 0);
     bossTick(game);
 

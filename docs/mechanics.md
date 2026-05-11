@@ -145,9 +145,10 @@ victory, `_endRun` on death, practice flow) live in
 frozen during `BOSS_PHASE_INTRO` across all styles.
 
 Today: **bullet-hell** (the default, hosting Anchor / Algorithm /
-Absolute Unit) and **survival** (hosting The Roomba). New styles are
-added by creating a new file under `boss/styles/` and registering it
-in the dispatcher's `STYLES` map — not by branching the tick function.
+Absolute Unit), **survival** (hosting The Roomba), and **soulslike**
+(hosting Hissalia). New styles are added by creating a new file (or
+directory) under `boss/styles/` and registering it in the dispatcher's
+`STYLES` map — not by branching the tick function.
 
 ### Bullet-hell
 
@@ -195,6 +196,127 @@ survival bosses can host on any mutation.
   valid 2×2 placement and stunned for `SURVIVAL_BOSS_STUN_TICKS = 8`
   (~1 s). Flips never kill the blob.
 
+### Soulslike
+
+The first soulslike fight is **Hissalia, Blade of Wormwood**. The
+style lives in `src/core/boss/styles/soulslike/` as a directory of
+focused modules (`arena.js`, `player.js`, `combat.js`, `stamina.js`,
+`attacks.js`, `phases.js`, `waterfowl.js`, `movement.js`,
+`animation.js`, `index.js`) rather than a single big file. Status:
+in playtest tuning (currently labelled "(WIP)" in the boss picker).
+
+- **Arena:** loaded from a per-boss `.arena` file (Hissalia →
+  `assets/arenas/hissalia.arena → "Hissalia"`). 31×31 grid with a
+  1-cell wall ring, four stair-stepped corner trees rounding the
+  corners, a circular central **pond** of ankle-deep water (the main
+  fight area), a flower ring filling the annular band between pond
+  and trees, and a handful of gravestones dotted around the
+  perimeter. Scenery markers in the `.arena` source: `T` (tree,
+  blocking), `G` (gravestone, blocking), `f` (flower, non-blocking
+  cosmetic), `w` (water, non-blocking). Uppercase = blocking,
+  lowercase = non-blocking. The parser is in `core/boss/arena.js` and
+  is shared with bullet-hell, so any arena file can carry scenery.
+- **Scenery regions:** the arena parser flood-fills 4-connected cells
+  of the same marker into a single **region** with `{ type, blocking,
+cells, bounds, id }`. Blocking-scenery cells share the wall mask so
+  collision works without extra plumbing. The screen render passes
+  the region into each cell's context so cell adapters can scale
+  drawing to the region's bounding box — a 1×1 flower is a tight
+  cluster, a 3×3 flower patch scatters deterministic petals (seeded
+  by `region.id` + local cell offset) across the bigger area; corner
+  tree cells share a common centre + size so trunk/branch strokes
+  align across adjacent cells. `B` and `S` spawn cells inherit a
+  4-neighbour's non-blocking marker, so a boss/snake stepping off
+  its spawn doesn't leave a bare patch in the surrounding texture.
+- **Animated water:** the pond cell (`CELL_WATER`) drives a slow
+  sine-wave shimmer per cell from `Date.now()`. Phase is offset by
+  the cell's `(x, y)` so the shimmer rolls across the pond instead
+  of pulsing uniformly. Translucent so the floor reads through (1 cm
+  deep, not opaque).
+- **Body rotation:** Hissalia + the snake-fighter render body+arms
+  shapes whose arm positions are perpendicular to facing, so the
+  silhouette rotates with each entity's current direction. A small
+  forward "eye" dot in each body reinforces the facing read.
+- **Spawns:** boss top-left at `(BOSS_SPAWN_X, BOSS_SPAWN_Y)` —
+  current values centred near the north edge of the playable area.
+  Snake spawns at `(SNAKE_SPAWN_X, SNAKE_SPAWN_Y)` near the south,
+  facing north. Spawn positions live in `soulslike/constants.js` so
+  the `.arena` `B`/`S` markers are advisory for soulslike (the parser
+  still reads them, but the style uses the constants for spawn so
+  every soulslike boss starts from the same relative position).
+- **Snake-fighter:** the snake is reinterpreted as a 1×1 fighter
+  (`snake.snakeLength = 1`). No auto-advance. Held-direction movement
+  at `SOULSLIKE_MOVE_MS` (deliberately slower than bullet-hell's 30 Hz
+  so combat reads as positional). HP + stamina pools live on
+  `game._soulslike`. Snake can't enter the boss's 2×2 footprint —
+  walking into it deals damage (`"boss_body"`, un-parryable) and
+  blocks the move; iframes still gate the damage, so a dodge into
+  the boss just stops at the edge.
+- **Stamina:** `_soulslike.stamina` ∈ `[0, STAMINA_MAX]`. Each action
+  consumes a fixed cost (stab 1, dodge 2, parry 1). After any action,
+  regen is delayed by `STAMINA_REGEN_DELAY_TICKS`; after the delay,
+  +1 stamina every `STAMINA_REGEN_TICKS` boss sub-ticks. Hard-block
+  when below cost (no overdraft).
+- **Stab (J):** one-tick active hitbox at the knife's forward
+  position (right + facing). If it overlaps the boss footprint and
+  the boss isn't phase-paused, deals 1 damage (or
+  `STAB_DAMAGE * STAGGER_MULTIPLIER` while the boss is staggered).
+- **Dodge (K):** travels up to `DODGE_DISTANCE` cells in the held
+  direction (or facing if no held). Sets `dodgeIframes` (damage
+  immunity) then `dodgeRecovery` (action lockout) — the two phases
+  are sequential.
+- **Parry (L):** opens `parryWindow` ticks. If a parryable boss
+  attack lands during the window, the damage is converted into a
+  boss **stagger** of `STAGGER_TICKS` sub-ticks; the parry window
+  is consumed. Non-parryable attacks (overhead, waterfowl) still
+  damage.
+- **Boss attacks:** attacks are records in `ATTACK_NODES` (a
+  registry keyed by id), not a switch statement. Each node carries
+  `windupTicks` / `executeTicks` / `recoveryTicks`, a `parryable`
+  flag, `damage`, a `telegraphPose(bx, by, facing)` and
+  `executePose(bx, by, facing, tick)` returning `{ handle, tip }`
+  cells, and an optional `gate(sl)` predicate. The four v1 attacks:
+  **sweep** (adjacent, parryable, tip arcs across 3 front cells),
+  **regular** (D=2, parryable, straight thrust), **overhead** (D≥3,
+  **not parryable**, boss lunges then swings at reach 3),
+  **kick** (adjacent + recent-attack gate, parryable, boss lunges
+  on top of the snake — damage + shove). Hit detection compares the
+  current tip cell to the snake's head each execute tick.
+- **Boss movement:** when not committed to an attack, the boss
+  alternates between idle strafing, aggressive closing (after the
+  player stays far for a while), and defensive retreat (after the
+  player stays close or the boss has taken multiple hits in a
+  window). State machine lives in `movement.js`.
+- **Phases:** HP thresholds at `PHASE_2_HP_RATIO` and
+  `PHASE_3_HP_RATIO` trigger a `PHASE_PAUSE_TICKS` pause where the
+  boss is immune to damage. After the pause, the **Waterfowl**
+  special fires immediately (or sooner via the
+  `SPECIAL_FORCE_TICKS` failsafe if no phase transition has
+  happened in a long while).
+- **Waterfowl:** 13-beat pattern — three (lock → dash → 360° swipe
+  → pause) cycles, then a 1-tick gap, then a larger secondary AoE
+  circle. The **lock** captures the snake's current cell so moving
+  during the 8-tick window baits the dash target. The **dash**
+  interpolates the boss from its current position to the lock over
+  `WATERFOWL_DASH_TICKS` ticks; if the dash crosses the snake's
+  cell the snake is damaged (`takeDamage("waterfowl")`) and shoved
+  out of the footprint along the dash direction. The **swipe** is a
+  12-step rotation of the glaive around the boss; the cell the
+  sword (handle + tip) currently occupies is the hitbox each tick.
+- **Win / loss:** boss HP → 0 holds a `BOSS_DEATH_HOLD_TICKS`
+  freeze, then routes through `_exitBossVictory` (practice hub or
+  contraband draft). Snake HP → 0 holds `DEATH_HOLD_TICKS`, then
+  flips to `STATE_DEAD_SOULSLIKE` with the **YOU DIED** overlay
+  showing the attack id that landed the killing blow.
+- **Extensibility:** new attacks register a node in `ATTACK_NODES`
+  with their timings and pose helpers. Combos can be added via an
+  optional `followUp` field, conditional gating via `gate(sl)`. The
+  selector picks by Manhattan distance bracket with a 10% alternate
+  roll. Adding a new soulslike boss = a new `bosses/<name>.js` file
+  with `style: "soulslike"` + an `arena: "<name>"` reference, plus
+  a `.arena` file shipping the layout. The shared style modules
+  handle the rest.
+
 ## Upgrades
 
 Three upgrade types exist, distinguished by their **trigger axis**:
@@ -237,3 +359,95 @@ string fields:
 Defs in `defs.js` and `contraband/*.js` hold only mechanical config
 (id, type, duration / charges, modeOnly, etc.); player-facing strings
 live entirely in `LABELS`.
+
+## Cell rendering
+
+The cell adapter under `src/core/grid/cell/` owns how every cell type
+draws on screen. Game render code calls `drawCell(x, y, type, context?)`
+and the adapter dispatches to the registered spec for that cell type.
+
+### The dispatch
+
+Three pieces:
+
+- `core/grid/cell/registry.js` exports `defineCell(id, spec)` and
+  `getCellSpec(id)`. The registry is a `Map<id, spec>`.
+- Each per-cell file (e.g. `food/food.js`, `boss/body.js`,
+  `mechanics/current-right.js`) calls `defineCell` at top level for
+  the side effect.
+- `core/grid/cell/index.js` side-effect-imports every cell file and
+  exports the top-level `drawCell` adapter, which is what game render
+  code actually calls. The adapter looks up the spec and invokes its
+  `render(x, y, context)`.
+
+The active renderer is a module-level value in `render/active.js`,
+set once at boot via `setActiveRenderer(...)` from the entry point
+scripts. Cell render methods call `activeRenderer.cell(x, y, drawSpec)`
+without needing to thread the renderer through every call.
+
+### The cell spec
+
+Each `defineCell` registration provides one `render(x, y, context?)`
+method that calls `activeRenderer.cell(x, y, drawSpec)` with a
+renderer-agnostic spec:
+
+```js
+defineCell(CELL_WALL, {
+  render(x, y) {
+    activeRenderer.cell(x, y, {
+      color: "#5C3D11", // canvas fill
+      glyph: "██", // terminal glyph
+      glyphColor: BROWN, // terminal fg ANSI
+    });
+  },
+});
+```
+
+Optional `detailed: (ctx, px, py, cs) => void` is a canvas-only
+callback for richer drawing (curves, triangles, layered shapes); the
+terminal renderer ignores it and falls back to `glyph` + `glyphColor`.
+
+Per-renderer color is intentional: the canvas `color` and terminal
+`glyphColor` can diverge (e.g. canvas hex tones don't always have
+clean ANSI counterparts).
+
+### Animation
+
+Animations are state-machine transitions, not central interpolation.
+A cell that pulses in terminal computes the bright/dim phase from
+`Date.now() / 1000` inside its `render` method and picks the right
+glyph color for that frame. A cell that flashes on hit switches its
+cell type for one tick (e.g. `CELL_BOSS_BODY` → `CELL_BOSS_HIT`),
+then back. The renderer never holds animation state.
+
+Transient context (boss-staggered tint, hp-ratio variants, snake
+facing) rides on the optional `context` arg. Each cell consumes only
+what it reads. This avoids cell-type explosion (no
+`CELL_HISSALIA_NW_STAGGER_PHASE2_HP30`).
+
+### Folder layout
+
+```
+src/core/grid/cell/
+  index.js              registry side-effect imports + drawCell adapter
+  registry.js           Map storage + defineCell / getCellSpec
+  palette.js            shared canvas colors used by multiple cells
+  empty.js              CELL_EMPTY (the no-op cell)
+  terrain/              walls + variants (low / high / edible / arena)
+  food/                 food, red food, telegraph
+  boss/                 bullet-hell era cells (body, weak, damaged,
+                        hit, projectile, player-bullet, exhaust)
+  mechanics/            current-{right,left,down,up}, danger-trail,
+                        echo-zone, anchor-lock, wormhole-{a,b}
+  snake/                body, head (directional), invul
+  survival/             blob (catacombs survival 2×2)
+  soulslike/            snake-fighter states (idle/stab/dodge/parry),
+                        hissalia (single 2×2-aware cell), halberd
+                        (handle + tip), knife (single cell), arena
+                        scenery (flower, tree, gravestone, water)
+```
+
+Each cell file is meant to be visually greppable and thin (color +
+glyph + render). When a `detailed` canvas draw exceeds ~30 lines,
+factor helpers into a sibling file (e.g. `food/_pentagon.js`,
+`mechanics/_arrow.js`, `mechanics/_portal.js`).

@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { TerminalRenderer } from "./render/terminal/index.js";
+import { setActiveRenderer } from "./render/active.js";
 import { loadAssets, getLoaderDots } from "./core/loader.js";
 import { KeyboardTerminalController } from "./input/KeyboardTerminalController.js";
 import { Game } from "./core/game/index.js";
@@ -86,6 +87,7 @@ if (effectiveWorld || mode === "boss") {
 // ── Renderer & screen init ────────────────────────────────────────
 
 game.renderer = new TerminalRenderer(process.stdout, Game.GRID_W, Game.GRID_H);
+setActiveRenderer(game.renderer);
 
 // Clear screen; set terminal tab title for dev modes
 process.stdout.write("\x1b[2J\x1b[H");

@@ -10,7 +10,7 @@ import { buildCrystals } from "./generation/crystalline/crystals.js";
 
 const MIN_LOAD_MS = 300;
 
-const ARENA_FILES = ["assets/arenas/default.arena"];
+const ARENA_FILES = ["assets/arenas/default.arena", "assets/arenas/hissalia.arena"];
 
 const BOSS_SHAPE_FILES = [
   "assets/bosses/absolute-unit.boss",

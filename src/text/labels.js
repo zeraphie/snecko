@@ -14,6 +14,9 @@ export const LABELS = {
     time: "Time",
     // Lowercase unit suffix used after a number (e.g. "3 bites").
     bites: "bites",
+    // Soulslike-style HUD short labels.
+    hp: "HP",
+    stamina: "ST",
   },
   dead: {
     title: "G A M E   O V E R",
@@ -107,6 +110,7 @@ export const LABELS = {
     the_algorithm: { name: "The Algorithm" },
     absolute_unit: { name: "Absolute Unit" },
     catacombs_chaser: { name: "The Roomba" },
+    hissalia: { name: "Hissalia, Blade of Wormwood (WIP)" },
   },
   start: {
     title: "S N E C K O",

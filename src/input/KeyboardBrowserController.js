@@ -22,6 +22,9 @@ import {
   ACTION_RELEASE_DOWN,
   ACTION_RELEASE_LEFT,
   ACTION_RELEASE_RIGHT,
+  ACTION_STAB,
+  ACTION_DODGE,
+  ACTION_PARRY,
 } from "./actions.js";
 
 // ── Key → action mapping ──────────────────────────────────────────
@@ -47,6 +50,13 @@ const KEY_DOWN_MAP = {
   2: ACTION_SELECT_2,
   3: ACTION_SELECT_3,
   4: ACTION_SELECT_4,
+  // Soulslike action keys.
+  j: ACTION_STAB,
+  J: ACTION_STAB,
+  k: ACTION_DODGE,
+  K: ACTION_DODGE,
+  l: ACTION_PARRY,
+  L: ACTION_PARRY,
 };
 
 const KEY_UP_MAP = {
@@ -152,6 +162,13 @@ export class KeyboardBrowserController extends Controller {
       (game.state === "start" || game.state === "dead" || game.state === "playing")
     ) {
       game.openMenu();
+      e.preventDefault();
+      return;
+    }
+
+    // Esc on the soulslike YOU DIED overlay returns to the practice hub.
+    if (e.key === "Escape" && game.state === "dead_soulslike") {
+      game.dismissYouDied();
       e.preventDefault();
       return;
     }

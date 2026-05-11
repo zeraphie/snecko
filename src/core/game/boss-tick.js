@@ -8,6 +8,7 @@
 
 import * as bulletHell from "../boss/styles/bullet-hell.js";
 import * as survival from "../boss/styles/survival.js";
+import * as soulslike from "../boss/styles/soulslike/index.js";
 import { getBossDef, getBossDefById } from "../boss/bosses/index.js";
 import { generateContrabandPool } from "../upgrades/contraband/index.js";
 import { STATE_BOSS, STATE_CONTRABAND, STATE_PRACTICE_HUB, BOSS_FOOD_REWARD } from "./constants.js";
@@ -17,6 +18,7 @@ import { STATE_BOSS, STATE_CONTRABAND, STATE_PRACTICE_HUB, BOSS_FOOD_REWARD } fr
 const STYLES = {
   bullet_hell: bulletHell,
   survival,
+  soulslike,
 };
 
 /**
@@ -50,6 +52,18 @@ export function _bossTick() {
 export function _bossOnInput(dx, dy) {
   const style = getStyle(this._bossDef);
   style.onInput?.(this, dx, dy);
+}
+
+/**
+ * Dispatches a discrete action (stab / dodge / parry) to the
+ * active boss style. Soulslike consumes these; bullet-hell and
+ * survival ignore by not implementing onAction.
+ *
+ * @param {string} action — "stab" / "dodge" / "parry"
+ */
+export function _bossOnAction(action) {
+  const style = getStyle(this._bossDef);
+  style.onAction?.(this, action);
 }
 
 // ── Entry ──────────────────────────────────────────────────────────

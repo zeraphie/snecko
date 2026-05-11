@@ -32,6 +32,36 @@ export const CELL_WALL_HIGH = 26;
 export const CELL_WALL_LOW_EDIBLE = 27;
 export const CELL_BLOB = 28;
 
+// ── Soulslike (Hissalia, Blade of Wormwood) ────────────────────
+//
+// Registered in `core/grid/cell/soulslike/` with starter visuals.
+// Soulslike-plan Step 11 wires them into the screen render path and
+// refines the detailed canvas drawings.
+export const CELL_FIGHTER_IDLE = 29;
+export const CELL_FIGHTER_STAB_ACTIVE = 30;
+export const CELL_FIGHTER_DODGE_ACTIVE = 31;
+export const CELL_FIGHTER_DODGE_RECOVERY = 32;
+export const CELL_FIGHTER_PARRY_ACTIVE = 33;
+/** Hissalia is now a single 1×1 cell (the original NE/SW/SE corners are
+ * unused; their CELL_* constants are kept as orphans only for stable
+ * cell-type integers, never registered or rendered). */
+export const CELL_HISSALIA = 34;
+export const CELL_HALBERD_HANDLE = 38;
+export const CELL_HALBERD_TIP = 39;
+// CELL_KNIFE_HANDLE (40) is removed — the knife is a single cell.
+export const CELL_KNIFE_TIP = 41;
+
+// ── Soulslike arena scenery ────────────────────────────────────────
+//
+// Decorative + obstacle cells placed in the soulslike arena to make
+// it read as a real location instead of an empty box. Flowers are
+// non-blocking (cosmetic only, terminal hides them); tree and
+// gravestones are blocking walls with distinct visuals.
+export const CELL_FLOWER = 42;
+export const CELL_TREE = 43;
+export const CELL_GRAVESTONE = 44;
+export const CELL_WATER = 45;
+
 // ── Renderer base class ───────────────────────────────────────────────────
 //
 // Required methods throw — subclasses must override.
@@ -40,10 +70,10 @@ export const CELL_BLOB = 28;
 // ── Required / Optional boundary ──────────────────────────────────────────
 //
 // Required (called unconditionally by game/render.js):
-//   clear, drawCell, drawSnakeHead, drawHUD, drawScreen, flush
+//   clear, cell, drawHUD, drawScreen, flush
 //
 // Optional (guarded or has a sensible default):
-//   drawSnakeHeadInvul, drawDraftScreen, drawContrabandScreen,
+//   drawDraftScreen, drawContrabandScreen,
 //   drawBossInfo, drawBossIntroOverlay, drawTargetingOverlay,
 //   drawWormholeOverlay, drawLoader, destroy
 
@@ -56,25 +86,19 @@ export class Renderer {
   }
 
   /**
-   * Draw one grid cell.
-   * @param {number} x
-   * @param {number} y
-   * @param {number} type — a CELL_* constant from renderer.js
+   * Draw one grid cell from a renderer-agnostic spec. The cell adapter
+   * (`core/grid/cell/`) calls this with `{ color, glyph, glyphColor,
+   * detailed? }` where canvas uses `color` (and the optional `detailed`
+   * callback for richer drawing) and terminal uses `glyph` +
+   * `glyphColor`. No-op default so test mocks without `cell()` don't
+   * crash; real renderers override.
+   *
+   * @param {number} _x
+   * @param {number} _y
+   * @param {{ color?: string, glyph?: string, glyphColor?: string,
+   *   detailed?: (ctx: object, px: number, py: number, cs: number) => void }} _spec
    */
-  drawCell(x, y, type) {
-    this._required("drawCell");
-  }
-
-  /**
-   * Draw the snake head with a direction indicator.
-   * @param {number} x
-   * @param {number} y
-   * @param {number} dx — facing direction x
-   * @param {number} dy — facing direction y
-   */
-  drawSnakeHead(x, y, dx, dy) {
-    this._required("drawSnakeHead");
-  }
+  cell(_x, _y, _spec) {}
 
   /**
    * Draw the heads-up display.
@@ -118,14 +142,6 @@ export class Renderer {
 
   // ── Optional — safe defaults ──────────────────────────────────────────
 
-  /**
-   * Draw the snake head during invulnerability.
-   * Defaults to the normal drawSnakeHead — override for a flicker effect.
-   */
-  drawSnakeHeadInvul(x, y, dx, dy) {
-    this.drawSnakeHead(x, y, dx, dy);
-  }
-
   /** Draw the upgrade draft screen. No-op if not overridden. */
   drawDraftScreen(choices, mutation, selectedIndex, mutationAccepted) {}
 
@@ -141,8 +157,30 @@ export class Renderer {
   /** Draw the survival countdown HUD. No-op if not overridden. */
   drawSurvivalInfo(name, ticksLeft, totalTicks) {}
 
+  /**
+   * Draw the soulslike HUD: snake HP bar, stamina pips, boss HP bar.
+   * No-op if not overridden.
+   *
+   * @param {number} snakeHp
+   * @param {number} snakeHpMax
+   * @param {number} stamina
+   * @param {number} staminaMax
+   * @param {string} bossName
+   * @param {number} bossHp
+   * @param {number} bossHpMax
+   */
+  drawSoulslikeInfo(snakeHp, snakeHpMax, stamina, staminaMax, bossName, bossHp, bossHpMax) {}
+
   /** Draw the boss intro overlay. No-op if not overridden. */
   drawBossIntroOverlay(name, ticksLeft, total) {}
+
+  /**
+   * Draw the soulslike YOU DIED overlay. Full-screen red-on-black with
+   * the death cause string. No-op if not overridden.
+   *
+   * @param {string} causeText
+   */
+  drawYouDiedOverlay(causeText) {}
 
   /** Draw the bomb targeting overlay. No-op if not overridden. */
   drawTargetingOverlay(cursorX, cursorY, boardW, boardH) {}

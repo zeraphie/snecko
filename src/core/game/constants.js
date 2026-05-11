@@ -16,6 +16,7 @@ export const STATE_NAME_INPUT = "name_input";
 export const STATE_PRACTICE_HUB = "practice_hub";
 export const STATE_BOSS_PICKER = "boss_picker";
 export const STATE_BOSS_RUSH_COMPLETE = "boss_rush_complete";
+export const STATE_DEAD_SOULSLIKE = "dead_soulslike";
 
 // ── Death causes ──────────────────────────────────────────────────
 export const DEATH_WALL = "wall";

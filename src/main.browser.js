@@ -3,6 +3,7 @@
 import { Game } from "./core/game/index.js";
 import { generateGrid, advanceGrid } from "./core/generation/index.js";
 import { CanvasRenderer } from "./render/canvas/index.js";
+import { setActiveRenderer } from "./render/active.js";
 import { loadAssets, getLoaderDots } from "./core/loader.js";
 import { KeyboardBrowserController } from "./input/KeyboardBrowserController.js";
 import { ensureSeeded } from "./core/leaderboard/index.js";
@@ -17,6 +18,7 @@ game.generateGrid = generateGrid;
 game.advanceGrid = advanceGrid;
 const canvas = document.getElementById("game");
 game.renderer = new CanvasRenderer(canvas, CELL_SIZE, Game.GRID_W, Game.GRID_H);
+setActiveRenderer(game.renderer);
 
 const controller = new KeyboardBrowserController();
 controller.attach(game);

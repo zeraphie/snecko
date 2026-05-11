@@ -38,6 +38,7 @@ import {
   STATE_PRACTICE_HUB,
   STATE_BOSS_PICKER,
   STATE_BOSS_RUSH_COMPLETE,
+  STATE_DEAD_SOULSLIKE,
   DEATH_GIVE_UP,
   GRID_W,
   GRID_H,
@@ -79,10 +80,11 @@ import {
 } from "./tick.js";
 import { selectDraft, toggleMutation, _applyUpgrade, confirmDraft } from "./draft.js";
 import { cycleConsumable, useConsumable, cancelTargeting } from "./consumables.js";
-import { _drawGrid, _drawBossArena, _drawSurvivalArena, renderFrame } from "./render.js";
+import { _drawGrid, _drawBossArena, renderFrame } from "./render.js";
 import {
   _bossTick,
   _bossOnInput,
+  _bossOnAction,
   _enterBossFight,
   _exitBossVictory,
   _exitBossDeath,
@@ -326,6 +328,20 @@ export class Game {
   }
 
   /**
+   * Dispatches a discrete action input (stab / dodge / parry) to the
+   * active boss style. Distinct from `onInput` (directional). Used
+   * by soulslike; other styles ignore.
+   *
+   * @param {string} action — "stab" / "dodge" / "parry"
+   */
+  onPlayerAction(action) {
+    if (this.state !== STATE_BOSS) {
+      return;
+    }
+    this._bossOnAction(action);
+  }
+
+  /**
    * Opens the in-game menu from the start or dead screen. The menu items
    * shown vary by context; future expansions (resume, language, keybindings)
    * just add entries here.
@@ -514,6 +530,20 @@ export class Game {
     this._pendingRunRecord = null;
     this._runRecorded = true;
     this._nameInput = "";
+  }
+
+  // ── Soulslike YOU DIED screen ─────────────────────────────────────
+
+  /**
+   * Dismisses the soulslike YOU DIED overlay. Routes through
+   * `_exitBossDeath` (teardown + practice-hub transition) so the death
+   * cleanup matches the rest of the boss-death path.
+   */
+  dismissYouDied() {
+    if (this.state !== STATE_DEAD_SOULSLIKE) {
+      return;
+    }
+    this._exitBossDeath(this.snake.deathCause || "boss");
   }
 
   // ── Leaderboard screen ────────────────────────────────────────────
@@ -926,10 +956,10 @@ Game.prototype.useConsumable = useConsumable;
 Game.prototype.cancelTargeting = cancelTargeting;
 Game.prototype._drawGrid = _drawGrid;
 Game.prototype._drawBossArena = _drawBossArena;
-Game.prototype._drawSurvivalArena = _drawSurvivalArena;
 Game.prototype.renderFrame = renderFrame;
 Game.prototype._bossTick = _bossTick;
 Game.prototype._bossOnInput = _bossOnInput;
+Game.prototype._bossOnAction = _bossOnAction;
 Game.prototype._enterBossFight = _enterBossFight;
 Game.prototype._exitBossVictory = _exitBossVictory;
 Game.prototype._exitBossDeath = _exitBossDeath;
@@ -947,6 +977,7 @@ Game.STATE_DRAFT = STATE_DRAFT;
 Game.STATE_TARGETING = STATE_TARGETING;
 Game.STATE_WORMHOLE = STATE_WORMHOLE;
 Game.STATE_DEAD = STATE_DEAD;
+Game.STATE_DEAD_SOULSLIKE = STATE_DEAD_SOULSLIKE;
 Game.STATE_BOSS = STATE_BOSS;
 Game.BOSS_FOOD_INTERVAL = BOSS_FOOD_INTERVAL;
 Game.BOSS_TICK_MS = BOSS_TICK_MS;
