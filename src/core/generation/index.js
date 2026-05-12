@@ -7,7 +7,22 @@ import { TERRAIN_TELEGRAPH, TERRAIN_CURRENT, TERRAIN_INTERIOR } from "../grid/co
 
 // ── Food placement ────────────────────────────────────────────────
 
-function isFoodBlocked(grid, x, y) {
+/**
+ * True if (x, y) is unsuitable for food placement. Filters both the
+ * blocking-cell layer (walls + snake) and the terrain layer — food
+ * must never land on a telegraph, a current flow, or the hollow
+ * interior of a crystal facet (which would render the food visibly
+ * inside the crystal silhouette).
+ *
+ * Exported so `tick.js`'s `_placeRandomFood` / `_placeBossFood`
+ * paths can share the exact same filter (they previously only
+ * checked `isBlockedCell`, which let boss food land inside crystals).
+ *
+ * @param {import('../grid/index.js').Grid} grid
+ * @param {number} x
+ * @param {number} y
+ */
+export function isFoodBlocked(grid, x, y) {
   if (grid.isBlockedCell(x, y)) {
     return true;
   }

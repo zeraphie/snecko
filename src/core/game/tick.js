@@ -6,6 +6,7 @@ import { applyIronJaw } from "../upgrades/bites/iron-jaw.js";
 import { applyWormholeTeleport } from "../upgrades/consumables/wormhole.js";
 import { applyCurrentDrift } from "../mechanics/currents.js";
 import { tickFoxAnim } from "../upgrades/consumables/fox.js";
+import { isFoodBlocked } from "../generation/index.js";
 import {
   STATE_PLAYING,
   STATE_DRAFT,
@@ -145,7 +146,7 @@ export function _placeRandomFood() {
   do {
     x = Math.floor(rand() * this.grid.width);
     y = Math.floor(rand() * this.grid.height);
-  } while (this.grid.isBlockedCell(x, y));
+  } while (isFoodBlocked(this.grid, x, y));
   this.grid.foodX = x;
   this.grid.foodY = y;
 }
@@ -204,7 +205,7 @@ export function _placeBossFood() {
       if (x === grid.foodX && y === grid.foodY) {
         continue;
       }
-      if (grid.isBlockedCell(x, y)) {
+      if (isFoodBlocked(grid, x, y)) {
         continue;
       }
       const d = dist[y * w + x];
