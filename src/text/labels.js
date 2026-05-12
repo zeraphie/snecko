@@ -65,7 +65,7 @@ export const LABELS = {
     fox: {
       name: "What Does The Fox Eat?",
       short: "Pounce",
-      desc: "Lil wizard fox timestops and snacks a food for you",
+      desc: "Lil wizard fox timestops and noms on some food for you",
     },
     // Mutations
     wildlands: {
