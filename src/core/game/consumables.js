@@ -3,7 +3,8 @@
 import { executeDash } from "../upgrades/consumables/dash.js";
 import { enterTargeting, cancelBomb } from "../upgrades/consumables/bomb.js";
 import { enterWormholePlacement, cancelWormhole } from "../upgrades/consumables/wormhole.js";
-import { STATE_PLAYING, STATE_WORMHOLE } from "./constants.js";
+import { triggerFox } from "../upgrades/consumables/fox.js";
+import { STATE_PLAYING, STATE_WORMHOLE, STATE_BOSS } from "./constants.js";
 
 /** Cycles to the next consumable in the inventory. */
 export function cycleConsumable() {
@@ -23,6 +24,25 @@ export function cycleConsumable() {
  * @returns {string|false} — the consumable id used, or false if none available
  */
 export function useConsumable() {
+  // A running fox cutscene swallows further uses — don't spend a charge.
+  if (this._foxAnim) {
+    return false;
+  }
+
+  // Boss state: only the fox consumable is usable, and it pounces the
+  // boss instead of eating food. Selection cursor is irrelevant — the
+  // fox is unique in working mid-fight, so we look it up by id.
+  if (this.state === STATE_BOSS) {
+    if (!this.upgrades.getConsumable("fox")) {
+      return false;
+    }
+    if (!this.upgrades.useConsumable("fox")) {
+      return false;
+    }
+    triggerFox(this, "pounce");
+    return "fox";
+  }
+
   if (this.state !== STATE_PLAYING) {
     return false;
   }
@@ -49,6 +69,8 @@ export function useConsumable() {
     enterWormholePlacement(this);
   } else if (entry.id === "bomb") {
     enterTargeting(this);
+  } else if (entry.id === "fox") {
+    triggerFox(this, "eat");
   }
   return entry.id;
 }

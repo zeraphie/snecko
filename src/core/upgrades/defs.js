@@ -58,6 +58,11 @@ export const UPGRADES = {
     // Teleport defeats the maze-navigation puzzle.
     mutations: ["wildlands", "crystalline"],
   },
+  fox: {
+    id: "fox",
+    type: TYPE_CONSUMABLE,
+    charges: 3,
+  },
 
   // World mutations
   wildlands: {

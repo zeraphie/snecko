@@ -5,6 +5,7 @@ import { applySlowTime } from "../upgrades/passives/slow-time.js";
 import { applyIronJaw } from "../upgrades/bites/iron-jaw.js";
 import { applyWormholeTeleport } from "../upgrades/consumables/wormhole.js";
 import { applyCurrentDrift } from "../mechanics/currents.js";
+import { tickFoxAnim } from "../upgrades/consumables/fox.js";
 import {
   STATE_PLAYING,
   STATE_DRAFT,
@@ -19,6 +20,11 @@ import {
 
 /** Runs one game tick if enough time has elapsed. Handles movement, food, drift, and death. */
 export function tick() {
+  // Fox cutscene freezes both regular and boss play.
+  if (tickFoxAnim(this)) {
+    return;
+  }
+
   if (this.state === STATE_BOSS) {
     return this._bossTick();
   }

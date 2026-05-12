@@ -74,6 +74,7 @@ export function confirmDraft() {
 
   // Advance to next act
   this.actIndex++;
+  this._foxEggUsedThisAct = false;
   this.actSeed = mixSeeds(this.runSeed, this.actIndex);
   this.foodRand = splitmix32(mixSeeds(this.actSeed, SUBSEED_FOOD));
   this.foodEaten = 0;

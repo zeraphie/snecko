@@ -345,6 +345,77 @@ in every style. The draft pool is filtered by the active boss's
 style at draft time, so survival fights never see bullet-hell-only
 items like Danger Noodle.
 
+### Fox cutscene
+
+The Fox (`fox` consumable, "Pounce" in the HUD) is the only upgrade
+that's usable in **both** regular play and boss fights — pressing
+the use-consumable key in either state triggers the same cutscene
+with a target chosen by context.
+
+- **Trigger.** `useConsumable()` dispatches to `triggerFox(game, mode)`
+  with `mode = "eat"` in `STATE_PLAYING` and `mode = "pounce"` in
+  `STATE_BOSS`. Boss state ignores the consumable cursor — only the
+  fox is usable mid-fight, so it's looked up by id. The `get_foxed`
+  contraband stocks the same consumable slot with two charges (it
+  doesn't introduce a separate inventory).
+- **Target.** Eat mode picks the regular food cell (`grid.foodX/Y`);
+  pounce mode picks the active boss anchor (`_soulslike.bossX/Y` for
+  soulslike, `_boss.x/y` for bullet-hell). Survival has no HP boss,
+  so `get_foxed` is allow-listed to bullet-hell + soulslike only.
+- **Freeze.** While `_foxAnim` is set, `tick()` and `onPlayerAction`
+  early-return so the snake, boss attacks, run timer, and J/K/L
+  inputs are all paused for the cutscene's duration
+  (`FOX_DURATION_MS`). On end, `tickFoxAnim` compensates
+  `startTime`, `lastTickTime`, `_lastBossTickTime`, and
+  `_lastBossMoveTime` so the freeze doesn't bleed into run time.
+- **Effect.** Eat mode marks the snake as growing on the next move
+  and calls `_handleFoodEaten()` at the cutscene's end (same payoff
+  as a natural eat: score, act progress, boss-food charge, grid
+  advance or draft). Pounce mode subtracts five from the boss's HP
+  **on contact** (the pounce → chew phase boundary, ~55 %) so the
+  HP bar drops mid-arc rather than after the fox leaves. A lethal
+  bullet-hell hit defers `_exitBossVictory` to cutscene end via
+  `pendingVictoryExit` so the contraband / practice transition
+  doesn't cut off the fox's exit; soulslike's own tick handles
+  `bossHp === 0` after the cutscene's timer compensation lets the
+  boss tick resume.
+- **Animation.** Five beats — slow walk-in to a notice spot just
+  inside the entry edge, brief held pose (tail-wag bob), parabolic
+  pounce arc onto the target, chew hold, and a parabolic exit arc.
+  Phase math lives in `core/animation/fox-phase.js`. The entry edge
+  is the screen edge furthest from the target. Sprite data lives in
+  `assets/animations/fox.{canvas,terminal}.animation` — see
+  [Animation file format](#animation-file-format) below.
+- **Easter egg.** Shift+F triggers the cutscene in `STATE_PLAYING`
+  without spending a consumable charge. Limited to once per act via
+  `_foxEggUsedThisAct`, which resets on `confirmDraft`. Skipped
+  silently if no food is on the grid (so the egg isn't burned for
+  nothing). Does not trigger pounce mode.
+
+### Animation file format
+
+Animations are authored as ASCII grids in `assets/animations/*.animation`.
+Files are parsed by `core/animation/parse.js` into `{ palette, frames }`
+and stashed on `manifest.animations.<name>.<fidelity>` so renderers
+can pick the appropriate variant (`canvas` for detailed pixel art,
+`terminal` for a small silhouette).
+
+```
+@palette                       (optional — palette-less files use `█`)
+K #1a1a2e
+O #d35b00
+...
+
+walk-a
+....KKKK........
+...KOOOK........
+...
+```
+
+Blocks are separated by blank lines; the first block may be `@palette`
+(declares one char-to-hex mapping per line), and every other block is
+a named frame whose rows are exactly its width.
+
 ### Upgrade label fields
 
 Each upgrade entry under `LABELS.upgrades.<id>` provides three

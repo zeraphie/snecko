@@ -217,7 +217,12 @@ function insideBossFootprint(cell, sl) {
 }
 
 export const bossScreen = {
-  draw(renderer, game) {
+  /**
+   * @param {object} renderer
+   * @param {object} game
+   * @param {{ skipFlush?: boolean }} [opts]
+   */
+  draw(renderer, game, opts) {
     renderer.clear();
     if (game._bossDef?.style === "survival") {
       drawSurvivalScreen(renderer, game);
@@ -226,6 +231,8 @@ export const bossScreen = {
     } else {
       drawBulletHellScreen(renderer, game);
     }
-    renderer.flush();
+    if (!opts?.skipFlush) {
+      renderer.flush();
+    }
   },
 };

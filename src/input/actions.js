@@ -247,7 +247,10 @@ export function dispatchAction(game, action) {
       game.confirm();
       break;
     case ACTION_USE_CONSUMABLE:
-      if (state === "playing") {
+      if (state === "playing" || state === "boss") {
+        // Boss state: useConsumable only fires the fox; for any other
+        // inventory item or empty inventory it's a no-op (no confirm
+        // fallback needed since boss has no confirm-able UI).
         game.useConsumable();
       } else {
         game.confirm();

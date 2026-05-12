@@ -40,6 +40,7 @@ import {
   TERRAIN_TELEGRAPH,
 } from "../grid/constants.js";
 import { getScreen } from "../../screens/registry.js";
+import { STATE_PLAYING, STATE_BOSS } from "./constants.js";
 
 // ── Helpers ────────────────────────────────────────────
 
@@ -288,7 +289,20 @@ export function renderFrame() {
   setActiveRenderer(renderer);
 
   const screen = getScreen(this.state);
-  if (screen) {
+  if (!screen) {
+    return;
+  }
+
+  // Fox cutscene overlays the current frame. Terminal stamps glyphs into
+  // the cell buffer that flush writes — so for the playing / boss screens
+  // (where fox can legitimately fire) we defer flush, stamp the fox, then
+  // flush. Canvas works either way since its flush is a no-op, but going
+  // through the same path keeps the layering consistent.
+  if (this._foxAnim && (this.state === STATE_PLAYING || this.state === STATE_BOSS)) {
+    screen.draw(renderer, this, { skipFlush: true });
+    renderer.drawFoxAnim?.(this);
+    renderer.flush();
+  } else {
     screen.draw(renderer, this);
   }
 }

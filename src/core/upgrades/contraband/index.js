@@ -11,6 +11,7 @@ import snakeHungry from "./snake-hungry.js";
 import doubleSnake from "./double-snake.js";
 import gomuGomu from "./gomu-gomu.js";
 import collateralHissage from "./collateral-hissage.js";
+import getFoxed from "./get-foxed.js";
 
 // ── Type ─────────────────────────────────────────────────────────
 
@@ -37,6 +38,7 @@ export const CONTRABAND_DEFS = [
   doubleSnake,
   gomuGomu,
   collateralHissage,
+  getFoxed,
 ];
 
 // ── Generator ────────────────────────────────────────────────────

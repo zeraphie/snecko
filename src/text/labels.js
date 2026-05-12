@@ -62,6 +62,11 @@ export const LABELS = {
       short: "Wormhole",
       desc: "Do quantum mechanics things",
     },
+    fox: {
+      name: "What Does The Fox Eat?",
+      short: "Pounce",
+      desc: "Lil wizard fox timestops and snacks a food for you",
+    },
     // Mutations
     wildlands: {
       name: "Wildlands",
@@ -108,6 +113,11 @@ export const LABELS = {
       name: "Collateral hissage",
       short: "Crit",
       desc: "One hit, three problems. Not your problems.",
+    },
+    get_foxed: {
+      name: "Get Foxed, Nerd :>",
+      short: "Foxed",
+      desc: "Lil wizard fox timestops and pounces the boss for 5",
     },
   },
   bosses: {

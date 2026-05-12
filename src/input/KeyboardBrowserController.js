@@ -4,6 +4,7 @@
 // Platform-specific concerns: preventDefault for Tab, native keyup for boss release.
 
 import { Controller } from "./Controller.js";
+import { triggerFox } from "../core/upgrades/consumables/fox.js";
 import {
   dispatchAction,
   ACTION_UP,
@@ -176,6 +177,23 @@ export class KeyboardBrowserController extends Controller {
     if (e.key === "Tab") {
       e.preventDefault();
     }
+
+    // Shift+F — easter-egg / dev trigger for the fox cutscene. Fires
+    // the food-eating mode (never the contraband pounce). Limited to
+    // once per act in normal play; doesn't consume a consumable charge.
+    if (e.shiftKey && (e.key === "F" || e.key === "f")) {
+      if (game.state === "playing" && !game._foxAnim && !game._foxEggUsedThisAct) {
+        triggerFox(game, "eat");
+        // Only burn the per-act egg if the fox actually launched
+        // (e.g. food was on the grid).
+        if (game._foxAnim) {
+          game._foxEggUsedThisAct = true;
+        }
+      }
+      e.preventDefault();
+      return;
+    }
+
     const action = KEY_DOWN_MAP[e.key];
     if (action) {
       dispatchAction(game, action);

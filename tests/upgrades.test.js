@@ -134,8 +134,8 @@ describe("mutation", () => {
 });
 
 describe("upgrade definitions", () => {
-  it("has all 9 upgrades", () => {
-    expect(Object.keys(UPGRADES).length).toBe(9);
+  it("has all 10 upgrades", () => {
+    expect(Object.keys(UPGRADES).length).toBe(10);
   });
 
   it("getUpgradesByType returns correct subsets", () => {
@@ -144,7 +144,7 @@ describe("upgrade definitions", () => {
     const bites = getUpgradesByType(TYPE_BITES);
     const mutations = getUpgradesByType(TYPE_MUTATION);
     expect(passives.length).toBe(2);
-    expect(consumables.length).toBe(3);
+    expect(consumables.length).toBe(4);
     expect(bites.length).toBe(1);
     expect(mutations.length).toBe(3);
   });

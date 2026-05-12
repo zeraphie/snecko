@@ -18,6 +18,7 @@ import {
 } from "./screens.js";
 import { drawTargetingOverlay, drawWormholeOverlay } from "./overlays.js";
 import { drawLoader } from "./loader.js";
+import { drawFoxAnim } from "./fox.js";
 
 export class CanvasRenderer extends Renderer {
   /**
@@ -88,3 +89,4 @@ CanvasRenderer.prototype.drawMutationPickerScreen = drawMutationPickerScreen;
 CanvasRenderer.prototype.drawTargetingOverlay = drawTargetingOverlay;
 CanvasRenderer.prototype.drawWormholeOverlay = drawWormholeOverlay;
 CanvasRenderer.prototype.drawLoader = drawLoader;
+CanvasRenderer.prototype.drawFoxAnim = drawFoxAnim;

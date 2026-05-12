@@ -31,6 +31,7 @@ import {
 import { drawTargetingOverlay, drawWormholeOverlay } from "./overlays.js";
 import { flush } from "./flush.js";
 import { drawLoader } from "./loader.js";
+import { drawFoxAnim } from "./fox.js";
 
 /** ANSI terminal renderer for Node.js. Buffers a frame into a string and writes to stdout. */
 export class TerminalRenderer extends Renderer {
@@ -178,5 +179,9 @@ export class TerminalRenderer extends Renderer {
 
   drawLoader(dots) {
     drawLoader(this, dots);
+  }
+
+  drawFoxAnim(game) {
+    drawFoxAnim(this, game);
   }
 }

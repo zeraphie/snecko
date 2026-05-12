@@ -34,6 +34,8 @@ import {
   advanceCatacombsGrid,
 } from "../src/core/generation/catacombs/generator.js";
 import { CONTRABAND_DEFS, generateContrabandPool } from "../src/core/upgrades/contraband/index.js";
+import { triggerFox, tickFoxAnim, FOX_DURATION_MS } from "../src/core/upgrades/consumables/fox.js";
+import getFoxedContraband from "../src/core/upgrades/contraband/get-foxed.js";
 
 const __testDir = dirname(fileURLToPath(import.meta.url));
 const __projectRoot = resolve(__testDir, "..");
@@ -1030,6 +1032,223 @@ describe("Bomb consumable", () => {
     game._bombCursor = { x: 5, y: 5 };
     game.startRun();
     expect(game._bombCursor).toBe(null);
+  });
+});
+
+describe("Fox cutscene (consumable + contraband)", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    game.startRun();
+    // Ensure food is on the grid for "eat" mode triggers.
+    game.grid.foodX = 5;
+    game.grid.foodY = 5;
+  });
+
+  describe("triggerFox", () => {
+    it("populates _foxAnim with mode, target, and a screen edge", () => {
+      triggerFox(game, "eat");
+      expect(game._foxAnim).not.toBeNull();
+      expect(game._foxAnim.mode).toBe("eat");
+      expect(game._foxAnim.targetX).toBe(5);
+      expect(game._foxAnim.targetY).toBe(5);
+      expect(["top", "bottom", "left", "right"]).toContain(game._foxAnim.edge);
+    });
+
+    it("eat mode is no-op when no food on grid", () => {
+      game.grid.foodX = -1;
+      game.grid.foodY = -1;
+      triggerFox(game, "eat");
+      expect(game._foxAnim).toBeNull();
+    });
+
+    it("pounce mode is no-op outside a boss fight", () => {
+      // No `_soulslike` slot, no `_boss.hp` → no valid target.
+      triggerFox(game, "pounce");
+      expect(game._foxAnim).toBeNull();
+    });
+
+    it("is no-op if _foxAnim is already active", () => {
+      triggerFox(game, "eat");
+      const original = game._foxAnim;
+      triggerFox(game, "eat");
+      expect(game._foxAnim).toBe(original);
+    });
+
+    it("picks the furthest screen edge from the target", () => {
+      // Target near the right edge → fox enters from the left.
+      game.grid.foodX = Game.GRID_W - 2;
+      game.grid.foodY = Math.floor(Game.GRID_H / 2);
+      triggerFox(game, "eat");
+      expect(game._foxAnim.edge).toBe("left");
+    });
+  });
+
+  describe("eat-mode resolves on cutscene end", () => {
+    it("clears _foxAnim and fires _handleFoodEaten", () => {
+      const scoreBefore = game.score;
+      const foodEatenBefore = game.foodEaten;
+      triggerFox(game, "eat");
+      // Backdate startTime so the freeze duration has elapsed.
+      game._foxAnim.startTime = Date.now() - FOX_DURATION_MS - 10;
+      tickFoxAnim(game);
+      expect(game._foxAnim).toBeNull();
+      expect(game.score).toBe(scoreBefore + 1);
+      expect(game.foodEaten).toBe(foodEatenBefore + 1);
+    });
+
+    it("queues snake growth on next step", () => {
+      game.snake.growing = false;
+      triggerFox(game, "eat");
+      game._foxAnim.startTime = Date.now() - FOX_DURATION_MS - 10;
+      tickFoxAnim(game);
+      expect(game.snake.growing).toBe(true);
+    });
+
+    it("returns true while the cutscene is still running", () => {
+      triggerFox(game, "eat");
+      expect(tickFoxAnim(game)).toBe(true);
+      expect(game._foxAnim).not.toBeNull();
+    });
+  });
+
+  describe("freeze gates", () => {
+    it("game.tick early-returns while the cutscene is active", () => {
+      const headIdx = game.snake.headIndex;
+      const xBefore = game.snake.snakeX[headIdx];
+      const yBefore = game.snake.snakeY[headIdx];
+      triggerFox(game, "eat");
+      game.lastTickTime = 0; // ensure tick would otherwise fire
+      game.tick();
+      expect(game.snake.snakeX[headIdx]).toBe(xBefore);
+      expect(game.snake.snakeY[headIdx]).toBe(yBefore);
+    });
+
+    it("useConsumable returns false while the cutscene is active", () => {
+      game.upgrades.addConsumable("fox", 3);
+      triggerFox(game, "eat");
+      const chargesBefore = game.upgrades.getConsumable("fox").charges;
+      expect(game.useConsumable()).toBe(false);
+      // Charge must not have been spent.
+      expect(game.upgrades.getConsumable("fox").charges).toBe(chargesBefore);
+    });
+
+    it("onPlayerAction is gated during the cutscene in boss state", () => {
+      game.state = Game.STATE_BOSS;
+      triggerFox(game, "eat");
+      let fired = false;
+      game._bossOnAction = () => {
+        fired = true;
+      };
+      game.onPlayerAction("stab");
+      expect(fired).toBe(false);
+    });
+  });
+
+  describe("useConsumable dispatch", () => {
+    it("playing state → fires triggerFox in 'eat' mode and decrements charge", () => {
+      game.upgrades.addConsumable("fox", 2);
+      const id = game.useConsumable();
+      expect(id).toBe("fox");
+      expect(game._foxAnim?.mode).toBe("eat");
+      expect(game.upgrades.getConsumable("fox").charges).toBe(1);
+    });
+
+    it("boss state → fires triggerFox in 'pounce' mode regardless of selection", () => {
+      // Synthetic soulslike slot — pounce target reads `bossX/Y/Hp`.
+      game._soulslike = { bossX: 10, bossY: 10, bossHp: 50, bossHpMax: 50 };
+      game.upgrades.addConsumable("dash", 3); // selection at 0 → "dash"
+      game.upgrades.addConsumable("fox", 2);
+      game.state = Game.STATE_BOSS;
+      const id = game.useConsumable();
+      expect(id).toBe("fox");
+      expect(game._foxAnim?.mode).toBe("pounce");
+      expect(game.upgrades.getConsumable("fox").charges).toBe(1);
+      // Other consumables are untouched in boss state.
+      expect(game.upgrades.getConsumable("dash").charges).toBe(3);
+    });
+
+    it("boss state without a fox charge returns false", () => {
+      game._soulslike = { bossX: 10, bossY: 10, bossHp: 50, bossHpMax: 50 };
+      game.upgrades.addConsumable("dash", 3);
+      game.state = Game.STATE_BOSS;
+      expect(game.useConsumable()).toBe(false);
+      expect(game._foxAnim).toBeNull();
+    });
+  });
+
+  describe("pounce damages boss on contact (chew start)", () => {
+    it("soulslike: subtracts 5 from bossHp mid-cutscene, not at end", () => {
+      game._soulslike = { bossX: 10, bossY: 10, bossHp: 50, bossHpMax: 50 };
+      triggerFox(game, "pounce");
+      // Backdate just past the pounce → chew boundary so the contact
+      // tick fires but the cutscene is still running.
+      game._foxAnim.startTime = Date.now() - Math.ceil(FOX_DURATION_MS * 0.6);
+      tickFoxAnim(game);
+      expect(game._soulslike.bossHp).toBe(45);
+      expect(game._foxAnim).not.toBeNull(); // cutscene still going
+    });
+
+    it("bullet-hell: HP drops mid-cutscene; victory exit defers to cutscene end", () => {
+      game._boss = { x: 10, y: 10, hp: 4 };
+      let exited = false;
+      game._exitBossVictory = () => {
+        exited = true;
+      };
+      triggerFox(game, "pounce");
+      // Mid-cutscene tick: HP drops, victory NOT yet fired.
+      game._foxAnim.startTime = Date.now() - Math.ceil(FOX_DURATION_MS * 0.6);
+      tickFoxAnim(game);
+      expect(game._boss.hp).toBe(0);
+      expect(exited).toBe(false);
+      expect(game._foxAnim.pendingVictoryExit).toBe(true);
+      // End-of-cutscene tick: deferred victory now fires.
+      game._foxAnim.startTime = Date.now() - FOX_DURATION_MS - 10;
+      tickFoxAnim(game);
+      expect(exited).toBe(true);
+    });
+
+    it("damage only applies once, even across multiple ticks", () => {
+      game._soulslike = { bossX: 10, bossY: 10, bossHp: 50, bossHpMax: 50 };
+      triggerFox(game, "pounce");
+      game._foxAnim.startTime = Date.now() - Math.ceil(FOX_DURATION_MS * 0.6);
+      tickFoxAnim(game);
+      tickFoxAnim(game); // second mid-cutscene tick
+      expect(game._soulslike.bossHp).toBe(45); // not 40
+    });
+  });
+
+  describe("easter-egg flag", () => {
+    it("resets _foxEggUsedThisAct when the act advances", () => {
+      game._foxEggUsedThisAct = true;
+      game._draftPool = {
+        choices: [{ id: "dash", type: "consumable" }],
+        mutation: null,
+      };
+      game._draftSelection = 0;
+      game.state = Game.STATE_DRAFT;
+      game.confirmDraft();
+      expect(game._foxEggUsedThisAct).toBe(false);
+    });
+  });
+
+  describe("get_foxed contraband", () => {
+    it("apply() adds 2 fox-consumable charges (stacking with existing)", () => {
+      game.upgrades.addConsumable("fox", 1);
+      getFoxedContraband.apply(game);
+      expect(game.upgrades.getConsumable("fox").charges).toBe(3);
+    });
+
+    it("apply() seeds 2 charges if the player has no fox yet", () => {
+      getFoxedContraband.apply(game);
+      expect(game.upgrades.getConsumable("fox").charges).toBe(2);
+    });
+
+    it("is allow-listed to bullet-hell + soulslike (skips survival)", () => {
+      expect(getFoxedContraband.styles).toEqual(["bullet_hell", "soulslike"]);
+    });
   });
 });
 

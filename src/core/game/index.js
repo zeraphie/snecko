@@ -188,6 +188,8 @@ export class Game {
     this.advanceGrid = null;
     this._heldDirection = null;
     this._heldDirections = [];
+    this._foxAnim = null;
+    this._foxEggUsedThisAct = false;
 
     this._playerFacing = { dx: 1, dy: 0 };
     this._playerSpawnY = 0;
@@ -208,7 +210,7 @@ export class Game {
     this._contraband = [];
     this._contrabandPool = null;
     this._contrabandSelection = 0;
-    this.manifest = { arenas: [], bossShapes: {}, crystals: [] };
+    this.manifest = { arenas: [], bossShapes: {}, crystals: [], animations: {} };
   }
 
   /** Resets all state and begins a new run from act 1. */
@@ -250,6 +252,8 @@ export class Game {
     this.mechanic = null;
     this._heldDirection = null;
     this._heldDirections = [];
+    this._foxAnim = null;
+    this._foxEggUsedThisAct = false;
     this._runRecorded = false;
     this._pendingRunRecord = null;
     this._nameInput = "";
@@ -354,6 +358,11 @@ export class Game {
    */
   onPlayerAction(action) {
     if (this.state !== STATE_BOSS) {
+      return;
+    }
+    // Fox cutscene freezes player input — J/K/L mash mid-freeze should
+    // not queue dodges/stabs/parries that fire the moment it ends.
+    if (this._foxAnim) {
       return;
     }
     this._bossOnAction(action);

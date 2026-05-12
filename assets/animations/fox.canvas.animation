@@ -1,0 +1,80 @@
+@palette
+K #1a1a2e   outline (dark)
+O #d35b00   orange body
+Y #f4a261   orange highlight
+W #f7f1de   white (chest / face / tail-tip)
+E #2c2417   eyes
+P #6c3ab2   wizard hat (purple)
+S #ffd166   hat star
+
+walk-a
+................
+....KKKK.KKKK...
+...KOOOK.KOOOK..
+...KOYOKKKOYOK..
+..KOOOOOOOOOOK..
+..KOWWWEEWWWOK..
+..KOWWEEEEWWOK..
+..KOOWWWWWOOOK..
+.KOOOOOOOOOOOK..
+.KOOOOOOOOOOOK..
+KOWWOOOOOOOWWOK.
+KOWOOOOOOOOOWOK.
+.KOOK.....KOOK..
+..KK.......KK...
+................
+................
+
+walk-b
+................
+....KKKK.KKKK...
+...KOOOK.KOOOK..
+...KOYOKKKOYOK..
+..KOOOOOOOOOOK..
+..KOWWWEEWWWOK..
+..KOWWEEEEWWOK..
+..KOOWWWWWOOOK..
+.KOOOOOOOOOOOK..
+.KOOOOOOOOOOOK..
+KOWOOOOOOOOOWOK.
+KOWWOOOOOOOWWOK.
+..KOOK.....KK...
+...KK......KOOK.
+............KK..
+................
+
+pounce
+....SS..........
+...SPPS.........
+..SPPPPS.KKKK...
+...KKKKK.KOOOK..
+..KOYOOKKKOYOK..
+..KOOOOOOOOOOK..
+.KOWWEEEEEEWWOK.
+.KOWWEEEEEEWWOK.
+KOOOWWWWWWWWOOOK
+KOOOOOOOOOOOOOOK
+KOWWOOOOOOOOWWOK
+KOWWOOOOOOOOWOOK
+.KOOK......KOOK.
+..KK........KK..
+................
+................
+
+chew
+................
+................
+.....SS.........
+....SPPS........
+...SPPPPS.......
+....KKKKK.KKKK..
+...KOYOOKKKOOOK.
+...KOOOOOOOOOOK.
+..KOWWWEEWWWWOK.
+..KOWWWWWWWWOOK.
+.KOOOOOOOOOOOOK.
+.KOOOOOOOOOOOK..
+KOWWOOOOOOOWWOK.
+KOWOOOOOOOOOWOK.
+.KOOK.....KOOK..
+..KK.......KK...

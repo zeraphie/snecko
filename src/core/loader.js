@@ -7,6 +7,7 @@
 import { parseArenaFile } from "./boss/arena.js";
 import { parseBossShape } from "./boss/boss-shape.js";
 import { buildCrystals } from "./generation/crystalline/crystals.js";
+import { parseAnimation } from "./animation/parse.js";
 
 const MIN_LOAD_MS = 300;
 
@@ -19,6 +20,15 @@ const BOSS_SHAPE_FILES = [
 ];
 
 const CRYSTAL_SHAPES_FILE = "assets/shapes/crystals.shapes";
+
+// Animation manifests — keyed by name; each name has a `canvas` and a
+// `terminal` variant. Renderers pick the one that matches their fidelity.
+const ANIMATION_FILES = {
+  fox: {
+    canvas: "assets/animations/fox.canvas.animation",
+    terminal: "assets/animations/fox.terminal.animation",
+  },
+};
 
 // ── Spiral order for the 3×3 dot grid ─────────────────────────────
 //
@@ -86,7 +96,7 @@ function fileStem(path) {
  * Enforces a minimum display time so the loader animation is visible.
  *
  * @param {(path: string) => Promise<string>} readFile — platform-specific file reader (project-root-relative path)
- * @returns {Promise<{ arenas: object[], bossShapes: Record<string, object>, crystals: object[] }>}
+ * @returns {Promise<{ arenas: object[], bossShapes: Record<string, object>, crystals: object[], animations: Record<string, { canvas: object, terminal: object }> }>}
  */
 export async function loadAssets(readFile) {
   const start = Date.now();
@@ -105,7 +115,16 @@ export async function loadAssets(readFile) {
 
   const crystals = buildCrystals(await readFile(CRYSTAL_SHAPES_FILE));
 
-  const manifest = { arenas, bossShapes, crystals };
+  /** @type {Record<string, { canvas: object, terminal: object }>} */
+  const animations = {};
+  for (const [name, paths] of Object.entries(ANIMATION_FILES)) {
+    animations[name] = {
+      canvas: parseAnimation(await readFile(paths.canvas)),
+      terminal: parseAnimation(await readFile(paths.terminal)),
+    };
+  }
+
+  const manifest = { arenas, bossShapes, crystals, animations };
 
   // ── Enforce minimum display time ────────────────────────────────
   const elapsed = Date.now() - start;
