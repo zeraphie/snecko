@@ -41,21 +41,55 @@ export function isFoodBlocked(grid, x, y) {
 }
 
 /**
+ * True if (x, y) is a one-cell dead-end pocket — fewer than two
+ * non-wall neighbours. Eating food in such a cell traps the snake:
+ * it just grew, can't reverse, and every forward / perpendicular cell
+ * is a wall. Out-of-bounds neighbours count as walls so corner cells
+ * with two open neighbours still pass.
+ *
+ * @param {import('../grid/index.js').Grid} grid
+ * @param {number} x
+ * @param {number} y
+ */
+export function isDeadEndCell(grid, x, y) {
+  const w = grid.width;
+  const h = grid.height;
+  let open = 0;
+  if (x + 1 < w && !grid.isWallCell(x + 1, y)) {
+    open++;
+  }
+  if (x - 1 >= 0 && !grid.isWallCell(x - 1, y)) {
+    open++;
+  }
+  if (y + 1 < h && !grid.isWallCell(x, y + 1)) {
+    open++;
+  }
+  if (y - 1 >= 0 && !grid.isWallCell(x, y - 1)) {
+    open++;
+  }
+  return open < 2;
+}
+
+/**
  * Places food at a random unblocked, non-terrain cell (with fallback full scan).
  *
  * @param {import('../grid/index.js').Grid} grid
  * @param {() => number} [rand=Math.random]
  */
 export function placeFood(grid, rand = Math.random) {
+  // First pass — prefer cells that aren't dead-end pockets so the
+  // snake has an exit after eating + growing.
   for (let attempts = 0; attempts < 200; attempts++) {
     const x = Math.floor(rand() * grid.width);
     const y = Math.floor(rand() * grid.height);
-    if (!isFoodBlocked(grid, x, y)) {
+    if (!isFoodBlocked(grid, x, y) && !isDeadEndCell(grid, x, y)) {
       grid.foodX = x;
       grid.foodY = y;
       return;
     }
   }
+  // Fallback — any non-blocked cell, even a pocket. Better than no
+  // food at all if the layout has no pass-through cells available.
   for (let y = 0; y < grid.height; y++) {
     for (let x = 0; x < grid.width; x++) {
       if (!isFoodBlocked(grid, x, y)) {

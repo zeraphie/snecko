@@ -6,7 +6,7 @@ import { applyIronJaw } from "../upgrades/bites/iron-jaw.js";
 import { applyWormholeTeleport } from "../upgrades/consumables/wormhole.js";
 import { applyCurrentDrift } from "../mechanics/currents.js";
 import { tickFoxAnim } from "../upgrades/consumables/fox.js";
-import { isFoodBlocked } from "../generation/index.js";
+import { isFoodBlocked, isDeadEndCell } from "../generation/index.js";
 import {
   STATE_PLAYING,
   STATE_DRAFT,
@@ -139,10 +139,22 @@ export function _recalcTickMs() {
   this.tickMs = ms;
 }
 
-/** Places food at a random unblocked cell (simple fallback, no influence map). */
+/** Places food at a random unblocked, non-dead-end cell. */
 export function _placeRandomFood() {
   const rand = this.foodRand ?? Math.random;
-  let x, y;
+  // Prefer non-dead-end cells so the snake has an exit after eating.
+  for (let attempts = 0; attempts < 200; attempts++) {
+    const x = Math.floor(rand() * this.grid.width);
+    const y = Math.floor(rand() * this.grid.height);
+    if (!isFoodBlocked(this.grid, x, y) && !isDeadEndCell(this.grid, x, y)) {
+      this.grid.foodX = x;
+      this.grid.foodY = y;
+      return;
+    }
+  }
+  // Fallback — settle for any unblocked cell.
+  let x;
+  let y;
   do {
     x = Math.floor(rand() * this.grid.width);
     y = Math.floor(rand() * this.grid.height);
@@ -206,6 +218,11 @@ export function _placeBossFood() {
         continue;
       }
       if (isFoodBlocked(grid, x, y)) {
+        continue;
+      }
+      // Dead-end pockets trap the snake after eating — boss food is a
+      // deliberate pick-up so this matters even more than regular food.
+      if (isDeadEndCell(grid, x, y)) {
         continue;
       }
       const d = dist[y * w + x];
