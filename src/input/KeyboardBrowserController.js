@@ -60,6 +60,35 @@ const KEY_DOWN_MAP = {
   L: ACTION_PARRY,
 };
 
+/**
+ * True for keystrokes the browser owns — refresh, fullscreen, devtools,
+ * new tab, close tab, address bar, etc. We exit the handler before any
+ * branch can `preventDefault` them so the user can always reload no
+ * matter what state the game is in (seed input / name input would
+ * otherwise capture the printable char from Ctrl+R / Ctrl+L).
+ *
+ * @param {KeyboardEvent} e
+ */
+function isBrowserShortcut(e) {
+  // Function keys reserved by the browser.
+  if (e.key === "F5" || e.key === "F11" || e.key === "F12") {
+    return true;
+  }
+  // Ctrl/Cmd + letter combos. Match on `e.code` because `e.key` is
+  // affected by modifier-induced casing.
+  if (e.ctrlKey || e.metaKey) {
+    switch (e.code) {
+      case "KeyR": // refresh
+      case "KeyL": // address bar
+      case "KeyT": // new tab
+      case "KeyW": // close tab
+      case "KeyN": // new window
+        return true;
+    }
+  }
+  return false;
+}
+
 const KEY_UP_MAP = {
   ArrowUp: ACTION_RELEASE_UP,
   w: ACTION_RELEASE_UP,
@@ -123,6 +152,13 @@ export class KeyboardBrowserController extends Controller {
     }
     const game = this._game;
     if (!game) {
+      return;
+    }
+
+    // Browser-reserved combos pass through untouched in every state —
+    // the seed / name input branches below otherwise swallow printable
+    // chars (including the `r` in Ctrl+R) and `preventDefault` them.
+    if (isBrowserShortcut(e)) {
       return;
     }
 
