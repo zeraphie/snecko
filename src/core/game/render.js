@@ -25,6 +25,8 @@ import {
   CELL_BOSS_HIT,
   CELL_WALL_ARENA,
   CELL_WALL_CATACOMB,
+  CELL_WALL_CRYSTAL,
+  CELL_CRYSTAL_TELEGRAPH,
   CELL_ANCHOR_LOCK,
   CELL_DANGER_TRAIL,
   CELL_ECHO_ZONE,
@@ -40,6 +42,8 @@ import {
   TERRAIN_CURRENT,
   TERRAIN_TELEGRAPH,
   TERRAIN_CATACOMB,
+  TERRAIN_CRYSTAL,
+  TERRAIN_CRYSTAL_TELEGRAPH,
 } from "../grid/constants.js";
 import { getScreen } from "../../screens/registry.js";
 import { STATE_PLAYING, STATE_BOSS } from "./constants.js";
@@ -242,6 +246,8 @@ export function _drawGrid() {
           cell = CELL_WALL_HIGH;
         } else if (t === TERRAIN_CATACOMB) {
           cell = CELL_WALL_CATACOMB;
+        } else if (t === TERRAIN_CRYSTAL) {
+          cell = CELL_WALL_CRYSTAL;
         } else {
           cell = CELL_WALL;
         }
@@ -256,10 +262,17 @@ export function _drawGrid() {
           drawCell(x, y, currentCellType(this.mechanic, x, y));
         } else if (t === TERRAIN_TELEGRAPH) {
           drawCell(x, y, CELL_TELEGRAPH);
+        } else if (t === TERRAIN_CRYSTAL_TELEGRAPH) {
+          drawCell(x, y, CELL_CRYSTAL_TELEGRAPH);
         }
       }
     }
   }
+
+  // Crystal cluster overlay — drawn as one continuous shape per active
+  // crystal lifecycle so the cluster reads as "one shape with spikes"
+  // rather than per-cell facets. Optional method (canvas only).
+  this.renderer?.drawCrystalClusters?.(this);
 
   const snake = this.snake;
   let idx = snake.tailIndex;

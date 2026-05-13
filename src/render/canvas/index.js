@@ -19,6 +19,7 @@ import {
 import { drawTargetingOverlay, drawWormholeOverlay } from "./overlays.js";
 import { drawLoader } from "./loader.js";
 import { drawFoxAnim } from "./fox.js";
+import { drawCrystalClusters } from "./crystal-cluster.js";
 
 export class CanvasRenderer extends Renderer {
   /**
@@ -90,3 +91,4 @@ CanvasRenderer.prototype.drawTargetingOverlay = drawTargetingOverlay;
 CanvasRenderer.prototype.drawWormholeOverlay = drawWormholeOverlay;
 CanvasRenderer.prototype.drawLoader = drawLoader;
 CanvasRenderer.prototype.drawFoxAnim = drawFoxAnim;
+CanvasRenderer.prototype.drawCrystalClusters = drawCrystalClusters;

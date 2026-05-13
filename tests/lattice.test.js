@@ -8,7 +8,7 @@ import { Grid } from "../src/core/grid";
 import { Snake } from "../src/core/snake";
 import { initLattice, advanceLattice } from "../src/core/mechanics/lattice.js";
 import { buildCrystals } from "../src/core/generation/crystalline/crystals.js";
-import { TERRAIN_TELEGRAPH } from "../src/core/grid/constants.js";
+import { TERRAIN_CRYSTAL_TELEGRAPH } from "../src/core/grid/constants.js";
 
 const SHAPES_PATH = resolve(
   dirname(fileURLToPath(import.meta.url)),
@@ -83,15 +83,16 @@ describe("advanceLattice", () => {
     advanceLattice(game);
   });
 
-  it("first bite spawns a crystal and runs it through telegraph_place", () => {
+  it("first bite spawns crystals and runs them through telegraph_place", () => {
     const game = makeGame();
     initLattice(game);
     advanceLattice(game);
-    expect(game.mechanic.crystals.length).toBe(1);
+    // Bite 0 spawns both the per-food crystal and the cadence-driven one.
+    expect(game.mechanic.crystals.length).toBe(2);
     const c = game.mechanic.crystals[0];
     expect(c.state).toBe("place"); // telegraph_place handler ran, set state to "place"
     expect(c.crystalIdx).toBeGreaterThanOrEqual(0);
-    expect(countTerrain(game.grid, TERRAIN_TELEGRAPH)).toBeGreaterThan(0);
+    expect(countTerrain(game.grid, TERRAIN_CRYSTAL_TELEGRAPH)).toBeGreaterThan(0);
     expect(countWalls(game.grid)).toBe(0);
   });
 
@@ -205,8 +206,9 @@ describe("crystal-local lifecycle", () => {
     advanceLattice(game); // bite 5 — c0: linger → decay
     const wallsAfterDecay = countWalls(game.grid);
     expect(c0.state).toBe("decay");
-    // Sanity: total walls didn't explode despite a concurrent c1 being placed.
-    expect(wallsAfterDecay).toBeLessThanOrEqual(wallsAfterGrow + 50);
+    // Sanity: total walls didn't explode despite concurrent crystals being placed.
+    // Per-food spawn means multiple new crystals stamp between grow and decay.
+    expect(wallsAfterDecay).toBeLessThanOrEqual(wallsAfterGrow + 150);
   });
 
   it("disappear releases its owned wall cells", () => {
@@ -340,7 +342,7 @@ describe("telegraph behaviour", () => {
     const game = makeGame();
     initLattice(game);
     advanceLattice(game); // spawn c0 + run telegraph_place
-    expect(countTerrain(game.grid, TERRAIN_TELEGRAPH)).toBeGreaterThan(0);
+    expect(countTerrain(game.grid, TERRAIN_CRYSTAL_TELEGRAPH)).toBeGreaterThan(0);
   });
 
   it("clearing telegraphs is footprint-scoped — multiple lifecycles don't blow each other away", () => {
@@ -354,7 +356,7 @@ describe("telegraph behaviour", () => {
     const totalBites = 14;
     for (let i = 0; i < totalBites; i++) {
       advanceLattice(game);
-      if (countTerrain(game.grid, TERRAIN_TELEGRAPH) > 0) {
+      if (countTerrain(game.grid, TERRAIN_CRYSTAL_TELEGRAPH) > 0) {
         bitesWithTelegraph++;
       }
     }

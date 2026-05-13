@@ -5,7 +5,12 @@
 // computes the four rotations of every stage. The result is stashed on
 // `manifest.crystals` for the lattice mechanic and the crystalline generator.
 
-import { TERRAIN_TELEGRAPH, TERRAIN_INTERIOR, TERRAIN_NONE } from "../../grid/constants.js";
+import {
+  TERRAIN_TELEGRAPH,
+  TERRAIN_INTERIOR,
+  TERRAIN_NONE,
+  TERRAIN_CRYSTAL_TELEGRAPH,
+} from "../../grid/constants.js";
 
 // ── Shape file parser ────────────────────────────────────────────
 
@@ -298,8 +303,12 @@ export function placeStage(grid, stage, x, y) {
  * @param {object} stage — rotation of the upcoming stage
  * @param {number} x — top-left x of the stage's footprint
  * @param {number} y — top-left y of the stage's footprint
+ * @param {number} [terrainValue=TERRAIN_TELEGRAPH] — which terrain marker
+ *   to write. Crystalline uses `TERRAIN_CRYSTAL_TELEGRAPH` so the renderer
+ *   can paint a translucent crystal preview instead of a generic grey
+ *   square; rifts / other mutations keep the default.
  */
-export function placeTelegraph(grid, stage, x, y) {
+export function placeTelegraph(grid, stage, x, y, terrainValue = TERRAIN_TELEGRAPH) {
   const w = grid.width;
   for (let row = 0; row < stage.height; row++) {
     const by = y + row;
@@ -320,20 +329,21 @@ export function placeTelegraph(grid, stage, x, y) {
       if (grid.isWallCell(bx, by)) {
         continue;
       }
-      grid.terrain[by * w + bx] = TERRAIN_TELEGRAPH;
+      grid.terrain[by * w + bx] = terrainValue;
     }
   }
 }
 
 /**
- * Resets all telegraph terrain cells back to TERRAIN_NONE.
+ * Resets all telegraph terrain cells back to TERRAIN_NONE. Clears both
+ * the generic and crystal-specific markers.
  *
  * @param {import('../../grid/index.js').Grid} grid
  */
 export function clearTelegraph(grid) {
   const terrain = grid.terrain;
   for (let i = 0; i < terrain.length; i++) {
-    if (terrain[i] === TERRAIN_TELEGRAPH) {
+    if (terrain[i] === TERRAIN_TELEGRAPH || terrain[i] === TERRAIN_CRYSTAL_TELEGRAPH) {
       terrain[i] = TERRAIN_NONE;
     }
   }

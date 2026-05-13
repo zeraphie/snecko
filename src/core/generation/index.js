@@ -3,7 +3,12 @@
 // bloom-and-decay lifecycle (see `mechanics/lattice.js`).
 
 import { initLattice, advanceLattice } from "../mechanics/lattice.js";
-import { TERRAIN_TELEGRAPH, TERRAIN_CURRENT, TERRAIN_INTERIOR } from "../grid/constants.js";
+import {
+  TERRAIN_TELEGRAPH,
+  TERRAIN_CURRENT,
+  TERRAIN_INTERIOR,
+  TERRAIN_CRYSTAL_TELEGRAPH,
+} from "../grid/constants.js";
 
 // ── Food placement ────────────────────────────────────────────────
 
@@ -27,7 +32,12 @@ export function isFoodBlocked(grid, x, y) {
     return true;
   }
   const t = grid.terrain[y * grid.width + x];
-  return t === TERRAIN_TELEGRAPH || t === TERRAIN_CURRENT || t === TERRAIN_INTERIOR;
+  return (
+    t === TERRAIN_TELEGRAPH ||
+    t === TERRAIN_CRYSTAL_TELEGRAPH ||
+    t === TERRAIN_CURRENT ||
+    t === TERRAIN_INTERIOR
+  );
 }
 
 /**

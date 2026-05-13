@@ -10,3 +10,5 @@ ai/
 
 # Local visual reference images dropped alongside soulslike code.
 *.webp
+*.jpg
+*.jpeg

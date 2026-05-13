@@ -62,6 +62,8 @@ export const CELL_TREE = 43;
 export const CELL_GRAVESTONE = 44;
 export const CELL_WATER = 45;
 export const CELL_WALL_CATACOMB = 46;
+export const CELL_WALL_CRYSTAL = 47;
+export const CELL_CRYSTAL_TELEGRAPH = 48;
 
 // ── Renderer base class ───────────────────────────────────────────────────
 //

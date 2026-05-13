@@ -25,12 +25,25 @@ import {
 } from "../generation/crystalline/crystals.js";
 import { mixSeeds, splitmix32 } from "../rng.js";
 import { SUBSEED_LATTICE } from "../seed-streams.js";
-import { TERRAIN_INTERIOR, TERRAIN_NONE, TERRAIN_TELEGRAPH } from "../grid/constants.js";
+import {
+  TERRAIN_INTERIOR,
+  TERRAIN_NONE,
+  TERRAIN_CRYSTAL,
+  TERRAIN_CRYSTAL_TELEGRAPH,
+} from "../grid/constants.js";
 
 const SPAWN_INTERVAL = 2;
 const PRECOMPUTE_ATTEMPTS = 60;
 const FALLBACK_ATTEMPTS = 80;
 const DEFAULT_FOOD_REQUIRED = 30;
+// Minimum cell distance between a candidate placement and the snake
+// head. Squared for direct comparison with `dx*dx + dy*dy`. Keeps
+// crystals from spawning right on top of the player while letting the
+// scatter pattern spread evenly across the arena instead of hugging
+// the corners (the old "farthest from snake" rule clustered every
+// spawn against the edges).
+const MIN_SNAKE_DIST = 5;
+const MIN_SNAKE_DIST_SQ = MIN_SNAKE_DIST * MIN_SNAKE_DIST;
 
 /**
  * Initialises the lattice mechanic on a freshly generated crystalline grid.
@@ -62,6 +75,10 @@ export function advanceLattice(game) {
     return;
   }
 
+  // Per-food spawn — one extra crystal lands every food-bite on top
+  // of the cadence-driven spawn below. Keeps the act consistently busy
+  // with crystal activity without compressing the lifecycle states.
+  mech.crystals.push(newCrystalSlot());
   if (mech.biteCounter % SPAWN_INTERVAL === 0) {
     mech.crystals.push(newCrystalSlot());
   }
@@ -139,7 +156,7 @@ function telegraphPlace(game, c) {
   c.x = placement.x;
   c.y = placement.y;
 
-  placeTelegraph(grid, shape, c.x, c.y);
+  placeTelegraph(grid, shape, c.x, c.y, TERRAIN_CRYSTAL_TELEGRAPH);
   c.state = "place";
 }
 
@@ -169,7 +186,7 @@ function telegraphGrow(game, c) {
   const nextStage = crystal.stages[c.stageIdx + 1];
   const shape = nextStage.rotations[c.rotation % nextStage.rotations.length];
 
-  placeTelegraph(grid, shape, c.x, c.y);
+  placeTelegraph(grid, shape, c.x, c.y, TERRAIN_CRYSTAL_TELEGRAPH);
   c.state = "grow";
 }
 
@@ -296,6 +313,9 @@ function stamp(grid, c, shape) {
           continue;
         }
         grid.setCell("wall", bx, by);
+        // Paint the crystal terrain marker so the renderer routes this
+        // wall to the faceted-quartz cell instead of the plain brown.
+        grid.terrain[by * w + bx] = TERRAIN_CRYSTAL;
         stampedSolid |= 1 << col;
       } else if (interiorMask & (1 << col)) {
         if (grid.isWallCell(bx, by) || grid.isSnakeCell(bx, by)) {
@@ -315,8 +335,9 @@ function stamp(grid, c, shape) {
   }
 }
 
-// Clears TERRAIN_TELEGRAPH from cells inside the shape's footprint.
-// Footprint-scoped so it doesn't blow away another crystal's telegraph.
+// Clears the crystal-specific telegraph marker from cells inside the
+// shape's footprint. Footprint-scoped so it doesn't blow away another
+// crystal's telegraph.
 function clearTelegraphFor(grid, shape, x, y) {
   const w = grid.width;
   for (let row = 0; row < shape.height; row++) {
@@ -333,7 +354,7 @@ function clearTelegraphFor(grid, shape, x, y) {
       if (bx < 0 || bx >= grid.width) {
         continue;
       }
-      if (grid.terrain[by * w + bx] === TERRAIN_TELEGRAPH) {
+      if (grid.terrain[by * w + bx] === TERRAIN_CRYSTAL_TELEGRAPH) {
         grid.terrain[by * w + bx] = TERRAIN_NONE;
       }
     }
@@ -362,30 +383,35 @@ function precomputePlacements(game, rand) {
     const stage0 = crystal.stages[0];
     const rotation = Math.floor(rand() * stage0.rotations.length);
     const shape = stage0.rotations[rotation];
-
-    let bestX = -1;
-    let bestY = -1;
-    let bestDist = -1;
-
-    for (let attempt = 0; attempt < PRECOMPUTE_ATTEMPTS; attempt++) {
-      const x = Math.floor(rand() * grid.width);
-      const y = Math.floor(rand() * grid.height);
-      if (!canPlaceStage(grid, shape, x, y)) {
-        continue;
-      }
-      const dx = x + shape.width / 2 - hx;
-      const dy = y + shape.height / 2 - hy;
-      const dist = dx * dx + dy * dy;
-      if (dist > bestDist) {
-        bestDist = dist;
-        bestX = x;
-        bestY = y;
-      }
-    }
-
-    placements.push(bestDist < 0 ? null : { crystalIdx, rotation, x: bestX, y: bestY });
+    placements.push(samplePlacement(grid, rand, shape, hx, hy, crystalIdx, rotation));
   }
   return placements;
+}
+
+/**
+ * Random-valid-cell placement with a minimum-distance filter from
+ * `(hx, hy)`. Returns the first candidate that fits + clears the
+ * filter, falling back to "first valid anywhere" if no filtered
+ * candidate is found after the attempt budget.
+ */
+function samplePlacement(grid, rand, shape, hx, hy, crystalIdx, rotation) {
+  let firstValid = null;
+  for (let attempt = 0; attempt < PRECOMPUTE_ATTEMPTS; attempt++) {
+    const x = Math.floor(rand() * grid.width);
+    const y = Math.floor(rand() * grid.height);
+    if (!canPlaceStage(grid, shape, x, y)) {
+      continue;
+    }
+    if (!firstValid) {
+      firstValid = { crystalIdx, rotation, x, y };
+    }
+    const dx = x + shape.width / 2 - hx;
+    const dy = y + shape.height / 2 - hy;
+    if (dx * dx + dy * dy >= MIN_SNAKE_DIST_SQ) {
+      return { crystalIdx, rotation, x, y };
+    }
+  }
+  return firstValid;
 }
 
 function nextPrecomputed(mech, grid, crystals) {
@@ -420,9 +446,7 @@ function liveSearch(game) {
   const hx = snake.snakeX[snake.headIndex];
   const hy = snake.snakeY[snake.headIndex];
 
-  let bestX = -1;
-  let bestY = -1;
-  let bestDist = -1;
+  let firstValid = null;
 
   for (let attempt = 0; attempt < FALLBACK_ATTEMPTS; attempt++) {
     const x = Math.floor(rand() * grid.width);
@@ -430,18 +454,14 @@ function liveSearch(game) {
     if (!canPlaceStage(grid, shape, x, y)) {
       continue;
     }
+    if (!firstValid) {
+      firstValid = { crystalIdx, rotation, x, y };
+    }
     const dx = x + shape.width / 2 - hx;
     const dy = y + shape.height / 2 - hy;
-    const dist = dx * dx + dy * dy;
-    if (dist > bestDist) {
-      bestDist = dist;
-      bestX = x;
-      bestY = y;
+    if (dx * dx + dy * dy >= MIN_SNAKE_DIST_SQ) {
+      return { crystalIdx, rotation, x, y };
     }
   }
-
-  if (bestDist < 0) {
-    return null;
-  }
-  return { crystalIdx, rotation, x: bestX, y: bestY };
+  return firstValid;
 }
