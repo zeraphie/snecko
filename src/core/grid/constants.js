@@ -9,3 +9,4 @@ export const TERRAIN_HIGH = 2;
 export const TERRAIN_TELEGRAPH = 3;
 export const TERRAIN_CURRENT = 4;
 export const TERRAIN_INTERIOR = 5; // inside a crystalline hollow — walkable, no food spawns
+export const TERRAIN_CATACOMB = 6; // wall painted with catacomb cobble detailing

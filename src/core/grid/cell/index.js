@@ -15,6 +15,7 @@ import "./terrain/wall-low.js";
 import "./terrain/wall-high.js";
 import "./terrain/wall-edible.js";
 import "./terrain/wall-arena.js";
+import "./terrain/wall-catacomb.js";
 import "./food/food.js";
 import "./food/red-food.js";
 import "./food/telegraph.js";

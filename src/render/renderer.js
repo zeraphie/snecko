@@ -61,6 +61,7 @@ export const CELL_FLOWER = 42;
 export const CELL_TREE = 43;
 export const CELL_GRAVESTONE = 44;
 export const CELL_WATER = 45;
+export const CELL_WALL_CATACOMB = 46;
 
 // ── Renderer base class ───────────────────────────────────────────────────
 //

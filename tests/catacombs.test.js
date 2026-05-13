@@ -7,6 +7,7 @@ import {
   generateCatacombsGrid,
   advanceCatacombsGrid,
 } from "../src/core/generation/catacombs/generator.js";
+import { TERRAIN_CATACOMB, TERRAIN_NONE } from "../src/core/grid/constants.js";
 
 function makeGame(actSeed = 0xcafebabe) {
   const grid = new Grid(31, 31);
@@ -287,5 +288,60 @@ describe("advanceCatacombsGrid", () => {
 
     // Original food position was on a non-wall cell too (sanity).
     expect(game.grid.isWallCell(beforeFoodX, beforeFoodY)).toBe(false);
+  });
+});
+
+describe("catacomb cobble terrain marker", () => {
+  it("paints TERRAIN_CATACOMB on every wall after generate", () => {
+    const game = makeGame();
+    generateCatacombsGrid(game);
+    const grid = game.grid;
+    let walls = 0;
+    for (let y = 0; y < grid.height; y++) {
+      for (let x = 0; x < grid.width; x++) {
+        if (grid.isWallCell(x, y)) {
+          walls++;
+          expect(grid.terrain[y * grid.width + x]).toBe(TERRAIN_CATACOMB);
+        }
+      }
+    }
+    // Sanity — the maze should produce a non-trivial number of walls.
+    expect(walls).toBeGreaterThan(50);
+  });
+
+  it("leaves corridors at TERRAIN_NONE (catacomb marker is wall-only)", () => {
+    const game = makeGame();
+    generateCatacombsGrid(game);
+    const grid = game.grid;
+    for (let y = 0; y < grid.height; y++) {
+      for (let x = 0; x < grid.width; x++) {
+        if (!grid.isWallCell(x, y)) {
+          expect(grid.terrain[y * grid.width + x]).toBe(TERRAIN_NONE);
+        }
+      }
+    }
+  });
+
+  it("re-paints walls after advance so rifts-added stamps inherit the marker", () => {
+    const game = makeGame();
+    generateCatacombsGrid(game);
+    // Stale the terrain on every wall to prove `advanceCatacombsGrid`
+    // re-paints, not just leaves old values.
+    const grid = game.grid;
+    for (let y = 0; y < grid.height; y++) {
+      for (let x = 0; x < grid.width; x++) {
+        if (grid.isWallCell(x, y)) {
+          grid.terrain[y * grid.width + x] = TERRAIN_NONE;
+        }
+      }
+    }
+    advanceCatacombsGrid(game);
+    for (let y = 0; y < grid.height; y++) {
+      for (let x = 0; x < grid.width; x++) {
+        if (grid.isWallCell(x, y)) {
+          expect(grid.terrain[y * grid.width + x]).toBe(TERRAIN_CATACOMB);
+        }
+      }
+    }
   });
 });

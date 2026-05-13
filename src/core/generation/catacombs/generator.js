@@ -19,6 +19,7 @@ import { placeFood } from "../index.js";
 import { mixSeeds, splitmix32 } from "../../rng.js";
 import { SUBSEED_CATACOMBS } from "../../seed-streams.js";
 import { initRifts, advanceRifts } from "../../mechanics/rifts.js";
+import { TERRAIN_CATACOMB } from "../../grid/constants.js";
 
 const CELL_PERIOD = 3; // 2 corridor + 1 wall
 const CELLS_W = 10;
@@ -84,6 +85,11 @@ export function generateCatacombsGrid(game) {
 
   // 6. Rifts mechanic.
   initRifts(game);
+
+  // 7. Paint the catacomb terrain marker on every remaining wall so
+  //    the renderer dispatches CELL_WALL_CATACOMB (cobble) instead of
+  //    plain CELL_WALL.
+  paintCatacombWalls(grid);
 }
 
 /**
@@ -94,7 +100,28 @@ export function generateCatacombsGrid(game) {
  */
 export function advanceCatacombsGrid(game) {
   advanceRifts(game);
+  // Rifts can add or clear walls — re-paint so newly-stamped walls
+  // also carry the catacomb terrain marker.
+  paintCatacombWalls(game.grid);
   placeFood(game.grid, game.foodRand ?? Math.random);
+}
+
+/**
+ * Sets `TERRAIN_CATACOMB` on every wall cell so the renderer routes
+ * them to the cobble-detailed cell. Cheap: O(W·H) per call, ~961
+ * cells at the 31×31 default grid.
+ *
+ * @param {import('../../grid/index.js').Grid} grid
+ */
+function paintCatacombWalls(grid) {
+  const w = grid.width;
+  for (let y = 0; y < grid.height; y++) {
+    for (let x = 0; x < w; x++) {
+      if (grid.isWallCell(x, y)) {
+        grid.terrain[y * w + x] = TERRAIN_CATACOMB;
+      }
+    }
+  }
 }
 
 // ── Recursive backtracker ────────────────────────────────────────

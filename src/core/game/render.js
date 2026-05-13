@@ -24,6 +24,7 @@ import {
   CELL_PLAYER_INVUL,
   CELL_BOSS_HIT,
   CELL_WALL_ARENA,
+  CELL_WALL_CATACOMB,
   CELL_ANCHOR_LOCK,
   CELL_DANGER_TRAIL,
   CELL_ECHO_ZONE,
@@ -38,6 +39,7 @@ import {
   TERRAIN_HIGH,
   TERRAIN_CURRENT,
   TERRAIN_TELEGRAPH,
+  TERRAIN_CATACOMB,
 } from "../grid/constants.js";
 import { getScreen } from "../../screens/registry.js";
 import { STATE_PLAYING, STATE_BOSS } from "./constants.js";
@@ -238,6 +240,8 @@ export function _drawGrid() {
           cell = ironJawActive ? CELL_WALL_LOW_EDIBLE : CELL_WALL_LOW;
         } else if (t === TERRAIN_HIGH) {
           cell = CELL_WALL_HIGH;
+        } else if (t === TERRAIN_CATACOMB) {
+          cell = CELL_WALL_CATACOMB;
         } else {
           cell = CELL_WALL;
         }
