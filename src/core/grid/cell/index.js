@@ -54,6 +54,12 @@ import "./soulslike/flower.js";
 import "./soulslike/tree.js";
 import "./soulslike/gravestone.js";
 import "./soulslike/water.js";
+import "./brood/kin-head.js";
+import "./brood/kin-body.js";
+import "./brood/memorial-gravestone.js";
+import "./brood/memorial-mound.js";
+import "./brood/cull-telegraph.js";
+import "./brood/cull-impact.js";
 
 export { defineCell } from "./registry.js";
 

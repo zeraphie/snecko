@@ -63,6 +63,15 @@ export const UPGRADES = {
     type: TYPE_CONSUMABLE,
     charges: 3,
   },
+  shield: {
+    id: "shield",
+    type: TYPE_CONSUMABLE,
+    // Brood acts auto-grant 5 charges at act start (cleared per act);
+    // never offered in drafts (see `draftable: false`).
+    charges: 5,
+    mutations: ["brood"],
+    draftable: false,
+  },
 
   // World mutations
   wildlands: {
@@ -75,6 +84,10 @@ export const UPGRADES = {
   },
   catacombs: {
     id: "catacombs",
+    type: TYPE_MUTATION,
+  },
+  brood: {
+    id: "brood",
     type: TYPE_MUTATION,
   },
 };
@@ -101,6 +114,13 @@ export function getUpgradesByType(type) {
  */
 export function getEligibleUpgrades(upgradeState) {
   return Object.values(UPGRADES).filter((u) => {
+    // Some upgrades are granted outside the draft system (e.g. brood
+    // shields, auto-granted at act start). They live in the catalog so
+    // the rest of the engine can resolve labels and dispatch them, but
+    // the draft pool excludes them.
+    if (u.draftable === false) {
+      return false;
+    }
     // Mutation-locked upgrades only show up in the mutations they whitelist.
     if (u.mutations && !u.mutations.includes(upgradeState.mutation)) {
       return false;

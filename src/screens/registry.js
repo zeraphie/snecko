@@ -20,6 +20,9 @@ import { practiceHubScreen } from "./practiceHub.js";
 import { bossPickerScreen } from "./bossPicker.js";
 import { bossRushCompleteScreen } from "./bossRushComplete.js";
 import { youDiedScreen } from "./youDied.js";
+import { broodPlacementScreen } from "./broodPlacement.js";
+import { shieldPlacementScreen } from "./shieldPlacement.js";
+import { deadBroodScreen } from "./deadBrood.js";
 
 /** @type {Map<string, { draw(renderer: object, game: object): void }>} */
 const SCREENS = new Map();
@@ -63,3 +66,6 @@ registerScreen("practice_hub", practiceHubScreen);
 registerScreen("boss_picker", bossPickerScreen);
 registerScreen("boss_rush_complete", bossRushCompleteScreen);
 registerScreen("dead_soulslike", youDiedScreen);
+registerScreen("brood_placement", broodPlacementScreen);
+registerScreen("shield_placement", shieldPlacementScreen);
+registerScreen("dead_brood", deadBroodScreen);

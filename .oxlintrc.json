@@ -6,7 +6,9 @@
     "node": true,
     "es2022": true
   },
-  "globals": {},
+  "globals": {
+    "__DEV_BUILD__": "readonly"
+  },
   "settings": {},
   "rules": {
     "no-unused-vars": [

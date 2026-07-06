@@ -4,7 +4,8 @@ import { executeDash } from "../upgrades/consumables/dash.js";
 import { enterTargeting, cancelBomb } from "../upgrades/consumables/bomb.js";
 import { enterWormholePlacement, cancelWormhole } from "../upgrades/consumables/wormhole.js";
 import { triggerFox } from "../upgrades/consumables/fox.js";
-import { STATE_PLAYING, STATE_WORMHOLE, STATE_BOSS } from "./constants.js";
+import { enterShieldPlacement, cancelShieldPlacement } from "../upgrades/consumables/shield.js";
+import { STATE_PLAYING, STATE_WORMHOLE, STATE_BOSS, STATE_SHIELD_PLACEMENT } from "./constants.js";
 
 /** Cycles to the next consumable in the inventory. */
 export function cycleConsumable() {
@@ -71,14 +72,18 @@ export function useConsumable() {
     enterTargeting(this);
   } else if (entry.id === "fox") {
     triggerFox(this, "eat");
+  } else if (entry.id === "shield") {
+    enterShieldPlacement(this);
   }
   return entry.id;
 }
 
-/** Cancels the current targeting/wormhole placement mode and returns to playing. */
+/** Cancels the current targeting/wormhole/shield placement mode and returns to playing. */
 export function cancelTargeting() {
   if (this.state === STATE_WORMHOLE) {
     cancelWormhole(this);
+  } else if (this.state === STATE_SHIELD_PLACEMENT) {
+    cancelShieldPlacement(this);
   } else {
     cancelBomb(this);
   }

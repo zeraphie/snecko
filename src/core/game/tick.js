@@ -5,7 +5,9 @@ import { applySlowTime } from "../upgrades/passives/slow-time.js";
 import { applyIronJaw } from "../upgrades/bites/iron-jaw.js";
 import { applyWormholeTeleport } from "../upgrades/consumables/wormhole.js";
 import { applyCurrentDrift } from "../mechanics/currents.js";
+import { tickCull, computeBroodActClearBonus, onFoodEaten } from "../mechanics/cull/index.js";
 import { tickFoxAnim } from "../upgrades/consumables/fox.js";
+import { SCORE_PER_FOOD, SCORE_PER_ACT } from "../score/constants.js";
 import { isFoodBlocked, isDeadEndCell } from "../generation/index.js";
 import {
   STATE_PLAYING,
@@ -35,6 +37,13 @@ export function tick() {
   }
 
   const now = Date.now();
+
+  // Real-time cull tick — the engine's first wall-clock-driven mechanic.
+  // Runs every frame (independent of the snake movement cadence) so
+  // Reginald's throw timing reads smoothly regardless of snake speed.
+  // No-op for non-cull mechanics.
+  tickCull(this, now);
+
   if (now - this.lastTickTime < this.tickMs) {
     return;
   }
@@ -68,6 +77,7 @@ export function _handleFoodEaten() {
   this.score++;
   this.foodEaten++;
   this.bossFoodCharge++;
+  this.totalScore += SCORE_PER_FOOD;
 
   // Eating regular food while boss food is on the grid → boss food despawns,
   // charge resets so the next cycle starts fresh.
@@ -79,7 +89,36 @@ export function _handleFoodEaten() {
   }
 
   this.upgrades.tickBites();
+  // Brood: food-bite specials. Every 3rd food queues a plus-bomb;
+  // every 6th queues a line-bomb (which supersedes the plus at that
+  // count). No-op for other mutations.
+  onFoodEaten(this);
   if (this.foodEaten >= this.foodRequired) {
+    // Act-clear bonus — fires when the food requirement is met,
+    // regardless of mutation. Per-mutation extras (e.g. brood kin
+    // survival) layer on top in their own hooks.
+    const foodPoints = this.foodEaten * SCORE_PER_FOOD;
+    const actPoints = SCORE_PER_ACT;
+    let kinPoints = 0;
+    let shieldPoints = 0;
+    if (this.upgrades.mutation === "brood") {
+      const brood = computeBroodActClearBonus(this);
+      kinPoints = brood.kin;
+      shieldPoints = brood.shields;
+    }
+    this.totalScore += actPoints + kinPoints + shieldPoints;
+    // Stash the breakdown so the act-clear screen (the draft) can show
+    // where the points came from. `food` reflects this act only; `act`
+    // is the flat act-clear bonus; `kin` / `shields` are brood-only
+    // (zero otherwise). The breakdown is read once at render and
+    // overwritten on each act clear.
+    this._lastActBonuses = {
+      food: foodPoints,
+      act: actPoints,
+      kin: kinPoints,
+      shields: shieldPoints,
+      total: foodPoints + actPoints + kinPoints + shieldPoints,
+    };
     this._draftPool = generateDraftPool(this.upgrades, Math.random, this._draftsSinceMutation);
     if (this._draftPool.mutation) {
       this._draftsSinceMutation = 0;

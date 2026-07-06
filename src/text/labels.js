@@ -11,6 +11,9 @@ export const LABELS = {
     progress: "Progress",
     // The "score" field counts total food-bites eaten this run; display as "Bites".
     score: "Bites",
+    // The "total" field is the cross-mutation `totalScore` — points from
+    // food, act-clears, and per-mutation extras.
+    total: "Score",
     time: "Time",
     // Lowercase unit suffix used after a number (e.g. "3 bites").
     bites: "bites",
@@ -67,6 +70,11 @@ export const LABELS = {
       short: "Pounce",
       desc: "Lil wizard fox timestops and noms on some food for you",
     },
+    shield: {
+      name: "Mother Hen",
+      short: "Shield",
+      desc: "Cover a kin from one of Sir Reginald's throws",
+    },
     // Mutations
     wildlands: {
       name: "Wildlands",
@@ -82,6 +90,11 @@ export const LABELS = {
       name: "Catacombs",
       short: "Catacombs",
       desc: "Pre-generated maze with shifting paths",
+    },
+    brood: {
+      name: "Brood",
+      short: "Brood",
+      desc: "Place your kin. Sir Reginald wants them dead",
     },
     // Contraband
     danger_noodle: {
@@ -194,6 +207,12 @@ export const LABELS = {
     mutationPrefix: "MUTATION",
     selectInstrFull: "↑↓ select, ←→ mutation, Enter confirm",
     selectInstr: "↑↓ select, Enter confirm",
+    // Act-clear score breakdown labels (Step 15).
+    scoreFood: "Food",
+    scoreAct: "Act",
+    scoreKin: "Kin",
+    scoreShields: "Shields",
+    scoreTotal: "this act",
   },
   contraband: {
     title: "C O N T R A B A N D",
@@ -206,5 +225,9 @@ export const LABELS = {
     incoming: "INCOMING",
     holdPosition: "hold position...",
     phases: ["warmup", "phase 1", "phase 2", "phase 3"],
+  },
+  broodGameOver: {
+    finalScore: "Final score",
+    dismiss: "Esc — continue",
   },
 };

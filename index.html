@@ -94,6 +94,28 @@
         transform: rotate(-90deg) translateY(4px);
       }
 
+      /* --- Sir Reginald Caw panel (brood mutation) --- */
+      /* Same width as the game canvas (620 px = 31 cells × 20 px) so
+         appearing speech bubbles never reflow the layout. The sprite
+         sits on the right; bubbles render to its left, on the same
+         canvas, with a tail pointing at the beak. */
+      .reginald-panel {
+        display: none;
+        image-rendering: pixelated;
+      }
+      body.state-brood .snecko-logo {
+        display: none;
+      }
+      body.state-brood .reginald-panel {
+        display: block;
+      }
+      /* Speaking bob — reuses the same `excited` keyframes as the
+         snecko logo (four short hops). Applied in main.browser.js when
+         a non-pity line first appears. */
+      .reginald-panel.excited {
+        animation: excited 0.15s ease-in-out 4;
+      }
+
       @keyframes breathe {
         0%,
         100% {
@@ -117,6 +139,7 @@
   <body>
     <div class="snecko-header">
       <div class="snecko-logo" id="logo"></div>
+      <canvas class="reginald-panel" id="reginald-panel" width="620" height="112"></canvas>
       <div class="snecko-title">SNECKO</div>
     </div>
     <canvas id="game"></canvas>

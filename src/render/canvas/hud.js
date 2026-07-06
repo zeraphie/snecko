@@ -12,7 +12,8 @@ export function drawHUD(
   passives,
   consumables,
   bites,
-  selectedConsumable
+  selectedConsumable,
+  totalScore
 ) {
   const ctx = this._ctx;
   ctx.font = "12px monospace";
@@ -23,7 +24,7 @@ export function drawHUD(
   const secs = String(Math.floor(time % 60)).padStart(2, "0");
   ctx.fillStyle = TEXT_COLOR;
   ctx.fillText(
-    `${LABELS.hud.act} ${actIndex}  ${LABELS.hud.progress}: ${foodEaten}/${foodRequired}  ${LABELS.hud.score}: ${score}  ${LABELS.hud.time}: ${mins}:${secs}`,
+    `${LABELS.hud.act} ${actIndex}  ${LABELS.hud.progress}: ${foodEaten}/${foodRequired}  ${LABELS.hud.total}: ${totalScore ?? 0}  ${LABELS.hud.score}: ${score}  ${LABELS.hud.time}: ${mins}:${secs}`,
     8,
     y1
   );
@@ -235,6 +236,68 @@ export function drawYouDiedOverlay(causeText) {
 
   ctx.textAlign = "left";
   ctx.textBaseline = "middle";
+}
+
+export function drawBroodGameOverOverlay(taunt, totalScore) {
+  const ctx = this._ctx;
+  const w = this._gridW;
+  const h = this._gridH + this._hudHeight;
+
+  // Full-screen black wipe — covers the playfield + HUD strip.
+  ctx.fillStyle = "#000";
+  ctx.fillRect(0, 0, w, h);
+
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+
+  // Reginald headline — amber, bold, large; word-wraps if long.
+  ctx.fillStyle = "#ffa940";
+  ctx.font = "bold 22px monospace";
+  const maxTauntWidth = w - 40;
+  const tauntLines = wrapCanvasText(ctx, taunt, maxTauntWidth);
+  const lineHeight = 28;
+  const tauntStartY = h / 2 - 60 - ((tauntLines.length - 1) * lineHeight) / 2;
+  for (let i = 0; i < tauntLines.length; i++) {
+    ctx.fillText(tauntLines[i], w / 2, tauntStartY + i * lineHeight);
+  }
+
+  // Final score.
+  ctx.fillStyle = "#cbdbfc";
+  ctx.font = "16px monospace";
+  ctx.fillText(`${LABELS.broodGameOver.finalScore}: ${totalScore}`, w / 2, h / 2 + 8);
+
+  // Dismiss hint.
+  ctx.fillStyle = "#666";
+  ctx.font = "12px monospace";
+  ctx.fillText(LABELS.broodGameOver.dismiss, w / 2, h / 2 + 44);
+
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+}
+
+/** Greedy word-wrap helper. Splits text into lines no wider than `maxWidth`. */
+function wrapCanvasText(ctx, text, maxWidth) {
+  if (!text) {
+    return [""];
+  }
+  const words = text.split(/\s+/);
+  const out = [];
+  let current = "";
+  for (const w of words) {
+    const candidate = current ? current + " " + w : w;
+    if (ctx.measureText(candidate).width <= maxWidth) {
+      current = candidate;
+    } else {
+      if (current) {
+        out.push(current);
+      }
+      current = w;
+    }
+  }
+  if (current) {
+    out.push(current);
+  }
+  return out.length > 0 ? out : [""];
 }
 
 export function drawBossIntroOverlay(name, ticksLeft, total) {

@@ -6,7 +6,8 @@ export const draftScreen = {
       game._draftPool.choices,
       game._draftPool.mutation,
       game._draftSelection,
-      game._draftMutationAccepted
+      game._draftMutationAccepted,
+      game._lastActBonuses
     );
   },
 };

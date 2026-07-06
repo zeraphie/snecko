@@ -8,6 +8,22 @@ import { SUBSEED_FOOD } from "../seed-streams.js";
 import { moveCursor, confirmBomb } from "../upgrades/consumables/bomb.js";
 import { moveWormholeCursor, confirmWormholePlacement } from "../upgrades/consumables/wormhole.js";
 import {
+  movePlacementCursor,
+  rotatePlacementShape,
+  cyclePlacementShape,
+  confirmPlacement,
+  undoPlacement,
+} from "../generation/brood/placement.js";
+import { moveShieldCursor, confirmShieldPlacement } from "../upgrades/consumables/shield.js";
+// TEMP — Step 16 testing. The IS_DEV_BUILD-gated method below uses these.
+// `bun build --define:__DEV_BUILD__=false` (production) makes the
+// method's `if` block dead code; the minifier strips it and these
+// imports become unused. They're still imported elsewhere in the brood
+// path so they don't bloat the bundle either way.
+import { IS_DEV_BUILD } from "../../env.js";
+import { transitionKinToMemorial } from "../mechanics/cull/index.js";
+import { GAME_OVER_TAUNTS } from "../../text/cull/index.js";
+import {
   generateGrid as crystallineGenerate,
   advanceGrid as crystallineAdvance,
 } from "../generation/index.js";
@@ -39,7 +55,11 @@ import {
   STATE_BOSS_PICKER,
   STATE_BOSS_RUSH_COMPLETE,
   STATE_DEAD_SOULSLIKE,
+  STATE_BROOD_PLACEMENT,
+  STATE_SHIELD_PLACEMENT,
+  STATE_DEAD_BROOD,
   DEATH_GIVE_UP,
+  DEATH_BROOD,
   GRID_W,
   GRID_H,
   INITIAL_SNAKE_LENGTH,
@@ -101,6 +121,18 @@ export class Game {
     this.grid = new Grid(GRID_W, GRID_H);
     this.snake = new Snake();
     this.score = 0;
+    /** Cross-mutation cumulative score for this run. Bumped by per-food
+     *  and per-act-clear contributions (Step 14); per-mutation events
+     *  layer on top (e.g. brood kin survival in Step 15). */
+    this.totalScore = 0;
+    /** Last act's score-breakdown snapshot — set when an act clears,
+     *  consumed by the draft screen to show "where the points came from"
+     *  (food + act + kin + shields). Null before the first act clears. */
+    this._lastActBonuses = null;
+    /** Reginald's headline taunt for the brood game-over screen. Set
+     *  when the last alive kin transitions to memorial; consumed by the
+     *  STATE_DEAD_BROOD screen. Cleared on every startRun. */
+    this._broodGameOverTaunt = null;
     this.actIndex = 1;
     this.foodEaten = 0;
     this.foodRequired = FOOD_REQUIRED_BASE + FOOD_REQUIRED_PER_ACT;
@@ -182,6 +214,9 @@ export class Game {
     this._wormholePhase = 0;
     this._wormholeA = null;
     this._wormholeB = null;
+    this._broodPlacement = null;
+    this._shieldCursor = null;
+    this._lastSnake = null;
     this.mechanic = null;
     this.renderer = null;
     this.generateGrid = null;
@@ -217,6 +252,9 @@ export class Game {
   startRun() {
     this.state = STATE_PLAYING;
     this.score = 0;
+    this.totalScore = 0;
+    this._lastActBonuses = null;
+    this._broodGameOverTaunt = null;
     this.actIndex = 1;
     this.foodEaten = 0;
     this.foodRequired = FOOD_REQUIRED_BASE + FOOD_REQUIRED_PER_ACT;
@@ -249,6 +287,9 @@ export class Game {
     this._wormholePhase = 0;
     this._wormholeA = null;
     this._wormholeB = null;
+    this._broodPlacement = null;
+    this._shieldCursor = null;
+    this._lastSnake = null;
     this.mechanic = null;
     this._heldDirection = null;
     this._heldDirections = [];
@@ -324,6 +365,10 @@ export class Game {
       moveCursor(this, dx, dy);
     } else if (this.state === STATE_WORMHOLE) {
       moveWormholeCursor(this, dx, dy);
+    } else if (this.state === STATE_BROOD_PLACEMENT) {
+      movePlacementCursor(this, dx, dy);
+    } else if (this.state === STATE_SHIELD_PLACEMENT) {
+      moveShieldCursor(this, dx, dy);
     }
   }
 
@@ -374,11 +419,16 @@ export class Game {
    * just add entries here.
    */
   openMenu() {
-    if (this.state !== STATE_START && this.state !== STATE_DEAD && this.state !== STATE_PLAYING) {
+    if (
+      this.state !== STATE_START &&
+      this.state !== STATE_DEAD &&
+      this.state !== STATE_PLAYING &&
+      this.state !== STATE_BROOD_PLACEMENT
+    ) {
       return;
     }
     this._menuFrom = this.state;
-    if (this.state === STATE_PLAYING) {
+    if (this.state === STATE_PLAYING || this.state === STATE_BROOD_PLACEMENT) {
       // Pause-menu variant: resume the run or give up. Practice / custom
       // seed stay on the start/dead menus to keep the pause UI minimal.
       this._pauseStartTime = Date.now();
@@ -498,6 +548,7 @@ export class Game {
       foodRequired: this.foodRequired,
       bites: this.score,
       time: this.runTime,
+      totalScore: this.totalScore,
     };
     this._nameInput = loadPlayerName();
     this.state = STATE_NAME_INPUT;
@@ -571,6 +622,23 @@ export class Game {
       return;
     }
     this._exitBossDeath(this.snake.deathCause || "boss");
+  }
+
+  // ── Brood game-over screen ────────────────────────────────────────
+
+  /**
+   * Dismisses the brood game-over overlay. The snake's still mechanically
+   * "alive" — the run ended because every kin died, not because the
+   * snake did — so we synthesise a death cause and route through the
+   * standard `_endRun` flow (name input → dead screen → leaderboard).
+   */
+  dismissBroodGameOver() {
+    if (this.state !== STATE_DEAD_BROOD) {
+      return;
+    }
+    this.snake.alive = false;
+    this.snake.deathCause = DEATH_BROOD;
+    this._endRun();
   }
 
   // ── Leaderboard screen ────────────────────────────────────────────
@@ -859,6 +927,7 @@ export class Game {
     this.snake = new Snake();
     this.runTime = 0;
     this.score = 0;
+    this.totalScore = 0;
     this.lastTickTime = 0;
     this.startTime = Date.now();
     this._enterBossFight();
@@ -948,7 +1017,26 @@ export class Game {
       confirmBomb(this);
     } else if (this.state === STATE_WORMHOLE) {
       confirmWormholePlacement(this);
+    } else if (this.state === STATE_BROOD_PLACEMENT) {
+      confirmPlacement(this);
+    } else if (this.state === STATE_SHIELD_PLACEMENT) {
+      confirmShieldPlacement(this);
     }
+  }
+
+  /** Rotates the active brood-placement ghost shape. No-op outside placement. */
+  rotateBroodShape() {
+    rotatePlacementShape(this);
+  }
+
+  /** Cycles to the next unplaced brood shape. No-op outside placement. */
+  cycleBroodShape() {
+    cyclePlacementShape(this);
+  }
+
+  /** Undoes the most recent brood placement. No-op outside placement. */
+  undoBroodPlacement() {
+    undoPlacement(this);
   }
 
   /**
@@ -991,6 +1079,34 @@ Game.prototype._enterBossFight = _enterBossFight;
 Game.prototype._exitBossVictory = _exitBossVictory;
 Game.prototype._exitBossDeath = _exitBossDeath;
 
+// ── Dev-only debug methods ────────────────────────────────────────
+//
+// TEMP — Step 16 testing. Shift+B in the browser controller calls
+// `_debugTriggerBroodGameOver` so the game-over screen is reachable
+// without waiting for Reginald to kill every kin. The whole branch
+// (this `if` body + the keybinding in `KeyboardBrowserController`)
+// DCE's away in production builds when `bun build` substitutes
+// `__DEV_BUILD__ = false` — the method is then literally absent from
+// `Game.prototype`, so even calling it from DevTools is a no-op
+// (`undefined is not a function`).
+if (IS_DEV_BUILD) {
+  Game.prototype._debugTriggerBroodGameOver = function () {
+    if (this.state !== STATE_PLAYING || this.mechanic?.type !== "cull") {
+      return;
+    }
+    const m = this.mechanic;
+    if (!m.kin || m.kin.length === 0) {
+      return;
+    }
+    for (const k of m.kin) {
+      transitionKinToMemorial(this, k);
+    }
+    this._broodGameOverTaunt =
+      GAME_OVER_TAUNTS[Math.floor(Math.random() * GAME_OVER_TAUNTS.length)];
+    this.state = STATE_DEAD_BROOD;
+  };
+}
+
 // ── Static constants ──────────────────────────────────────────────
 
 Game.GRID_W = GRID_W;
@@ -1024,6 +1140,8 @@ Game.BOSS_PHASE2_HP = BOSS_PHASE2_HP;
 Game.BOSS_PHASE3_HP = BOSS_PHASE3_HP;
 Game.BOSS_SPECIAL_INTERVAL = BOSS_SPECIAL_INTERVAL;
 Game.STATE_CONTRABAND = STATE_CONTRABAND;
+Game.STATE_SHIELD_PLACEMENT = STATE_SHIELD_PLACEMENT;
+Game.STATE_DEAD_BROOD = STATE_DEAD_BROOD;
 Game.STATE_MUTATION_PICKER = STATE_MUTATION_PICKER;
 Game.STATE_LEADERBOARD = STATE_LEADERBOARD;
 Game.STATE_NAME_INPUT = STATE_NAME_INPUT;

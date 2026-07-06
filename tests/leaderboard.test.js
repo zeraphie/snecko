@@ -11,6 +11,7 @@ import {
   clearLeaderboard,
   ensureSeeded,
   generateDummyEntries,
+  entryTotalScore,
   TOP,
 } from "../src/core/leaderboard/index.js";
 
@@ -41,40 +42,67 @@ afterEach(() => {
 });
 
 describe("compareScores", () => {
-  it("higher act wins", () => {
+  it("higher totalScore wins", () => {
     expect(
       compareScores(
-        { act: 5, progress: 0, bites: 0, time: 0 },
-        { act: 3, progress: 9, bites: 99, time: 1 }
+        { act: 1, progress: 0, bites: 0, time: 0, totalScore: 5000 },
+        { act: 5, progress: 9, bites: 99, time: 1, totalScore: 100 }
       )
     ).toBeLessThan(0);
   });
 
-  it("equal act → higher progress wins", () => {
+  it("equal totalScore → higher act wins", () => {
     expect(
       compareScores(
-        { act: 4, progress: 7, bites: 10, time: 60 },
-        { act: 4, progress: 5, bites: 12, time: 50 }
+        { act: 5, progress: 0, bites: 0, time: 0, totalScore: 1000 },
+        { act: 3, progress: 9, bites: 99, time: 1, totalScore: 1000 }
       )
     ).toBeLessThan(0);
   });
 
-  it("equal act + progress → higher bites wins", () => {
+  it("equal totalScore + act → higher progress wins", () => {
     expect(
       compareScores(
-        { act: 4, progress: 5, bites: 12, time: 50 },
-        { act: 4, progress: 5, bites: 10, time: 50 }
+        { act: 4, progress: 7, bites: 10, time: 60, totalScore: 500 },
+        { act: 4, progress: 5, bites: 12, time: 50, totalScore: 500 }
       )
     ).toBeLessThan(0);
   });
 
-  it("equal act + progress + bites → lower time wins", () => {
+  it("equal totalScore + act + progress → lower time wins", () => {
     expect(
       compareScores(
-        { act: 4, progress: 5, bites: 10, time: 30 },
-        { act: 4, progress: 5, bites: 10, time: 60 }
+        { act: 4, progress: 5, bites: 10, time: 30, totalScore: 500 },
+        { act: 4, progress: 5, bites: 10, time: 60, totalScore: 500 }
       )
     ).toBeLessThan(0);
+  });
+
+  it("legacy entries without totalScore back-compute from bites + acts cleared", () => {
+    // a: bites 50 + act 4 → 50*10 + 3*100 = 800.
+    // b: bites 30 + act 5 → 30*10 + 4*100 = 700.
+    // a's totalScore is higher.
+    expect(
+      compareScores(
+        { act: 4, progress: 5, bites: 50, time: 30 },
+        { act: 5, progress: 1, bites: 30, time: 30 }
+      )
+    ).toBeLessThan(0);
+  });
+});
+
+describe("entryTotalScore back-compute", () => {
+  it("honours an explicit totalScore field", () => {
+    expect(entryTotalScore({ act: 1, bites: 0, totalScore: 1234 })).toBe(1234);
+  });
+
+  it("back-computes from bites + (act - 1) when totalScore is missing", () => {
+    // 50 bites × 10 + (4 - 1) acts cleared × 100 = 500 + 300 = 800.
+    expect(entryTotalScore({ act: 4, bites: 50 })).toBe(800);
+  });
+
+  it("act=1 (no acts cleared) back-computes from bites only", () => {
+    expect(entryTotalScore({ act: 1, bites: 7 })).toBe(70);
   });
 });
 

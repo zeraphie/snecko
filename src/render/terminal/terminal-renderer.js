@@ -21,6 +21,7 @@ import {
   drawSoulslikeInfo,
   drawBossIntroOverlay,
   drawYouDiedOverlay,
+  drawBroodGameOverOverlay,
 } from "./hud.js";
 import {
   drawScreen,
@@ -28,10 +29,19 @@ import {
   drawContrabandScreen,
   drawMutationPickerScreen,
 } from "./screens.js";
-import { drawTargetingOverlay, drawWormholeOverlay } from "./overlays.js";
+import {
+  drawTargetingOverlay,
+  drawWormholeOverlay,
+  drawBroodPlacementOverlay,
+  drawBroodPlacementHud,
+  drawShieldPlacementOverlay,
+  drawShieldedKinCell,
+  drawMineCell,
+} from "./overlays.js";
 import { flush } from "./flush.js";
 import { drawLoader } from "./loader.js";
 import { drawFoxAnim } from "./fox.js";
+import { drawReginald } from "./reginald.js";
 
 /** ANSI terminal renderer for Node.js. Buffers a frame into a string and writes to stdout. */
 export class TerminalRenderer extends Renderer {
@@ -48,6 +58,8 @@ export class TerminalRenderer extends Renderer {
     this._grid = [];
     this._targeting = null;
     this._wormholeOverlay = null;
+    this._broodPlacementOverlay = null;
+    this._shieldPlacementOverlay = null;
     this._hudLine = "";
     this._maxHudLen = 0;
     this._screenOverlay = null;
@@ -81,6 +93,8 @@ export class TerminalRenderer extends Renderer {
     }
     this._targeting = null;
     this._wormholeOverlay = null;
+    this._broodPlacementOverlay = null;
+    this._shieldPlacementOverlay = null;
     this._hudLine = "";
     this._screenOverlay = null;
     this._introOverlay = null;
@@ -112,12 +126,36 @@ export class TerminalRenderer extends Renderer {
     drawWormholeOverlay(this, cursorX, cursorY, phase, portalA, boardW, boardH);
   }
 
+  drawBroodPlacementOverlay(ghostCells, cursorX, cursorY, valid) {
+    drawBroodPlacementOverlay(this, ghostCells, cursorX, cursorY, valid);
+  }
+
+  drawBroodPlacementHud(info) {
+    drawBroodPlacementHud(this, info);
+  }
+
+  drawShieldPlacementOverlay(cursorX, cursorY, highlightCells) {
+    drawShieldPlacementOverlay(this, cursorX, cursorY, highlightCells);
+  }
+
+  drawShieldedKinCell(x, y) {
+    drawShieldedKinCell(this, x, y);
+  }
+
+  drawMineCell(x, y) {
+    drawMineCell(this, x, y);
+  }
+
   drawBossIntroOverlay(name, ticksLeft, total) {
     drawBossIntroOverlay(this, name, ticksLeft, total);
   }
 
   drawYouDiedOverlay(causeText) {
     drawYouDiedOverlay(this, causeText);
+  }
+
+  drawBroodGameOverOverlay(taunt, totalScore) {
+    drawBroodGameOverOverlay(this, taunt, totalScore);
   }
 
   drawBossInfo(name, hp, maxHp, phase) {
@@ -141,7 +179,8 @@ export class TerminalRenderer extends Renderer {
     passives,
     consumables,
     bites,
-    selectedConsumable
+    selectedConsumable,
+    totalScore
   ) {
     drawHUD(
       this,
@@ -153,7 +192,8 @@ export class TerminalRenderer extends Renderer {
       passives,
       consumables,
       bites,
-      selectedConsumable
+      selectedConsumable,
+      totalScore
     );
   }
 
@@ -161,8 +201,8 @@ export class TerminalRenderer extends Renderer {
     drawScreen(this, name, lines);
   }
 
-  drawDraftScreen(choices, mutation, selectedIndex, mutationAccepted) {
-    drawDraftScreen(this, choices, mutation, selectedIndex, mutationAccepted);
+  drawDraftScreen(choices, mutation, selectedIndex, mutationAccepted, lastActBonuses) {
+    drawDraftScreen(this, choices, mutation, selectedIndex, mutationAccepted, lastActBonuses);
   }
 
   drawContrabandScreen(choices, selectedIndex, collected) {
@@ -183,5 +223,9 @@ export class TerminalRenderer extends Renderer {
 
   drawFoxAnim(game) {
     drawFoxAnim(this, game);
+  }
+
+  drawReginald(game) {
+    drawReginald(this, game);
   }
 }

@@ -76,6 +76,32 @@ place → telegraph_grow → grow → linger → decay`) is the soul; if
   forbidden); how aggressively the extra-loop pass adds cycles to
   the base tree.
 
+### Brood
+
+- **Fantasy:** you are a snake mother. You hatched a half-dozen
+  hatchlings on an open field. A theatrical, top-hatted, knife-clawed
+  crow named Sir Reginald Caw is sitting on the fence picking them off
+  one cell at a time, narrating his work.
+- **Core mechanic:** real-time defensive triage. You spend the early
+  beats placing your brood, then the act is a race between Reginald's
+  4-second throw cadence and your snake's food collection. Shields are
+  a scarce reactive resource (5 per act, one per kin); the question is
+  always _which_ kin to cover next, with the AI's hunt + pity timers
+  pulling toward the answer being "the one he just hit".
+- **Signature moment:** the kin he keeps narrowly missing, you keep
+  meaning to shield, then he gets a pity-forced hit on it and the
+  death toast names her.
+- **Don't become:** a tower-defence sim. The snake is still the
+  protagonist — the kin are the stakes, not the puzzle. If the player
+  can play it like Plants vs Zombies (just micromanage shields), we've
+  drifted. Shields are limited so the answer is sometimes "let her
+  die, save the bigger one".
+- **Open:** `THROW_INTERVAL_MS` (currently 4 s — too slow / too fast?);
+  the pity range (`[3, 5]` misses); the relative weights of
+  `SCORE_PER_KIN` vs `SCORE_PER_UNUSED_SHIELD` (D22 invariant
+  constrains the order, not the magnitudes); whether hunt should
+  remember more than the latest hit cell when re-anchoring.
+
 ## Bosses
 
 ### Traffic Jam (crystalline → bullet-hell)

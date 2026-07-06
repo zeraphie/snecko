@@ -17,6 +17,9 @@ export const STATE_PRACTICE_HUB = "practice_hub";
 export const STATE_BOSS_PICKER = "boss_picker";
 export const STATE_BOSS_RUSH_COMPLETE = "boss_rush_complete";
 export const STATE_DEAD_SOULSLIKE = "dead_soulslike";
+export const STATE_BROOD_PLACEMENT = "brood_placement";
+export const STATE_SHIELD_PLACEMENT = "shield_placement";
+export const STATE_DEAD_BROOD = "dead_brood";
 
 // ── Death causes ──────────────────────────────────────────────────
 export const DEATH_WALL = "wall";
@@ -26,6 +29,7 @@ export const DEATH_PROJECTILE = "projectile";
 export const DEATH_BOMB = "bomb";
 export const DEATH_GIVE_UP = "give_up";
 export const DEATH_BLOB = "blob";
+export const DEATH_BROOD = "brood";
 
 export const GRID_W = 31;
 export const GRID_H = 31;

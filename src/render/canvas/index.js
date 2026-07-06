@@ -9,6 +9,7 @@ import {
   drawSoulslikeInfo,
   drawBossIntroOverlay,
   drawYouDiedOverlay,
+  drawBroodGameOverOverlay,
 } from "./hud.js";
 import {
   drawScreen,
@@ -16,7 +17,15 @@ import {
   drawContrabandScreen,
   drawMutationPickerScreen,
 } from "./screens.js";
-import { drawTargetingOverlay, drawWormholeOverlay } from "./overlays.js";
+import {
+  drawTargetingOverlay,
+  drawWormholeOverlay,
+  drawBroodPlacementOverlay,
+  drawBroodPlacementHud,
+  drawShieldPlacementOverlay,
+  drawShieldedKinCell,
+  drawMineCell,
+} from "./overlays.js";
 import { drawLoader } from "./loader.js";
 import { drawFoxAnim } from "./fox.js";
 import { drawCrystalClusters } from "./crystal-cluster.js";
@@ -83,12 +92,18 @@ CanvasRenderer.prototype.drawSurvivalInfo = drawSurvivalInfo;
 CanvasRenderer.prototype.drawSoulslikeInfo = drawSoulslikeInfo;
 CanvasRenderer.prototype.drawBossIntroOverlay = drawBossIntroOverlay;
 CanvasRenderer.prototype.drawYouDiedOverlay = drawYouDiedOverlay;
+CanvasRenderer.prototype.drawBroodGameOverOverlay = drawBroodGameOverOverlay;
 CanvasRenderer.prototype.drawScreen = drawScreen;
 CanvasRenderer.prototype.drawDraftScreen = drawDraftScreen;
 CanvasRenderer.prototype.drawContrabandScreen = drawContrabandScreen;
 CanvasRenderer.prototype.drawMutationPickerScreen = drawMutationPickerScreen;
 CanvasRenderer.prototype.drawTargetingOverlay = drawTargetingOverlay;
 CanvasRenderer.prototype.drawWormholeOverlay = drawWormholeOverlay;
+CanvasRenderer.prototype.drawBroodPlacementOverlay = drawBroodPlacementOverlay;
+CanvasRenderer.prototype.drawBroodPlacementHud = drawBroodPlacementHud;
+CanvasRenderer.prototype.drawShieldPlacementOverlay = drawShieldPlacementOverlay;
+CanvasRenderer.prototype.drawShieldedKinCell = drawShieldedKinCell;
+CanvasRenderer.prototype.drawMineCell = drawMineCell;
 CanvasRenderer.prototype.drawLoader = drawLoader;
 CanvasRenderer.prototype.drawFoxAnim = drawFoxAnim;
 CanvasRenderer.prototype.drawCrystalClusters = drawCrystalClusters;

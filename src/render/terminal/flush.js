@@ -1,6 +1,6 @@
 // flush.js — Frame compositor: writes the composed frame to stdout
 
-import { RED, ORANGE, BLUE, RESET } from "./palette.js";
+import { RED, ORANGE, BLUE, BRIGHT_AMBER, RESET } from "./palette.js";
 import { ESC_HOME } from "./palette.js";
 
 import { TERM_LOGO_LINES, TERM_LOGO_DEAD } from "./logo.js";
@@ -85,6 +85,47 @@ export function flush(r) {
           }
           if (w.phase === 2 && w.portalA && x === w.portalA.x && y === w.portalA.y) {
             cell = ORANGE + "\u25C9\u25C9" + RESET;
+          }
+        }
+
+        // Brood placement overlay \u2014 ghost cells preview at cursor.
+        // Head cell (cursor position) gets a solid block; body cells
+        // get a softer fill. Color flips red when invalid; valid uses
+        // blue. Step 4 always passes valid=true.
+        if (r._broodPlacementOverlay) {
+          const b = r._broodPlacementOverlay;
+          const isHead = x === b.cx && y === b.cy;
+          let inGhost = isHead;
+          if (!inGhost) {
+            for (const [gx, gy] of b.cells) {
+              if (gx === x && gy === y) {
+                inGhost = true;
+                break;
+              }
+            }
+          }
+          if (inGhost) {
+            const color = b.valid ? BLUE : RED;
+            cell = color + (isHead ? "\u2588\u2588" : "\u2591\u2591") + RESET;
+          }
+        }
+
+        // Shield placement overlay \u2014 amber cursor + softer fill
+        // over every cell of the eligible kin under the cursor.
+        if (r._shieldPlacementOverlay) {
+          const s = r._shieldPlacementOverlay;
+          const isCursor = x === s.cx && y === s.cy;
+          let inHighlight = false;
+          for (const [gx, gy] of s.cells) {
+            if (gx === x && gy === y) {
+              inHighlight = true;
+              break;
+            }
+          }
+          if (isCursor) {
+            cell = BRIGHT_AMBER + "\u2588\u2588" + RESET;
+          } else if (inHighlight) {
+            cell = BRIGHT_AMBER + "\u2591\u2591" + RESET;
           }
         }
 

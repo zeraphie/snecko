@@ -29,11 +29,12 @@ export function drawHUD(
   passives,
   consumables,
   bites,
-  selectedConsumable
+  selectedConsumable,
+  totalScore
 ) {
   const mins = String(Math.floor(time / 60)).padStart(2, "0");
   const secs = String(Math.floor(time % 60)).padStart(2, "0");
-  r._hudLine = `${LABELS.hud.act} ${actIndex}  ${LABELS.hud.progress}: ${foodEaten}/${foodRequired}  ${LABELS.hud.score}: ${score}  ${LABELS.hud.time}: ${mins}:${secs}`;
+  r._hudLine = `${LABELS.hud.act} ${actIndex}  ${LABELS.hud.progress}: ${foodEaten}/${foodRequired}  ${LABELS.hud.total}: ${totalScore ?? 0}  ${LABELS.hud.score}: ${score}  ${LABELS.hud.time}: ${mins}:${secs}`;
 
   // Build upgrades line
   const parts = [];
@@ -205,6 +206,29 @@ export function drawYouDiedOverlay(r, causeText) {
   r._screenOverlay = {
     name: "you_died",
     lines: ["Y O U   D I E D", "", `Killed by ${causeText}`, "", "Esc — return"],
+  };
+}
+
+/**
+ * Brood game-over overlay — Reginald's headline taunt + final score +
+ * dismiss hint. Reuses the standard screen-overlay path; the headline
+ * stays plain text so the centring math doesn't need to know about
+ * ANSI escape widths.
+ *
+ * @param {import('./terminal-renderer.js').TerminalRenderer} r
+ * @param {string} taunt
+ * @param {number} totalScore
+ */
+export function drawBroodGameOverOverlay(r, taunt, totalScore) {
+  r._screenOverlay = {
+    name: "dead_brood",
+    lines: [
+      taunt || "",
+      "",
+      `${LABELS.broodGameOver.finalScore}: ${totalScore}`,
+      "",
+      LABELS.broodGameOver.dismiss,
+    ],
   };
 }
 

@@ -134,6 +134,95 @@ disappear`). `telegraph_decay` is intentionally omitted — vanishing
   applies the flip and clears the telegraph. `RIFT_CADENCE = 5` for
   v1 (3 lingers, 1 telegraph, 1 rift per cycle).
 
+## Brood
+
+- **Generation method:** empty grid. The act begins in
+  `STATE_BROOD_PLACEMENT` — the player places six pre-defined kin
+  shapes (Battleship 1×2 / 1×3 / 1×4 / 1×5 plus T + L) on the grid via
+  a cursor + ghost preview. Each placement is validated against four
+  rules: in-bounds, no overlap with already-placed kin, 1-cell
+  orthogonal buffer around the snake spawn, and a flood-fill path
+  guarantee (the snake must be able to reach every remaining open cell
+  after the placement). Snake spawn: grid centre on act 1; last
+  position on subsequent acts.
+- **Mechanic:** **cull** (`mechanics/cull/`). The engine's first
+  real-time-driven mechanic — advances on a wall-clock `dt` every
+  frame (`tickCull` in `src/core/game/tick.js`), independent of the
+  snake's tick cadence. `dt` is clamped to `MAX_CULL_DT_MS` (250 ms)
+  so a paused or backgrounded tab doesn't burst-fire throws on resume.
+- **Throw lifecycle:** `idle → telegraph → impact → idle`. Every
+  `THROW_INTERVAL_MS = 4000` ms in idle, **Sir Reginald Caw** picks a
+  target via the AI (see _AI targeting_ below), telegraphs it for
+  `TELEGRAPH_FUSE_MS = 1000` ms (red ╳ over the cell), then resolves
+  the impact with an `IMPACT_FLASH_MS = 220` ms cell-local flash.
+- **Per-cell kin death (battleship semantics):** an impact on a live
+  kin cell flips just that cell's terrain to memorial (head →
+  `TERRAIN_MEMORIAL_HEAD` / gravestone glyph; body →
+  `TERRAIN_MEMORIAL_BODY` / mound glyph). The kin is flagged
+  `alive: false` only once every one of its cells is memorial. Wall
+  mask is left in place — memorials still block the snake.
+- **AI targeting** (`mechanics/cull/targeting.js`):
+  - **Search** (default): random non-snake, non-memorial cell.
+  - **Hunt**: entered after any cell hit. Picks a random cardinal
+    neighbour of `lastKill` that isn't a memorial, snake, or already
+    in `huntTriedCells`. Misses stay in hunt (Reginald keeps probing);
+    a fresh hit re-anchors the tried set around the new pivot. Reverts
+    to search when the picker exhausts all cardinals or when the kin
+    is fully sunk (the corpse's neighbourhood isn't worth probing).
+  - **Pity timer**: per-throw, a fresh `pityThreshold` is rolled in
+    `[PITY_THRESHOLD_MIN, PITY_THRESHOLD_MAX]` (`[3, 5]`). If
+    `missStreak >= pityThreshold`, the throw is forced onto a random
+    alive kin cell — guaranteed hit, streak resets, `forcedPity = true`
+    so Step 12's pity taunt fires before the telegraph.
+- **Shield consumable** (`upgrades/consumables/shield.js`):
+  scoped to brood; auto-granted at brood act start with
+  `SHIELDS_PER_ACT = 5` charges (refreshed per act, not stacked).
+  Activation pauses the cull tick, opens a cursor at the snake head,
+  highlights the kin under the cursor (whole shape). Confirm shields
+  the kin (one per kin maximum — re-targeting is a no-op); cancel
+  refunds the charge. A shielded kin absorbs the next throw aimed at
+  any of its cells: shield consumed instead of memorial, block taunt
+  queued, hunt mode entered around the blocked cell.
+- **Voice surfacing** (`mechanics/cull/voice.js`): one speech bubble
+  at a time. Categories: **death** (queued on kin sink, fills `{name}`
+  with the kin's name), **idle** (Reginald muttering, fires every
+  `[10, 20] s`), **pity** (bypasses the queue + cannot be preempted,
+  must coincide with the pity telegraph fuse), **block** (queued on a
+  shielded absorb). Active lines dwell ~3.5 s; non-pity lines can be
+  preempted after dwelling ≥ 1 s when something new is queued.
+- **Game-over:** `STATE_DEAD_BROOD` — fires when the last alive kin
+  transitions to memorial (detected in `tickCull` on the impact→idle
+  transition). Picks a random headline from `GAME_OVER_TAUNTS`. Esc /
+  Enter dismisses → routes through the standard name-input + dead
+  screen + leaderboard flow.
+
+## Score
+
+Cross-mutation cumulative scoring. Constants in
+`src/core/score/constants.js` (cross-mutation) and
+`src/core/mechanics/cull/constants.js` (brood-specific extras).
+
+- **Per food** (`SCORE_PER_FOOD`): added in `_handleFoodEaten` on every
+  food bite, regardless of mutation.
+- **Per act clear** (`SCORE_PER_ACT`): added in `_handleFoodEaten`
+  when the food requirement is met, regardless of mutation.
+- **Brood per kin survived** (`SCORE_PER_KIN`): only fires for brood
+  acts. Counted in `computeBroodActClearBonus(game)` at the same
+  callsite as the act-clear bonus.
+- **Brood per unused shield** (`SCORE_PER_UNUSED_SHIELD`): only fires
+  for brood acts. Pulls charge count from the shield consumable.
+  D22 invariant: `SCORE_PER_KIN > SCORE_PER_UNUSED_SHIELD > 0` so a
+  surviving kin always outweighs hoarded charges.
+- **HUD:** `totalScore` is shown alongside `bites` in the HUD line
+  (`Score: N`). The draft screen — i.e. the act-clear screen — shows
+  a per-source breakdown (`Food: X   Act: Y   Kin: Z   Shields: W`)
+  plus the act delta (`+T this act`). Non-zero parts only.
+- **Leaderboard:** sorts by `totalScore` (primary), then act, then
+  progress, then time. Legacy entries lacking the field back-compute
+  from `bites * SCORE_PER_FOOD + (act - 1) * SCORE_PER_ACT` via
+  `entryTotalScore(entry)` — a lower bound, since kin / shield bonuses
+  can't be reconstructed from the stored summary.
+
 ## Boss styles
 
 Each boss declares a **style** — the family of fight it belongs to.

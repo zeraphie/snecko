@@ -28,6 +28,10 @@ const ANIMATION_FILES = {
     canvas: "assets/animations/fox.canvas.animation",
     terminal: "assets/animations/fox.terminal.animation",
   },
+  reginald: {
+    canvas: "assets/animations/reginald.canvas.animation",
+    terminal: "assets/animations/reginald.terminal.animation",
+  },
 };
 
 // ── Spiral order for the 3×3 dot grid ─────────────────────────────

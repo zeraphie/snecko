@@ -16,6 +16,7 @@ export function drawHUD(renderer, game) {
     game.upgrades.passives,
     game.upgrades.consumables,
     game.upgrades.bites,
-    game._selectedConsumable
+    game._selectedConsumable,
+    game.totalScore
   );
 }

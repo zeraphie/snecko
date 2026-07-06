@@ -29,6 +29,12 @@ export const ACTION_STAB = "stab";
 export const ACTION_DODGE = "dodge";
 export const ACTION_PARRY = "parry";
 
+// Brood placement action keys (R / Backspace). Other states ignore.
+export const ACTION_ROTATE = "rotate";
+export const ACTION_UNDO = "undo";
+
+// Placement-specific actions used in the dispatcher below.
+
 // ── Dispatcher ────────────────────────────────────────────────────
 
 /**
@@ -232,6 +238,23 @@ export function dispatchAction(game, action) {
     }
     if (action === ACTION_PARRY) {
       game.onPlayerAction("parry");
+      return;
+    }
+  }
+
+  // ── Brood placement (cursor + R/Tab/Backspace; movement falls through) ──
+  if (state === "brood_placement") {
+    if (action === ACTION_ROTATE) {
+      game.rotateBroodShape();
+      return;
+    }
+    if (action === ACTION_UNDO) {
+      game.undoBroodPlacement();
+      return;
+    }
+    if (action === ACTION_CYCLE_CONSUMABLE) {
+      // Tab cycles through the unplaced shape pool during placement.
+      game.cycleBroodShape();
       return;
     }
   }

@@ -5,6 +5,7 @@
 
 import { Controller } from "./Controller.js";
 import { triggerFox } from "../core/upgrades/consumables/fox.js";
+import { IS_DEV_BUILD } from "../env.js";
 import {
   dispatchAction,
   ACTION_UP,
@@ -26,6 +27,8 @@ import {
   ACTION_STAB,
   ACTION_DODGE,
   ACTION_PARRY,
+  ACTION_ROTATE,
+  ACTION_UNDO,
 } from "./actions.js";
 
 // ── Key → action mapping ──────────────────────────────────────────
@@ -58,6 +61,10 @@ const KEY_DOWN_MAP = {
   K: ACTION_DODGE,
   l: ACTION_PARRY,
   L: ACTION_PARRY,
+  // Brood placement keys.
+  r: ACTION_ROTATE,
+  R: ACTION_ROTATE,
+  Backspace: ACTION_UNDO,
 };
 
 /**
@@ -88,6 +95,29 @@ function isBrowserShortcut(e) {
   }
   return false;
 }
+
+/**
+ * Keys whose held-down OS repeats should pass through to the game.
+ * Movement only — repeating Space (use consumable), Enter (confirm), or
+ * Tab (cycle) would burn charges or skip screens. The OS handles
+ * timing (initial delay + repeat rate); cursor-driven screens
+ * (brood placement, bomb / shield / wormhole targeting) want this so
+ * the player can sweep across a 31×31 grid without mashing.
+ */
+const REPEAT_PASSTHROUGH_KEYS = new Set([
+  "ArrowUp",
+  "ArrowDown",
+  "ArrowLeft",
+  "ArrowRight",
+  "w",
+  "W",
+  "a",
+  "A",
+  "s",
+  "S",
+  "d",
+  "D",
+]);
 
 const KEY_UP_MAP = {
   ArrowUp: ACTION_RELEASE_UP,
@@ -147,7 +177,7 @@ export class KeyboardBrowserController extends Controller {
 
   /** @param {KeyboardEvent} e */
   _handleKeyDown(e) {
-    if (e.repeat) {
+    if (e.repeat && !REPEAT_PASSTHROUGH_KEYS.has(e.key)) {
       return;
     }
     const game = this._game;
@@ -192,11 +222,15 @@ export class KeyboardBrowserController extends Controller {
       return;
     }
 
-    // Esc opens the in-game menu from start, dead, or playing states.
-    // Inside the menu, Esc closes — handled by the dispatcher's menu branch.
+    // Esc opens the in-game menu from start, dead, playing, or
+    // brood-placement states. Inside the menu, Esc closes — handled by
+    // the dispatcher's menu branch.
     if (
       e.key === "Escape" &&
-      (game.state === "start" || game.state === "dead" || game.state === "playing")
+      (game.state === "start" ||
+        game.state === "dead" ||
+        game.state === "playing" ||
+        game.state === "brood_placement")
     ) {
       game.openMenu();
       e.preventDefault();
@@ -206,6 +240,14 @@ export class KeyboardBrowserController extends Controller {
     // Esc on the soulslike YOU DIED overlay returns to the practice hub.
     if (e.key === "Escape" && game.state === "dead_soulslike") {
       game.dismissYouDied();
+      e.preventDefault();
+      return;
+    }
+
+    // Esc on the brood game-over overlay routes through the normal
+    // name-input + dead-screen flow so the run is recorded.
+    if ((e.key === "Escape" || e.key === "Enter") && game.state === "dead_brood") {
+      game.dismissBroodGameOver();
       e.preventDefault();
       return;
     }
@@ -226,6 +268,17 @@ export class KeyboardBrowserController extends Controller {
           game._foxEggUsedThisAct = true;
         }
       }
+      e.preventDefault();
+      return;
+    }
+
+    // TEMP — Step 16 testing. Shift+B fast-forwards to the brood
+    // game-over screen so the layout / dismiss flow can be exercised
+    // without waiting for Reginald to kill every kin. Gated by
+    // `IS_DEV_BUILD` so the deployed bundle ignores it. Safe to
+    // delete once Step 17 polish lands.
+    if (IS_DEV_BUILD && e.shiftKey && (e.key === "B" || e.key === "b")) {
+      game._debugTriggerBroodGameOver?.();
       e.preventDefault();
       return;
     }

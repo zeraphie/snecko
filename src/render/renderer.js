@@ -65,6 +65,26 @@ export const CELL_WALL_CATACOMB = 46;
 export const CELL_WALL_CRYSTAL = 47;
 export const CELL_CRYSTAL_TELEGRAPH = 48;
 
+// ── Brood (kin cells + memorial) ───────────────────────────────────
+//
+// Registered in `core/grid/cell/brood/`. Kin cells block snake
+// movement and food spawn (paint as walls + terrain marker). Head
+// cells are visually distinct so the placement convention reads, and
+// so the gravestone on death lands on the right cell (D7).
+export const CELL_KIN_ALIVE_HEAD = 49;
+export const CELL_KIN_ALIVE_BODY = 50;
+export const CELL_KIN_MEMORIAL_GRAVESTONE = 51;
+export const CELL_KIN_MEMORIAL_MOUND = 52;
+
+// ── Cull (Reginald's throw) ────────────────────────────────────────
+//
+// Transient overlays drawn at the throw target while a throw is in
+// flight: a red telegraph during the 1 s fuse, then a bright burst on
+// impact. Drawn over whatever occupies the cell (kin / empty / food) so
+// the incoming hit reads regardless of the target.
+export const CELL_CULL_TELEGRAPH = 53;
+export const CELL_CULL_IMPACT = 54;
+
 // ── Renderer base class ───────────────────────────────────────────────────
 //
 // Required methods throw — subclasses must override.
@@ -146,7 +166,7 @@ export class Renderer {
   // ── Optional — safe defaults ──────────────────────────────────────────
 
   /** Draw the upgrade draft screen. No-op if not overridden. */
-  drawDraftScreen(choices, mutation, selectedIndex, mutationAccepted) {}
+  drawDraftScreen(choices, mutation, selectedIndex, mutationAccepted, lastActBonuses) {}
 
   /** Draw the contraband pick screen. No-op if not overridden. */
   drawContrabandScreen(choices, selectedIndex, collected) {}
@@ -185,6 +205,15 @@ export class Renderer {
    */
   drawYouDiedOverlay(causeText) {}
 
+  /**
+   * Draw the brood game-over overlay: Reginald's headline taunt,
+   * the run's totalScore, and a dismiss hint. No-op if not overridden.
+   *
+   * @param {string} _taunt
+   * @param {number} _totalScore
+   */
+  drawBroodGameOverOverlay(_taunt, _totalScore) {}
+
   /** Draw the bomb targeting overlay. No-op if not overridden. */
   drawTargetingOverlay(cursorX, cursorY, boardW, boardH) {}
 
@@ -192,10 +221,72 @@ export class Renderer {
   drawWormholeOverlay(cursorX, cursorY, phase, portalA, boardW, boardH) {}
 
   /**
+   * Mark a cell as belonging to an actively-shielded kin. Drawn over
+   * the existing kin cell during STATE_PLAYING so the player can tell
+   * which kin is currently protected. No-op if not overridden.
+   *
+   * @param {number} _x
+   * @param {number} _y
+   */
+  drawShieldedKinCell(_x, _y) {}
+
+  /**
+   * Draw the shield-placement overlay: cursor + highlighted kin
+   * (every cell of the kin under the cursor that's eligible for
+   * shielding). No-op if not overridden.
+   *
+   * @param {number} _cursorX
+   * @param {number} _cursorY
+   * @param {Array<[number, number]>} _highlightCells
+   * @param {number} _boardW
+   * @param {number} _boardH
+   */
+  drawShieldPlacementOverlay(_cursorX, _cursorY, _highlightCells, _boardW, _boardH) {}
+
+  /**
+   * Draw the brood placement overlay: ghost cells preview at the
+   * cursor position. No-op if not overridden.
+   *
+   * @param {Array<[number, number]>} ghostCells — absolute (x, y)
+   *   positions of every cell the active shape would occupy.
+   * @param {number} cursorX — current cursor x (head cell of the
+   *   active shape).
+   * @param {number} cursorY — current cursor y.
+   * @param {boolean} valid — whether confirm is allowed. Step 4
+   *   always passes true; Step 5 wires the placement-rule check.
+   */
+  drawBroodPlacementOverlay(ghostCells, cursorX, cursorY, valid) {}
+
+  /**
+   * Draw the brood placement HUD: which kin is being placed, what's
+   * next, how many are placed, and the control hints. Replaces the
+   * standard HUD during placement.
+   *
+   * @param {{
+   *   activeLabel: string,
+   *   nextLabel: string | null,
+   *   nextShapeCells: Array<[number, number]>,
+   *   placedCount: number,
+   *   totalCount: number,
+   * }} _info
+   */
+  drawBroodPlacementHud(_info) {}
+
+  /**
    * Draw the startup loader animation.
    * @param {number[]} dots — 9 opacity values (0–1)
    */
   drawLoader(dots) {}
+
+  /**
+   * Draw Sir Reginald Caw — the brood mutation's perched predator.
+   * Pose driven by `game.mechanic.state` (idle / windup / throw /
+   * recovery). No-op if not overridden or if the animation manifest
+   * is missing.
+   *
+   * @param {object} _game
+   */
+  drawReginald(_game) {}
 
   /** Clean up resources (terminal cursor restore, etc.). No-op if not overridden. */
   destroy() {}

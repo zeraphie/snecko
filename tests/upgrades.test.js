@@ -134,8 +134,8 @@ describe("mutation", () => {
 });
 
 describe("upgrade definitions", () => {
-  it("has all 10 upgrades", () => {
-    expect(Object.keys(UPGRADES).length).toBe(10);
+  it("has all 12 upgrades", () => {
+    expect(Object.keys(UPGRADES).length).toBe(12);
   });
 
   it("getUpgradesByType returns correct subsets", () => {
@@ -144,9 +144,9 @@ describe("upgrade definitions", () => {
     const bites = getUpgradesByType(TYPE_BITES);
     const mutations = getUpgradesByType(TYPE_MUTATION);
     expect(passives.length).toBe(2);
-    expect(consumables.length).toBe(4);
+    expect(consumables.length).toBe(5); // bomb, dash, wormhole, fox, shield
     expect(bites.length).toBe(1);
-    expect(mutations.length).toBe(3);
+    expect(mutations.length).toBe(4);
   });
 
   it("all passives have duration", () => {
@@ -179,7 +179,7 @@ describe("upgrade definitions", () => {
     const eligible = getEligibleUpgrades(state);
     const mutations = eligible.filter((u) => u.type === TYPE_MUTATION);
     const ids = mutations.map((u) => u.id).sort();
-    expect(ids).toEqual(["catacombs", "wildlands"]);
+    expect(ids).toEqual(["brood", "catacombs", "wildlands"]);
   });
 
   // ── Per-mutation upgrade filtering (D4) ─────────────────────────

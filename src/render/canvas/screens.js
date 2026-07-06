@@ -70,7 +70,13 @@ export function drawScreen(name, lines) {
   ctx.textAlign = "left";
 }
 
-export function drawDraftScreen(choices, mutation, selectedIndex, mutationAccepted) {
+export function drawDraftScreen(
+  choices,
+  mutation,
+  selectedIndex,
+  mutationAccepted,
+  lastActBonuses
+) {
   const ctx = this._ctx;
   const w = this._gridW;
 
@@ -83,6 +89,33 @@ export function drawDraftScreen(choices, mutation, selectedIndex, mutationAccept
   ctx.fillStyle = TEXT_COLOR;
   ctx.font = "bold 20px monospace";
   ctx.fillText(LABELS.draft.title, w / 2, 30);
+
+  // Score breakdown for the just-cleared act. Brood-only fields (kin /
+  // shields) are zero in other mutations; render them only when non-zero
+  // so the line stays compact.
+  if (lastActBonuses) {
+    const parts = [];
+    if (lastActBonuses.food > 0) {
+      parts.push(`${LABELS.draft.scoreFood}: ${lastActBonuses.food}`);
+    }
+    if (lastActBonuses.act > 0) {
+      parts.push(`${LABELS.draft.scoreAct}: ${lastActBonuses.act}`);
+    }
+    if (lastActBonuses.kin > 0) {
+      parts.push(`${LABELS.draft.scoreKin}: ${lastActBonuses.kin}`);
+    }
+    if (lastActBonuses.shields > 0) {
+      parts.push(`${LABELS.draft.scoreShields}: ${lastActBonuses.shields}`);
+    }
+    if (parts.length > 0) {
+      ctx.fillStyle = "#aaa";
+      ctx.font = "11px monospace";
+      ctx.fillText(parts.join("   "), w / 2, 52);
+      ctx.fillStyle = TEXT_COLOR;
+      ctx.font = "bold 12px monospace";
+      ctx.fillText(`+${lastActBonuses.total} ${LABELS.draft.scoreTotal}`, w / 2, 68);
+    }
+  }
 
   const cardW = Math.min(w - 40, 320);
   const cardH = 50;

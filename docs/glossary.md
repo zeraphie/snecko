@@ -59,13 +59,13 @@ swaps the active mutation. See [`mechanics.md` → Mutation
 structure](./mechanics.md#mutation-structure) for the three-part
 shape every mutation follows.
 
-Today's mutations: **crystalline**, **wildlands**, **catacombs**.
+Today's mutations: **crystalline**, **wildlands**, **catacombs**, **brood**.
 
 | Term                  | Internal meaning                                                                                                                                                            | Player-facing                                  |
 | --------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------- |
-| **Mutation**          | The active generation method + mechanic for an act. `upgrades.mutation`. Strings: `"crystalline"`, `"wildlands"`, `"catacombs"`.                                            | "Mutation"                                     |
+| **Mutation**          | The active generation method + mechanic for an act. `upgrades.mutation`. Strings: `"crystalline"`, `"wildlands"`, `"catacombs"`, `"brood"`.                                 | "Mutation"                                     |
 | **Generation method** | The procedural step that fills the grid when an act starts.                                                                                                                 | Not surfaced — players see the result.         |
-| **Mechanic**          | The per-mutation behaviour layered on the grid (`game.mechanic`). Crystalline → lattice; wildlands → currents; catacombs → rifts.                                           | Generally not surfaced by name.                |
+| **Mechanic**          | The per-mutation behaviour layered on the grid (`game.mechanic`). Crystalline → lattice; wildlands → currents; catacombs → rifts; brood → cull.                             | Generally not surfaced by name.                |
 | **Lifecycle state**   | The ordered sequence of states a mechanic runs through. Single-active on `mech.state`; concurrent on each entry. **State** for mutations, **phase** for bosses — never mix. | Players see named states ("growing", "surge"). |
 
 ## Crystalline
@@ -74,15 +74,15 @@ Open grid; crystals arrive over time via the lattice mechanic. See
 [`mechanics.md` → Crystalline](./mechanics.md#crystalline) for the
 full lifecycle and concurrency model.
 
-| Term                               | Internal meaning                                                                                                                            | Player-facing                      |
-| ---------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
-| **Crystal**                        | A self-contained wall lifecycle (`mech.crystals[i]`) with its own state, anchor, rotation, stage, and `ownedSolid` / `ownedInterior` masks. | Crystal                            |
-| **Stage**                          | A defined size/silhouette of a crystal. Currently 2: _small_ (~5×5) and _full_ (~8×8).                                                      | "Small / full crystal"             |
-| **Growing**                        | Collective name for the early lifecycle states (`telegraph_place → place → telegraph_grow → grow`).                                         | "Growing"                          |
-| **Decaying**                       | Collective name for the late lifecycle states (`linger → decay → disappear`).                                                               | "Decaying"                         |
-| **Telegraph** / **Telegraph cell** | Walkable, non-lethal cell that announces an upcoming wall placement (`TERRAIN_TELEGRAPH`).                                                  | "Warning cell" or just visual cue. |
-| **Hollow**                         | Cell inside a crystal's silhouette but not itself a wall. Walkable, no food spawns there (`TERRAIN_INTERIOR`).                              | "Hollow"                           |
-| **Lattice**                        | The mechanic name in `mechanics/lattice.js`.                                                                                                | Not exposed to players.            |
+| Term                               | Internal meaning                                                                                                                                                                                                              | Player-facing                      |
+| ---------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------- |
+| **Crystal**                        | A self-contained wall lifecycle (`mech.crystals[i]`) with its own state, anchor, rotation, stage, and `ownedSolid` / `ownedInterior` masks.                                                                                   | Crystal                            |
+| **Stage**                          | A defined size/silhouette of a crystal. Currently 2: _small_ (~5×5) and _full_ (~8×8).                                                                                                                                        | "Small / full crystal"             |
+| **Growing**                        | Collective name for the early lifecycle states (`telegraph_place → place → telegraph_grow → grow`).                                                                                                                           | "Growing"                          |
+| **Decaying**                       | Collective name for the late lifecycle states (`linger → decay → disappear`).                                                                                                                                                 | "Decaying"                         |
+| **Telegraph** / **Telegraph cell** | Walkable, non-lethal cell that announces something incoming on a fixed fuse. Used for crystalline wall placements (`TERRAIN_TELEGRAPH`) AND for Reginald's throw target during the 1 s windup (`CELL_CULL_TELEGRAPH`, brood). | "Warning cell" or just visual cue. |
+| **Hollow**                         | Cell inside a crystal's silhouette but not itself a wall. Walkable, no food spawns there (`TERRAIN_INTERIOR`).                                                                                                                | "Hollow"                           |
+| **Lattice**                        | The mechanic name in `mechanics/lattice.js`.                                                                                                                                                                                  | Not exposed to players.            |
 
 ## Wildlands
 
@@ -111,6 +111,47 @@ generation and rift cycle.
 | **Inter-cell wall** | The 1-cell-wide divider between two adjacent maze cells. Either fully closed or fully open. Rifts flip these.             | "Wall"           |
 | **Rift**            | The atomic mechanic operation: open one closed inter-cell wall + close one open one, preserving connectivity.             | Implicit visual. |
 | **Rifts**           | The mechanic name (`mechanics/rifts.js`).                                                                                 | Not exposed.     |
+
+## Brood
+
+Empty grid; the player places six **kin** shapes during a placement
+step, then **Sir Reginald Caw** culls them one cell at a time on a
+real-time cadence. See [`mechanics.md` → Brood](./mechanics.md#brood)
+for the placement state machine, cull lifecycle, AI targeting, and
+shield handling.
+
+| Term                 | Internal meaning                                                                                                                                              | Player-facing                                          |
+| -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------ |
+| **Brood**            | Mutation string `"brood"`. Also the collective name for the player's six kin.                                                                                 | "Brood"                                                |
+| **Kin**              | One placed shape. Lives in `game.mechanic.kin[i]` with `cells`, `name`, `kind`, `alive`, `shielded`. Per-cell hits memorialise individual cells.              | "Your brood"                                           |
+| **Hatchling**        | One of two kin "kinds" assigned at placement (`KIND_HATCHLING`). Cosmetic — used by Reginald's voice lines.                                                   | "Hatchling"                                            |
+| **Snekling**         | The other kin kind (`KIND_SNEKLING`). Cosmetic only.                                                                                                          | "Snekling"                                             |
+| **Head cell**        | The first cell of a kin's `cells` array — anchors the shape and hosts the gravestone on death. **Distinct from snake head.**                                  | Implicit (visual)                                      |
+| **Cull**             | The brood mechanic (`mechanics/cull/`). Real-time-driven; not food-bite cadence.                                                                              | Not exposed by name.                                   |
+| **Sir Reginald Caw** | The predator. Lives above the grid on the canvas panel; in the source as `PREDATOR_NAME` (`text/cull/predator.js`).                                           | "Sir Reginald Caw"                                     |
+| **Throw**            | One Reginald action: target pick → telegraph → impact. Fires every `THROW_INTERVAL_MS` (4 s).                                                                 | Implicit (visual)                                      |
+| **Memorial**         | A kin cell that has been hit. Terrain marker `TERRAIN_MEMORIAL_HEAD` (gravestone glyph, was the head) or `TERRAIN_MEMORIAL_BODY` (mound glyph).               | "Gravestone" / "mound"                                 |
+| **Gravestone**       | Memorial head-cell visual. **Disambiguator** — also a soulslike scenery cell (`CELL_GRAVESTONE`) which is unrelated.                                          | "Gravestone"                                           |
+| **Mound**            | Memorial body-cell visual.                                                                                                                                    | "Mound"                                                |
+| **Shield**           | Consumable scoped to brood (`upgrades/consumables/shield.js`). Auto-granted at act start (5 charges, reset per act). One per kin maximum.                     | "Shield"                                               |
+| **Block**            | A shielded kin absorbing a throw. Consumes the shield; kin survives; queues a block taunt.                                                                    | Visible as the kin surviving                           |
+| **Speech bubble**    | Reginald's UI line above the grid (`render/canvas/reginald.js#paintReginaldBubble`, `render/terminal/reginald.js#drawReginaldBubble`).                        | "Speech bubble"                                        |
+| **Block taunt**      | Voice category fired by a block (`BLOCK_TAUNTS` in `text/cull/block-taunts.js`).                                                                              | Surfaced in the bubble.                                |
+| **Caw-dictionary**   | Collective name for the voice-line pools under `src/text/cull/` (death / idle / pity / block / game-over taunts + hatchling names + kinds).                   | Not exposed.                                           |
+| **Pity timer**       | AI mechanism — after `random([3, 5])` consecutive search misses, the next throw forces a hit on a random alive kin. State: `m.missStreak`, `m.pityThreshold`. | Not labelled; reads as "he kept missing, then got me". |
+| **Hunt mode**        | AI mode after any cell hit. Probes cardinals of `lastKill` (skipping memorials + already-tried cells) until a kill, miss, or exhaustion reverts to search.    | Reads as "battleship" behaviour.                       |
+
+## Score
+
+Cross-mutation cumulative score, layered with per-mutation extras at
+act-clear. See
+[`mechanics.md` → Score](./mechanics.md#score) for hooks + constants.
+
+| Term           | Internal meaning                                                                                                                                                                                       | Player-facing |
+| -------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ------------- |
+| **totalScore** | The leaderboard sort key. `game.totalScore`. Constants in `src/core/score/constants.js`; brood-specific extras in `src/core/mechanics/cull/constants.js` (`SCORE_PER_KIN`, `SCORE_PER_UNUSED_SHIELD`). | "Score"       |
+| **Bites**      | Total food eaten in the run (`game.score`). Distinct from `totalScore` — bites is just food-bite count, not points.                                                                                    | "Bites"       |
+| **Pelt**       | Reserved term for a future cross-act trophy concept; not yet wired. Mentioned in PLAN docs.                                                                                                            | —             |
 
 ## Boss fights
 
@@ -224,12 +265,12 @@ the spec shape, animation convention, and folder layout.
 
 ## Snake
 
-| Term                | Meaning                                                                                                                   |
-| ------------------- | ------------------------------------------------------------------------------------------------------------------------- |
-| **Head** / **Tail** | Ring-buffer endpoints (`headIndex`, `tailIndex` in `snake/index.js`).                                                     |
-| **Length**          | Body cell count (`snake.snakeLength`). Resets to `INITIAL_SNAKE_LENGTH` at the start of each act — does _not_ carry over. |
-| **Facing**          | Boss-mode aim direction (`game._playerFacing`). Distinct from movement direction.                                         |
-| **Held direction**  | The latched movement input in boss mode (`game._heldDirection`).                                                          |
+| Term                | Meaning                                                                                                                                                                            |
+| ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Head** / **Tail** | Ring-buffer endpoints (`headIndex`, `tailIndex` in `snake/index.js`). **Disambiguator** — "head cell" in brood refers to a kin's anchor cell (gravestone on death), not the snake. |
+| **Length**          | Body cell count (`snake.snakeLength`). Resets to `INITIAL_SNAKE_LENGTH` at the start of each act — does _not_ carry over.                                                          |
+| **Facing**          | Boss-mode aim direction (`game._playerFacing`). Distinct from movement direction.                                                                                                  |
+| **Held direction**  | The latched movement input in boss mode (`game._heldDirection`).                                                                                                                   |
 
 ## Vocabulary decisions
 

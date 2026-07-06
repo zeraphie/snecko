@@ -27,6 +27,12 @@ import {
   CELL_WALL_CATACOMB,
   CELL_WALL_CRYSTAL,
   CELL_CRYSTAL_TELEGRAPH,
+  CELL_KIN_ALIVE_HEAD,
+  CELL_KIN_ALIVE_BODY,
+  CELL_KIN_MEMORIAL_GRAVESTONE,
+  CELL_KIN_MEMORIAL_MOUND,
+  CELL_CULL_TELEGRAPH,
+  CELL_CULL_IMPACT,
   CELL_ANCHOR_LOCK,
   CELL_DANGER_TRAIL,
   CELL_ECHO_ZONE,
@@ -36,6 +42,7 @@ import {
 import { drawCell } from "../grid/cell/index.js";
 import { setActiveRenderer } from "../../render/active.js";
 import { getPlayerCells } from "../boss/player.js";
+import { getThrowCells } from "../mechanics/cull/index.js";
 import {
   TERRAIN_LOW,
   TERRAIN_HIGH,
@@ -44,6 +51,10 @@ import {
   TERRAIN_CATACOMB,
   TERRAIN_CRYSTAL,
   TERRAIN_CRYSTAL_TELEGRAPH,
+  TERRAIN_KIN_HEAD,
+  TERRAIN_KIN_BODY,
+  TERRAIN_MEMORIAL_HEAD,
+  TERRAIN_MEMORIAL_BODY,
 } from "../grid/constants.js";
 import { getScreen } from "../../screens/registry.js";
 import { STATE_PLAYING, STATE_BOSS } from "./constants.js";
@@ -248,6 +259,14 @@ export function _drawGrid() {
           cell = CELL_WALL_CATACOMB;
         } else if (t === TERRAIN_CRYSTAL) {
           cell = CELL_WALL_CRYSTAL;
+        } else if (t === TERRAIN_KIN_HEAD) {
+          cell = CELL_KIN_ALIVE_HEAD;
+        } else if (t === TERRAIN_KIN_BODY) {
+          cell = CELL_KIN_ALIVE_BODY;
+        } else if (t === TERRAIN_MEMORIAL_HEAD) {
+          cell = CELL_KIN_MEMORIAL_GRAVESTONE;
+        } else if (t === TERRAIN_MEMORIAL_BODY) {
+          cell = CELL_KIN_MEMORIAL_MOUND;
         } else {
           cell = CELL_WALL;
         }
@@ -273,6 +292,47 @@ export function _drawGrid() {
   // crystal lifecycle so the cluster reads as "one shape with spikes"
   // rather than per-cell facets. Optional method (canvas only).
   this.renderer?.drawCrystalClusters?.(this);
+
+  const cull = this.mechanic;
+
+  // Shielded kin marker — overlay each cell of an actively-shielded
+  // kin so the player can tell which kin is protected without having
+  // to remember. Drawn under the cull throw overlay so a telegraph /
+  // impact flash on a shielded cell still reads.
+  if (cull && cull.type === "cull" && cull.kin) {
+    for (const k of cull.kin) {
+      if (!k.shielded) {
+        continue;
+      }
+      for (const [sx, sy] of k.cells) {
+        this.renderer?.drawShieldedKinCell?.(sx, sy);
+      }
+    }
+  }
+
+  // Mines — visible to the player only (Reginald has no line-of-sight on
+  // them). Drawn above kin/shield markers so they stand out; a telegraph
+  // or impact flash still overwrites on top.
+  if (cull && cull.type === "cull" && cull.mines) {
+    for (const key of cull.mines) {
+      const [mxStr, myStr] = key.split(",");
+      const mx = Number(mxStr);
+      const my = Number(myStr);
+      this.renderer?.drawMineCell?.(mx, my);
+    }
+  }
+
+  // Cull throw overlay — Reginald's target(s) during the telegraph fuse
+  // and the impact flash. For normal throws that's a single cell; for
+  // plus / line bombs it's the full multi-cell footprint. Drawn over
+  // whatever occupies the cell so the hit reads; the snake (drawn next)
+  // stays on top.
+  if (cull && cull.type === "cull" && (cull.state === "telegraph" || cull.state === "impact")) {
+    const overlayCell = cull.state === "telegraph" ? CELL_CULL_TELEGRAPH : CELL_CULL_IMPACT;
+    for (const [x, y] of getThrowCells(cull, this.grid)) {
+      drawCell(x, y, overlayCell);
+    }
+  }
 
   const snake = this.snake;
   let idx = snake.tailIndex;

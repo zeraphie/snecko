@@ -26,3 +26,9 @@ export const SUBSEED_CATACOMBS = 8009;
 
 /** Catacombs rifts mechanic — stateful RNG for the rift sequence. */
 export const SUBSEED_RIFTS = 8521;
+
+/** Brood kin naming — one-shot per act, picks names + kinds for the 6 shapes. */
+export const SUBSEED_BROOD = 9013;
+
+/** Brood sparse walls — one-shot per act, scatters obstacles across the grid. */
+export const SUBSEED_BROOD_WALLS = 9109;

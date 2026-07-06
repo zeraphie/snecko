@@ -42,12 +42,38 @@ export function drawScreen(r, name, lines) {
  * @param {number} selectedIndex
  * @param {boolean} mutationAccepted
  */
-export function drawDraftScreen(r, choices, mutation, selectedIndex, mutationAccepted) {
+export function drawDraftScreen(
+  r,
+  choices,
+  mutation,
+  selectedIndex,
+  mutationAccepted,
+  lastActBonuses
+) {
   const fullWidth = r._w * 2;
   const lines = [];
 
   lines.push("");
   lines.push(`  ${LABELS.draft.title}`);
+  if (lastActBonuses) {
+    const parts = [];
+    if (lastActBonuses.food > 0) {
+      parts.push(`${LABELS.draft.scoreFood}: ${lastActBonuses.food}`);
+    }
+    if (lastActBonuses.act > 0) {
+      parts.push(`${LABELS.draft.scoreAct}: ${lastActBonuses.act}`);
+    }
+    if (lastActBonuses.kin > 0) {
+      parts.push(`${LABELS.draft.scoreKin}: ${lastActBonuses.kin}`);
+    }
+    if (lastActBonuses.shields > 0) {
+      parts.push(`${LABELS.draft.scoreShields}: ${lastActBonuses.shields}`);
+    }
+    if (parts.length > 0) {
+      lines.push(`  ${DIM}${parts.join("   ")}${RESET}`);
+      lines.push(`  +${lastActBonuses.total} ${LABELS.draft.scoreTotal}`);
+    }
+  }
   lines.push("");
 
   for (let i = 0; i < choices.length; i++) {

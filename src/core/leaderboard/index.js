@@ -1,16 +1,19 @@
 // leaderboard.js — Local top-5 leaderboard backed by localStorage.
 //
 // Entries are sorted by:
-//   1. Highest act
-//   2. Highest progress (foodEaten in the act the run ended in)
-//   3. Highest bites (total food-bites across the run)
-//   4. Lowest time (seconds elapsed)
+//   1. Highest totalScore (cross-mutation; legacy entries without the
+//      field back-compute from bites + acts cleared)
+//   2. Highest act (tie-breaker)
+//   3. Highest progress (tie-breaker)
+//   4. Lowest time (tie-breaker)
 // The list is truncated to TOP_N entries on every save.
 //
 // Storage is via globalThis.localStorage. In environments that don't
 // expose it (Node terminal, tests without a polyfill), `loadLeaderboard`
 // returns an empty list and `saveLeaderboard` is a no-op — the
 // leaderboard becomes a non-persistent runtime feature, no errors.
+
+import { SCORE_PER_FOOD, SCORE_PER_ACT } from "../score/constants.js";
 
 const STORAGE_KEY = "snecko_leaderboard";
 const NAME_KEY = "snecko_player_name";
@@ -26,10 +29,32 @@ export const MAX_NAME_LENGTH = 12;
  * @property {number} foodRequired  — foodRequired for that act (display only)
  * @property {number} bites         — total score (food-bites across the run)
  * @property {number} time          — runTime in seconds
+ * @property {number} [totalScore]  — cross-mutation point total. Optional
+ *                                    for back-compat with pre-Step-15 entries.
  *
  * Mutation is intentionally not recorded: the player can switch mutations
  * mid-run via the upgrade draft, so a single label would be misleading.
  */
+
+/**
+ * Returns an entry's effective totalScore. Honours the stored field;
+ * back-computes from bites + acts cleared (act - 1) when missing so
+ * legacy entries sort meaningfully against new ones. The back-compute
+ * is a lower bound — actual play would have accumulated kin / shield
+ * bonuses too — but that's the best we can do without re-running the
+ * game.
+ *
+ * @param {LeaderboardEntry} entry
+ * @returns {number}
+ */
+export function entryTotalScore(entry) {
+  if (typeof entry.totalScore === "number") {
+    return entry.totalScore;
+  }
+  const bites = entry.bites ?? 0;
+  const actsCleared = Math.max(0, (entry.act ?? 1) - 1);
+  return bites * SCORE_PER_FOOD + actsCleared * SCORE_PER_ACT;
+}
 
 /**
  * Returns the leaderboard array from storage. Empty array if storage
@@ -89,18 +114,21 @@ export function recordScore(entry) {
 }
 
 /**
- * Sort comparator: higher act first, then higher progress, then higher
- * bites, then lower time. Returns the standard Array.sort sign convention.
+ * Sort comparator: higher totalScore first (with back-compute for
+ * pre-Step-15 entries), then higher act, then higher progress, then
+ * lower time. Returns the standard Array.sort sign convention.
  */
 export function compareScores(a, b) {
+  const ta = entryTotalScore(a);
+  const tb = entryTotalScore(b);
+  if (ta !== tb) {
+    return tb - ta;
+  }
   if (a.act !== b.act) {
     return b.act - a.act;
   }
   if (a.progress !== b.progress) {
     return b.progress - a.progress;
-  }
-  if (a.bites !== b.bites) {
-    return b.bites - a.bites;
   }
   return a.time - b.time;
 }

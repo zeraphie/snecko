@@ -26,6 +26,8 @@ import {
   ACTION_STAB,
   ACTION_DODGE,
   ACTION_PARRY,
+  ACTION_ROTATE,
+  ACTION_UNDO,
 } from "./actions.js";
 
 // ── Key name → action mapping ─────────────────────────────────────
@@ -47,6 +49,9 @@ const KEY_MAP = {
   j: ACTION_STAB,
   k: ACTION_DODGE,
   l: ACTION_PARRY,
+  // Brood placement keys.
+  r: ACTION_ROTATE,
+  backspace: ACTION_UNDO,
 };
 
 /** Maps directional actions to their release counterparts. */
@@ -146,11 +151,15 @@ export class KeyboardTerminalController extends Controller {
       return;
     }
 
-    // Esc opens the in-game menu from start, dead, or playing states.
-    // Inside the menu, Esc closes — handled by the dispatcher's menu branch.
+    // Esc opens the in-game menu from start, dead, playing, or
+    // brood-placement states. Inside the menu, Esc closes — handled by
+    // the dispatcher's menu branch.
     if (
       key.name === "escape" &&
-      (game.state === "start" || game.state === "dead" || game.state === "playing")
+      (game.state === "start" ||
+        game.state === "dead" ||
+        game.state === "playing" ||
+        game.state === "brood_placement")
     ) {
       game.openMenu();
       return;
@@ -159,6 +168,13 @@ export class KeyboardTerminalController extends Controller {
     // Esc on the soulslike YOU DIED overlay returns to the practice hub.
     if (key.name === "escape" && game.state === "dead_soulslike") {
       game.dismissYouDied();
+      return;
+    }
+
+    // Esc / Enter on the brood game-over overlay records the run via
+    // the standard name-input flow.
+    if ((key.name === "escape" || key.name === "return") && game.state === "dead_brood") {
+      game.dismissBroodGameOver();
       return;
     }
 

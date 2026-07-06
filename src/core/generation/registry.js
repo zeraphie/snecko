@@ -13,6 +13,7 @@ import {
 } from "./index.js";
 import { generateWildlandsGrid, advanceWildlandsGrid } from "./wildlands/generator.js";
 import { generateCatacombsGrid, advanceCatacombsGrid } from "./catacombs/generator.js";
+import { generateBroodGrid, advanceBroodGrid } from "./brood/generator.js";
 
 /**
  * @typedef {Object} MutationEntry
@@ -25,6 +26,7 @@ export const MUTATIONS = {
   crystalline: { generate: generateCrystallineGrid, advance: advanceCrystallineGrid },
   wildlands: { generate: generateWildlandsGrid, advance: advanceWildlandsGrid },
   catacombs: { generate: generateCatacombsGrid, advance: advanceCatacombsGrid },
+  brood: { generate: generateBroodGrid, advance: advanceBroodGrid },
 };
 
 /**

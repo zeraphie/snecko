@@ -6655,3 +6655,113 @@ describe("destructible boss body", () => {
     expect(boss.hp).toBe(hpBefore - 1);
   });
 });
+
+// ── Step 14: cross-mutation totalScore ──────────────────────────────
+
+describe("totalScore (Step 14)", () => {
+  let game;
+
+  beforeEach(() => {
+    game = new Game();
+    game.manifest = buildTestManifest();
+    // Minimal advanceGrid — places the next food right ahead of the
+    // snake so a single tick can eat it.
+    game.advanceGrid = (g) => {
+      const hx = g.snake.snakeX[g.snake.headIndex];
+      const hy = g.snake.snakeY[g.snake.headIndex];
+      g.grid.foodX = hx + g.snake.dirX;
+      g.grid.foodY = hy + g.snake.dirY;
+    };
+    game.startRun();
+  });
+
+  it("constructor starts with totalScore = 0", () => {
+    const fresh = new Game();
+    expect(fresh.totalScore).toBe(0);
+  });
+
+  it("startRun resets totalScore to 0", () => {
+    game.totalScore = 1234;
+    game.startRun();
+    expect(game.totalScore).toBe(0);
+  });
+
+  it("eating food adds SCORE_PER_FOOD to totalScore", () => {
+    const hx = game.snake.snakeX[game.snake.headIndex];
+    const hy = game.snake.snakeY[game.snake.headIndex];
+    game.grid.foodX = hx + 1;
+    game.grid.foodY = hy;
+    game.lastTickTime = 0;
+    game.tick();
+    expect(game.totalScore).toBe(10); // SCORE_PER_FOOD = 10
+  });
+
+  it("clearing an act adds SCORE_PER_ACT on top of the per-food contribution", () => {
+    // Act 1 requires 7 food. After 7 eaten: 7*10 (food) + 100 (act).
+    const required = game.foodRequired;
+    for (let i = 0; i < required; i++) {
+      const hx = game.snake.snakeX[game.snake.headIndex];
+      const hy = game.snake.snakeY[game.snake.headIndex];
+      game.grid.foodX = hx + game.snake.dirX;
+      game.grid.foodY = hy + game.snake.dirY;
+      game.lastTickTime = 0;
+      game.tick();
+      if (game.state !== Game.STATE_PLAYING) {
+        break;
+      }
+    }
+    expect(game.state).toBe(Game.STATE_DRAFT);
+    expect(game.totalScore).toBe(required * 10 + 100);
+  });
+
+  it("totalScore persists across acts within a run", () => {
+    const required = game.foodRequired;
+    for (let i = 0; i < required; i++) {
+      const hx = game.snake.snakeX[game.snake.headIndex];
+      const hy = game.snake.snakeY[game.snake.headIndex];
+      game.grid.foodX = hx + game.snake.dirX;
+      game.grid.foodY = hy + game.snake.dirY;
+      game.lastTickTime = 0;
+      game.tick();
+      if (game.state !== Game.STATE_PLAYING) {
+        break;
+      }
+    }
+    const afterAct1 = game.totalScore;
+    expect(afterAct1).toBe(required * 10 + 100);
+    // Step through the draft so the next act begins.
+    if (game.state === Game.STATE_DRAFT) {
+      game.confirmDraft();
+    }
+    // Eat one more food in the next act.
+    const hx = game.snake.snakeX[game.snake.headIndex];
+    const hy = game.snake.snakeY[game.snake.headIndex];
+    game.grid.foodX = hx + game.snake.dirX;
+    game.grid.foodY = hy + game.snake.dirY;
+    game.lastTickTime = 0;
+    game.tick();
+    expect(game.totalScore).toBe(afterAct1 + 10);
+  });
+
+  it("act-clear stashes a breakdown on _lastActBonuses", () => {
+    const required = game.foodRequired;
+    for (let i = 0; i < required; i++) {
+      const hx = game.snake.snakeX[game.snake.headIndex];
+      const hy = game.snake.snakeY[game.snake.headIndex];
+      game.grid.foodX = hx + game.snake.dirX;
+      game.grid.foodY = hy + game.snake.dirY;
+      game.lastTickTime = 0;
+      game.tick();
+      if (game.state !== Game.STATE_PLAYING) {
+        break;
+      }
+    }
+    expect(game.state).toBe(Game.STATE_DRAFT);
+    expect(game._lastActBonuses).not.toBeNull();
+    expect(game._lastActBonuses.food).toBe(required * 10);
+    expect(game._lastActBonuses.act).toBe(100);
+    expect(game._lastActBonuses.kin).toBe(0); // not brood
+    expect(game._lastActBonuses.shields).toBe(0); // not brood
+    expect(game._lastActBonuses.total).toBe(required * 10 + 100);
+  });
+});

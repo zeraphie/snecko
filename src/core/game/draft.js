@@ -64,6 +64,19 @@ export function confirmDraft() {
     return;
   }
 
+  // Snapshot the snake's last-act position before any upgrade applies —
+  // brood mutation reads this to spawn the snake where it ended the
+  // previous brood act (D20). Captured for any current-mutation = brood,
+  // independent of whether the next act stays brood.
+  if (this.upgrades.mutation === "brood") {
+    this._lastSnake = {
+      x: this.snake.snakeX[this.snake.headIndex],
+      y: this.snake.snakeY[this.snake.headIndex],
+      dx: this.snake.dirX,
+      dy: this.snake.dirY,
+    };
+  }
+
   // Apply selected upgrade(s)
   if (this._draftPool) {
     this._applyUpgrade(this._draftPool.choices[this._draftSelection]);
