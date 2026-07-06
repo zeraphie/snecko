@@ -1,6 +1,6 @@
 {
   "name": "snecko",
-  "version": "0.9.0",
+  "version": "0.10.0",
   "private": true,
   "description": "Snake + Roguelike game",
   "type": "module",
@@ -16,7 +16,7 @@
     "setup:bindings": "npm install --no-save @oxlint/binding-win32-x64-msvc @oxfmt/binding-win32-x64-msvc",
     "play": "node src/main.terminal.js",
     "serve": "npx --yes serve .",
-    "upload:build": "bun build ./index.html --outdir ./dist --production --minify --define:__DEV_BUILD__=false && cp -R assets dist/assets",
+    "upload:build": "bun build ./index.html --outdir ./dist --production --minify --define:__DEV_BUILD__=false && cp -R assets dist/assets && cp package.json dist/package.json",
     "upload:serve": "npx --yes serve ./dist"
   },
   "devDependencies": {

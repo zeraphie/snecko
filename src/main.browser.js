@@ -13,6 +13,21 @@ import { paintReginald, paintReginaldBubble } from "./render/canvas/reginald.js"
 // board isn't empty before the player has finished a run.
 ensureSeeded();
 
+// Version — read at runtime from package.json (copied to dist by
+// upload:build; served from repo root in dev). Falls back silently so a
+// missing / unfetched package.json doesn't break the page.
+fetch("./package.json")
+  .then((r) => r.json())
+  .then((pkg) => {
+    const v = `v${pkg.version}`;
+    const el = document.getElementById("snecko-version");
+    if (el) {
+      el.textContent = v;
+    }
+    document.title = `Snecko ${v}`;
+  })
+  .catch(() => {});
+
 const CELL_SIZE = 20;
 const game = new Game();
 game.generateGrid = generateGrid;
